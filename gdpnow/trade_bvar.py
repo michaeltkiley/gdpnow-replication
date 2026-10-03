@@ -71,6 +71,24 @@ def _fit_forecast(Y, known, lags, lam, delta):
     return bvar.conditional_forecast(Y.to_numpy(), B, lags, 1, known)[0]
 
 
+def choose_lambda(hist, lags, grid, n_test):
+    """Tightness for a BVAR whose lambda the documentation does not give: the grid value with the lowest
+    recursive pseudo-out-of-sample error over the last n_test months, forecasting the first 6 variables (the
+    shares) one step ahead conditional on the other variables of that month (re-estimated every run)."""
+    Y = hist.to_numpy()
+    err = {}
+    for lam in grid:
+        e = []
+        for m in range(len(Y) - n_test, len(Y)):
+            known = np.full((1, Y.shape[1]), np.nan)
+            known[0, 6:] = Y[m, 6:]
+            B = bvar.fit(Y[:m], lags, lam, np.ones(Y.shape[1]), sum_coef=False)
+            f = bvar.conditional_forecast(Y[:m], B, lags, 1, known)[0]
+            e.append(np.mean((f[:6] - Y[m, :6]) ** 2))
+        err[lam] = np.mean(e)
+    return min(err, key=err.get)
+
+
 def gold_adjusted_growth(cx, prices, aei, t):
     """Growth of Census-basis goods exports/imports ex gold from t-1 to t (gold BVAR). Returns {'exports': g, 'imports': g}."""
     spec = SPEC['bvar_gold']
@@ -138,7 +156,8 @@ def capital_goods_t(cx, ship, aei, t):
             ['lship_air', 'lship_comp', 'lship_core', 'ltot_exports', 'ltot_imports']
     Y = pd.DataFrame(cols)[order]
     hist = Y.loc[:tm1].dropna()
-    f = _fit_forecast(hist, Y.loc[[t]].to_numpy(), spec['lags'], spec['lambda'], np.ones(len(order)))
+    lam = choose_lambda(hist, spec['lags'], spec['lambda_grid'], spec['cv_months'])
+    f = _fit_forecast(hist, Y.loc[[t]].to_numpy(), spec['lags'], lam, np.ones(len(order)))
     res = {}
     for j, name in enumerate(order[:6]):
         _, k, flow = name.split('_')

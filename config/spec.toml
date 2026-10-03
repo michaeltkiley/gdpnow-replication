@@ -63,7 +63,9 @@ lambda = 0.25                          # Mods Mar-2025 fn 2; fixed
 [bvar_capital_goods_shares]
 variables = 11
 lags = 6                            # Mods Oct-2017 (equipment)
-lambda = 0.25                       # NOT documented for this BVAR: assumed equal to the gold BVAR's (Mods Mar-2025); sensitivity to be reported
+# lambda is not documented for this BVAR: chosen each run by recursive pseudo-out-of-sample error (trade_bvar.choose_lambda)
+lambda_grid = [0.01, 0.02, 0.05, 0.1, 0.25, 0.5]
+cv_months = 36
 
 [aggregation]
 method = "Fisher chain"             # WP appendix A3
