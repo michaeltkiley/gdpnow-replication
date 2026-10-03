@@ -89,6 +89,18 @@ def splice(con, name, live, proxies=(), asof='', kind='log', reference=None, ref
     stored = _load(con, name)
     g_store = pd.Series(stored.growth.to_numpy(), index=pd.to_datetime(stored.date))
     src = pd.Series(stored.source.to_numpy(), index=pd.to_datetime(stored.date))
+    # Definition-change guard: stored 'live' growth that no longer agrees with what the live source gives for the
+    # same months means the series was redefined (revisions are small); its stored live rows are then discarded.
+    old_live = g_store[src == 'live']
+    ov = old_live.index.intersection(g_live.index)
+    if len(ov) >= 12:
+        c = float(old_live[ov].corr(g_live[ov]))
+        mad = float((old_live[ov] - g_live[ov]).abs().median())
+        if not (c >= 0.98 and mad <= 0.005):
+            con.execute(f"DELETE FROM {TABLE} WHERE name = ? AND source = 'live'", [name])
+            _record_check(con, name, 'store_reset', c, len(ov), None, False, asof,
+                          f'stored live growth disagreed with current live (corr {c:.3f}, median abs diff {mad:.4f}): redefinition, rows dropped')
+            g_store, src = g_store[src != 'live'], src[src != 'live']
     layers = [('live', g_live), ('stored_live', g_store[src == 'live'])]
     for lab, p in proxies:
         gp = growth(p.dropna(), kind).dropna()

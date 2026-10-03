@@ -377,16 +377,20 @@ def services_trade_deflators(cx, prices):
     deflator log change on the goods import (export) price log change and the deflator's lagged 4-quarter
     change; monthly series built with the fitted quarterly relation applied to monthly goods price changes."""
     out = []
-    for line_n, line_r, goods in [(21, 21, 'PMEA_USECONsplicefr'), (18, 18, 'PXEA_USECONsplicefr')]:
+    # Goods price in the regression: exports = BLS all-exports index (verified exact); imports = BLS all imports
+    # excluding petroleum (IREXPET; R^2 = 1.000 against the workbook's deflator; the weighted PMEA does not fit).
+    gprice = {'PXEA_USECONsplicefr': prices['PXEA_USECONsplicefr'],
+              'IREXPET': splice_back(cx.fred('IREXPET'), prices['PMEA_USECONsplicefr'])}
+    for line_n, line_r, goods in [(21, 21, 'IREXPET'), (18, 18, 'PXEA_USECONsplicefr')]:
         d = 100 * cx.bea('T10105', 'Q', line=line_n) / cx.bea('T10106', 'Q', line=line_r)
-        gq = np.log(prices[goods].resample('QE').mean())
+        gq = np.log(gprice[goods].resample('QE').mean())
         y, x1, x2 = np.log(d).diff(), gq.diff(), np.log(d).diff(4).shift(1)
         dd = pd.concat([y, x1, x2], axis=1, keys=['y', 'a', 'b']).dropna()
         A = np.column_stack([np.ones(len(dd)), dd.a, dd.b])
         beta = np.linalg.lstsq(A, dd.y.to_numpy(), rcond=None)[0]
         # Every month (history included) follows the fitted relation applied to the monthly goods price change
         # and the previous quarter's 4-quarter deflator change (verified against the workbook: exports corr 1.000).
-        gm = np.log(prices[goods]).diff()
+        gm = np.log(gprice[goods]).diff()
         lag4 = np.log(d).diff(4)
         l4 = pd.Series(lag4.reindex(pd.DatetimeIndex(gm.index.to_period('Q').end_time.normalize()) - pd.offsets.QuarterEnd(1)).to_numpy(),
                        index=gm.index)
@@ -489,7 +493,8 @@ def bea_travel_monthly(cx):
         m0 = d.index[d.iloc[:, 0].astype(str).str.strip() == 'Monthly'][0]
         s_ = d.iloc[m0 + 1:, [0, col]].dropna()
         s_.columns = ['p', 'v']
-        s_['d'] = pd.to_datetime(s_.p.astype(str).str.strip().str.replace(r'\s+', ' ', regex=True), format='%Y %b', errors='coerce') + pd.offsets.MonthEnd(0)
+        s_['d'] = pd.to_datetime(s_.p.astype(str).str.replace(r'\(.*?\)', '', regex=True).str.strip().str.replace(r'\s+', ' ', regex=True),
+                                format='%Y %b', errors='coerce') + pd.offsets.MonthEnd(0)      # strip (R)/(P) markers
         out.append(pd.to_numeric(s_.dropna(subset=['d']).set_index('d').v, errors='coerce').dropna().sort_index())
     cx.cache['travel'] = (asof_cut(out[0], cx.asof), asof_cut(out[1], cx.asof))
     return cx.cache['travel']
@@ -682,7 +687,8 @@ def build_indicators(cx, prices, nipa_q, inv):
     eci_m = atkeson_ohanian(eci, prices.index)
     inputs = f('WPUIP2321001').loc[:'2014-12-31']
     parts = pd.concat([np.log(prices['CCIHD_USECONfr']), np.log(inputs), np.log(eci_m)], axis=1)
-    improv = np.exp(parts.mean(axis=1, skipna=True).where(parts.iloc[:, 0].notna() & parts.iloc[:, 2].notna()))
+    gpart = parts.diff().mean(axis=1, skipna=True).where(parts.iloc[:, 0].diff().notna() & parts.iloc[:, 2].diff().notna())
+    improv = np.exp(gpart.dropna().cumsum())          # chained growth: no level break when the PPI term ends
     L['SplicedBuildingMaterials'] = f('RSBMGESD') / improv
     L['RetSalesResEquip'] = (f('RSFHFS') + f('RSEAS')) / prices['CPIMajappSplicefr']
     mh_price = seasadj(f('SPTNSAUS'), '2014')
