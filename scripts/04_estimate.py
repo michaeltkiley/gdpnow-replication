@@ -44,6 +44,8 @@ def run_l3(a, con, vintage, wb):
         rows += [('bridge', lhs, k, wb.bridge.get(lhs, {}).get(k), v) for k, v in c.items()]
     rows += [('blend', k, 'monthly', wb.blend[k][0], v[0]) for k, v in est.blend.items()]
     rows += [('bvar', k, '', wb.bvar.get(k), v) for k, v in est.bvar.items()]
+    for k, v in diag.get('blend_sample', {}).items():
+        rows.append(('blend_sample', k, v.get('start'), None, v.get('n')))
     pd.DataFrame(rows, columns=['block', 'item', 'term', 'workbook', 'ours']).to_csv(
         DATA / f'{a.asof.replace("-", "")}_diagnostics_{run_id}.csv', index=False)
     est_pkl = DATA / f'{a.asof.replace("-", "")}_estimated_{run_id}.pkl'

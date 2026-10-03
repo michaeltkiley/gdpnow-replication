@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.x13 import x13_arima_analysis
 
-from . import public_data as P
+from . import history as H, public_data as P
 from .config import ROOT, load_toml
 
 X13 = str(ROOT / 'tools' / 'x13' / 'x13as' / 'x13as_ascii')
@@ -99,10 +99,48 @@ def census(series, dataset, category, data_type, seasonal='yes', time_from='1992
 
 
 class Ctx:
-    """Cached access to the sources, as of one date."""
+    """Cached access to the sources, as of one date. `ref_vintage` names a GDPNow workbook vintage loaded in
+    DuckDB: its series serve as the last backward-splicing layer and as the splice quality reference."""
 
-    def __init__(self, con, asof):
-        self.con, self.asof, self.cache = con, str(asof), {}
+    def __init__(self, con, asof, ref_vintage=None):
+        self.con, self.asof, self.cache, self.ref_vintage = con, str(asof), {}, ref_vintage
+        self._refs = {}
+
+    def ref(self, sheet, col):
+        """Workbook level series for `col`, or None (no reference in production without a workbook)."""
+        if self.ref_vintage is None:
+            return None
+        if sheet not in self._refs:
+            from . import store
+            self._refs[sheet] = store.series_frame(self.con, self.ref_vintage, sheet)
+        f = self._refs[sheet]
+        return f[col].dropna() if col in f else None
+
+    def splice(self, name, live, proxies=(), sheet=None, col=None, kind=None):
+        """Durable long history for `name` (gdpnow/history.py); reference layer from the workbook if available."""
+        live = live.dropna()
+        ref = self.ref(sheet, col or name) if sheet else None
+        if kind is None:
+            pos = (live > 0).all() and (ref is None or (ref > 0).all())
+            kind = 'log' if pos else 'diff'
+        label = f'workbook:{self.ref_vintage}'
+        try:
+            return H.splice(self.con, name, live, proxies, self.asof, kind, reference=ref, ref_label=self.ref_vintage)[0]
+        except Exception as e:                       # never lose a series because history splicing failed
+            print(f'  splice skipped for {name}: {str(e)[:80]}')
+            return live
+
+    def long_history(self, df, sheet):
+        """Splice every column of df backward (reference layer) where the workbook series is longer."""
+        out = {}
+        for c in df.columns:
+            live = df[c].dropna()
+            ref = self.ref(sheet, c)
+            if len(live) and ref is not None and ref.index.min() < live.index.min() - pd.offsets.MonthEnd(12):
+                out[c] = self.splice(c, live, (), sheet, c)
+            else:
+                out[c] = df[c]
+        return pd.DataFrame(out)
 
     def fred(self, fid):
         if ('f', fid) not in self.cache:
@@ -187,7 +225,7 @@ def build_prices(cx):
     out['TornPriceNonResStrMthfr'] = structures_price(cx, idx)
     out['PMEA_USECONsplicefr'] = goods_import_price(cx)
     out['MGDPN_USECONsplicefr'] = monthly_nominal_gdp(cx)
-    df = pd.DataFrame({k: me(v) for k, v in out.items()}).sort_index()
+    df = cx.long_history(pd.DataFrame({k: me(v) for k, v in out.items()}).sort_index(), 'MonthlyPriceLevels')
     svc = services_trade_deflators(cx, df)
     df['ImpSvcDefmthA1fr'], df['ExpSvcDefmthA1fr'] = svc
     return df
@@ -406,7 +444,7 @@ def build_inventory(cx, prices, regional):
     # Discontinued SIC-basis sales deflators are not available publicly; the core BVAR runs on NAICS data.
     for c in ['DTSMD1_USNA', 'DTSMN1_USNA', 'DTSW1_USNA', 'DTSRX1_USNA', 'DTSRAD1_USNA']:
         raw[c] = empty()
-    return pd.DataFrame({k: me(v) if len(v) else v for k, v in raw.items()}).sort_index()
+    return cx.long_history(pd.DataFrame({k: me(v) if len(v) else v for k, v in raw.items()}).sort_index(), 'InventoryRaw')
 
 
 def regional_surveys(cx):
@@ -542,7 +580,9 @@ def build_indicators(cx, prices, nipa_q, inv):
     # Autos and trucks (NIPA underlying detail 7.2.5S).
     u7 = lambda n: b('U70205S', line=n)
     L['ASCPU@USNA'] = u7(11)
-    L['BusShareTrucks'] = 100 * (1 - consumer_truck_share(cx))
+    bus = 100 * (1 - consumer_truck_share(cx))
+    flat = pd.Series(bus.dropna().iloc[:12].mean(), index=pd.date_range('1976-01-31', bus.dropna().index[0], freq='ME'))
+    L['BusShareTrucks'] = cx.splice('BusShareTrucks', bus, [('constant_share', flat)], 'MonthlyLevels', kind='diff')
     # Housing constructions.
     price_new = prices['SA_HN1PA_USECON_fr']
     L['NomSingleStarts'] = f('HOUST1F') * price_new / prices['CCIHD_USECONfr']
@@ -556,7 +596,9 @@ def build_indicators(cx, prices, nipa_q, inv):
     L['RetSalesResEquip'] = (f('RSFHFS') + f('RSEAS')) / prices['CPIMajappSplicefr']
     mh_price = seasadj(f('SPTNSAUS'), '2014')
     mh = f('SHTSAUS') * 12 * mh_price.reindex(f('SHTSAUS').index).ffill()
-    L['MobileHomeVal'] = mh / seasadj(f('WPU1553'), '1985')
+    units = f('SHTSAUS')
+    L['MobileHomeVal'] = cx.splice('MobileHomeVal', mh / seasadj(f('WPU1553'), '1985'),
+                                   [('shipments_units', units)], 'MonthlyLevels')       # units only before 2014 (no public price history)
     L['HSM@USECON'] = f('SHTSAUS') * 12 / 1000
     # Treasury outlays (X-13 adjusted, CPI-deflated).
     L['saFTO@USECON'] = seasadj(f('MTSO133FMS'), '1990') / cpi
@@ -582,7 +624,8 @@ def build_indicators(cx, prices, nipa_q, inv):
     # Philly Fed survey levels (BOFGX future activity; BOISM current activity on ISM-style scale).
     L['BOFGX@SURVEYS'] = f('GAFDFSA066MSFRBPHI')
     L['BOISM@SURVEYS'] = 50 + f('GACDFSA066MSFRBPHI') / 2
-    return pd.DataFrame({k: me(v) for k, v in L.items()}).sort_index(), pd.DataFrame({k: me(v) for k, v in contrib.items()})
+    levels = cx.long_history(pd.DataFrame({k: me(v) for k, v in L.items()}).sort_index(), 'MonthlyLevels')
+    return levels, pd.DataFrame({k: me(v) for k, v in contrib.items()})
 
 
 def consumer_truck_share(cx):
@@ -591,6 +634,43 @@ def consumer_truck_share(cx):
     t = cx.bea('U70205S')
     ln = lambda n: t[[c for c in t.columns if c.split('|')[0] == str(n)][0]]
     return ln(20) / 1000 / (ln(17) + ln(18))
+
+
+CENSUS_HIST = {'exports': 'https://www.census.gov/foreign-trade/statistics/historical/NSAEXP.xlsx',
+               'imports': 'https://www.census.gov/foreign-trade/statistics/historical/NSAIMP.xlsx'}
+
+
+def census_capital_goods(cx, flow):
+    """Monthly capital goods exports/imports, NSA, from the Census historical end-use exhibit (1990s to
+    present, five end-use aggregates). Archived in raw_pulls; X-13 seasonally adjusted here."""
+    key = ('cg', flow)
+    if key in cx.cache:
+        return cx.cache[key]
+    s = P._archived(cx.con, 'census_hist', f'capgoods_{flow}', cx.asof)
+    if s is None:
+        import io, urllib.request, openpyxl
+        req = urllib.request.Request(CENSUS_HIST[flow], headers={'User-Agent': 'Mozilla/5.0'})
+        wb = openpyxl.load_workbook(io.BytesIO(urllib.request.urlopen(req, timeout=120).read()), read_only=True, data_only=True)
+        rows = list(wb.worksheets[0].iter_rows(values_only=True))
+        months = {m: i + 1 for i, m in enumerate(['January', 'February', 'March', 'April', 'May', 'June', 'July',
+                                                  'August', 'September', 'October', 'November', 'December'])}
+        vals, year = {}, None
+        for r in rows[5:]:
+            if isinstance(r[0], int):
+                year = r[0]
+            elif r[0] in months and year is not None and isinstance(r[4], (int, float)):
+                vals[pd.Timestamp(year=year, month=months[r[0]], day=1) + pd.offsets.MonthEnd(0)] = float(r[4])
+        s = pd.Series(vals).sort_index()
+        P._archive(cx.con, 'census_hist', f'capgoods_{flow}', cx.asof, s)
+    s = asof_cut(s, cx.asof)
+    cx.cache[key] = seasadj(s, '1990')
+    return cx.cache[key]
+
+
+def bea_quarterly_to_monthly(cx, table, line, indicator):
+    """BEA quarterly trade detail (T4.2.5B, 1999+) -> monthly via proportional Denton on `indicator`."""
+    q = cx.bea(table, 'Q', line=line)
+    return H.denton_pfd(q, indicator)
 
 
 def build_trade(cx, prices, comp_defl, cap):
@@ -618,12 +698,24 @@ def build_trade(cx, prices, comp_defl, cap):
     noncore = ['21300', '21301', '22000', '22010', '22020', '22220', '21320', '21100', '20005']
     core_x = enduse(cx, 'exports', '2') - eu('exports', [c for c in noncore])
     core_m = enduse(cx, 'imports', '2') - eu('imports', [c for c in noncore])
-    out['SplicedExportsComputersAndRelated'] = comp_x / comp_defl
-    out['SplicedImportsComputersAndRelated'] = comp_m / comp_defl
-    out['CoreCapGoodsExports'] = core_x / cap
-    out['CoreCapGoodsImports'] = core_m / cap
-    out['_air_x'] = eu('exports', ['22000', '22010', '22020'])
-    out['_air_m'] = eu('imports', ['22000', '22010', '22020'])
+    # Long histories (decision 2026-10-03): the Census end-use API serves only 2013+. Earlier months come from
+    # independent real monthly data via the durable growth store (gdpnow/history.py): total capital goods
+    # trade (Census historical exhibit) for core capital goods, and BEA quarterly trade detail (1999+)
+    # allocated to months with capital goods trade (Denton) for computers and civilian aircraft.
+    cg_x, cg_m = census_capital_goods(cx, 'exports'), census_capital_goods(cx, 'imports')
+    sp = lambda name, live, prox=(), kind=None: cx.splice(name, live, prox, 'MonthlyLevels', name, kind)
+    comp_x_q = bea_quarterly_to_monthly(cx, 'T40205B', 26, cg_x)
+    comp_m_q = bea_quarterly_to_monthly(cx, 'T40205B', 118, cg_m)
+    air_x_q = bea_quarterly_to_monthly(cx, 'T40205B', 23, cg_x)
+    air_m_q = bea_quarterly_to_monthly(cx, 'T40205B', 115, cg_m)
+    out['SplicedExportsComputersAndRelated'] = sp('SplicedExportsComputersAndRelated', comp_x / comp_defl,
+                                                  [('bea_computers_denton', comp_x_q / comp_defl)])
+    out['SplicedImportsComputersAndRelated'] = sp('SplicedImportsComputersAndRelated', comp_m / comp_defl,
+                                                  [('bea_computers_denton', comp_m_q / comp_defl)])
+    out['CoreCapGoodsExports'] = sp('CoreCapGoodsExports', core_x / cap, [('census_capgoods_total', cg_x / cap)])
+    out['CoreCapGoodsImports'] = sp('CoreCapGoodsImports', core_m / cap, [('census_capgoods_total', cg_m / cap)])
+    out['_air_x'] = sp('AircraftExportsNominal', eu('exports', ['22000', '22010', '22020']), [('bea_aircraft_denton', air_x_q)])
+    out['_air_m'] = sp('AircraftImportsNominal', eu('imports', ['22000', '22010', '22020']), [('bea_aircraft_denton', air_m_q)])
     nomgdp = prices['MGDPN_USECONsplicefr']
     for kind, (x, m, nx, nm) in {'Goods': (out['SplicedGoodsExports'], out['SplicedGoodsImports'], gx, gm),
                                  'Svc': (out['SplicedServiceExports'], out['SplicedServiceImports'], f('BOPSEXP'), f('BOPSIMP'))}.items():

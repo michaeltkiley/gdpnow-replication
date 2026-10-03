@@ -75,7 +75,9 @@ def estimate_core(inp, panel, actual_qgrowth, prices):
     w, cache = dict(inp.blend), {}
     for cid in BRIDGE_IDS:
         mhist = blend.bridge_model_history(cid, stage, coefs, faar, start, cache)
-        w[cid] = blend.restricted_wls(actual_qgrowth[cid].loc[start:inp.T], hist[cid].loc[start:inp.T], mhist)
+        info = {}
+        w[cid] = blend.restricted_wls(actual_qgrowth[cid].loc[start:inp.T], hist[cid].loc[start:inp.T], mhist, info=info)
+        diag.setdefault('blend_sample', {})[cid] = info
     diag['bvar_hist'] = hist
     out = dataclasses.replace(stage, bvar=fc, prices_T1=prices_T1, blend=w)
     replaced = ['factor', 'faar', 'bridge', 'bvar', 'prices_T1', 'blend:investment_government']

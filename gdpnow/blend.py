@@ -15,11 +15,13 @@ from .config import load_toml
 SPEC = load_toml('spec.toml')['blend']
 
 
-def restricted_wls(y, x_bvar, x_model, exclude=True):
+def restricted_wls(y, x_bvar, x_model, exclude=True, info=None):
     d = pd.concat([y, x_bvar, x_model], axis=1, keys=['y', 'b', 'm']).dropna()
     if exclude:
         lo, hi = (pd.Period(q).end_time.normalize() for q in SPEC['exclude_range'])
         d = d[(d.index < lo - pd.offsets.QuarterEnd(1) + pd.Timedelta(days=1)) | (d.index > hi)]
+    if info is not None:
+        info.update({'n': len(d), 'start': d.index.min().date().isoformat()})
     t = np.arange(len(d))[::-1]
     w = 1 / (1 + t / 80) ** 2
     z, x = d.y - d.m, d.b - d.m          # impose d_B + d_M = 1
