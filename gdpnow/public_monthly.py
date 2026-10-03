@@ -219,10 +219,9 @@ def build_prices(cx):
     out['HerzonServicesExFoodDeffr'] = cons['other_services_price']
     out['CPIMajappSplicefr'] = bls(cx, 'CUSR0000SEHK01', start=1967)      # CPI major appliances (BLS only; not on FRED)
     out['SA_HN1PA_USECON_fr'] = seasadj(f('ASPNHSUS'), '1975')
-    resid = cx.bea('T50304', 'Q', line=22)          # permanent-site residential price index
     idx = pd.date_range('1965-01-31', pd.Timestamp(cx.asof), freq='ME')
-    out['CCIHD_USECONfr'] = atkeson_ohanian(resid, idx)
-    out['TornPriceNonResStrMthfr'] = structures_price(cx, idx)
+    out['CCIHD_USECONfr'] = census_house_price(cx, idx)
+    out['TornPriceNonResStrMthfr'] = structures_price(cx, idx, out['CCIHD_USECONfr'])
     out['PMEA_USECONsplicefr'] = goods_import_price(cx)
     out['MGDPN_USECONsplicefr'] = monthly_nominal_gdp(cx)
     df = cx.long_history(pd.DataFrame({k: me(v) for k, v in out.items()}).sort_index(), 'MonthlyPriceLevels')
@@ -231,21 +230,93 @@ def build_prices(cx):
     return df
 
 
-def structures_price(cx, idx):
-    """Monthly nonresidential-structures price (W07, simplified): Atkeson-Ohanian interpolation of the NIPA
-    deflator for structures excluding mining exploration, shafts and wells, extended past the last quarter
-    with the average monthly growth of the BLS new nonresidential building construction PPIs."""
-    deflator = cx.bea('U50404', 'Q', line=2)        # nonresidential structures price index
-    m = atkeson_ohanian(deflator, idx)
-    ppis = [p for p in (cx.fred_opt(i) for i in ['PCU236221236221', 'PCU236223236223', 'PCU236222236222',
-                                                  'PCU236224236224', 'PCU2362112362111']) if p is not None]
-    ppi = pd.concat([np.log(p).diff() for p in ppis], axis=1).mean(axis=1)
-    last_q = deflator.dropna().index.max()
-    m = m.loc[:last_q]
-    for t in pd.date_range(last_q + pd.offsets.MonthEnd(1), pd.Timestamp(cx.asof), freq='ME'):
-        if t in ppi.index and not np.isnan(ppi[t]):
-            m[t] = m.iloc[-1] * np.exp(ppi[t])
-    return m
+# Table A9 (WP 2014; Mods Dec-2025): leaf structure types of private nonresidential construction (NIPA 5.4.4U/5.4.5U
+# lines) -> monthly price source. Each source is a list of (weight, source): 'ppi:<id>', 'ccihd', 'steel', 'ao'
+# (Atkeson-Ohanian extrapolation of the component's own quarterly deflator), or 'geo:<id>+<id>'.
+OFFICE, WAREHOUSE, INDUSTRIAL = 'PCU236223236223', 'PCU236221236221', 'PCU236211236211'
+STRUCT_PRICE_MAP = {
+    4: [(1, f'ppi:{OFFICE}')],                       # office aggregate (before 2020)
+    5: [(1, f'geo:{INDUSTRIAL}+{WAREHOUSE}')],       # data centers (from 2020, Mods Dec-2025)
+    6: [(1, f'ppi:{OFFICE}')],                       # general, financial and other office (from 2020)
+    7: [(.5, 'ccihd'), (.5, 'ao')],                  # health care (Turner index unavailable: AO half)
+    12: [(1, f'ppi:{WAREHOUSE}')], 13: [(1, f'ppi:{WAREHOUSE}')], 14: [(1, f'ppi:{WAREHOUSE}')],
+    15: [(1, f'ppi:{WAREHOUSE}')], 29: [(1, f'ppi:{WAREHOUSE}')],
+    16: [(1, f'ppi:{INDUSTRIAL}')],
+    20: [(1, 'ao')], 21: [(1, 'ao')], 23: [(1, 'ao')], 36: [(1, 'ao')],
+    22: [(.5, 'steel'), (.5, 'ao')],                 # other power
+    28: [(.5, 'ccihd'), (.5, 'ao')], 30: [(.5, 'ccihd'), (.5, 'ao')], 31: [(.5, 'ccihd'), (.5, 'ao')],
+    33: [(.5, 'ccihd'), (.5, 'ao')], 35: [(.5, 'ccihd'), (.5, 'ao')],
+}
+STEEL_PIPE = 'WPU101706'      # steel pipe and tube PPI: NSA, no manual seasonal adjustment (Mods Dec-2013)
+
+
+def census_house_price(cx, idx):
+    """Census price deflator (Fisher) of new single-family houses under construction, monthly NSA, 2005=100
+    (CCIHD in the workbook; public file price_uc_cust.xlsx). Months after the last release grow at the average
+    monthly rate of the latest 12 months (Atkeson-Ohanian-style extrapolation)."""
+    s = P._archived(cx.con, 'census_hist', 'price_uc', cx.asof)
+    if s is None:
+        import io, urllib.request
+        req = urllib.request.Request('https://www.census.gov/construction/nrs/xls/price_uc_cust.xlsx', headers={'User-Agent': 'Mozilla/5.0'})
+        d = pd.read_excel(io.BytesIO(urllib.request.urlopen(req, timeout=120).read()), header=None, sheet_name='Vertical',
+                          skiprows=6, usecols=[0, 3]).dropna()
+        d.columns = ['d', 'v']
+        d['d'] = pd.to_datetime(d.d, errors='coerce') + pd.offsets.MonthEnd(0)
+        s = pd.to_numeric(d.dropna(subset=['d']).set_index('d').v, errors='coerce').dropna().sort_index()
+        P._archive(cx.con, 'census_hist', 'price_uc', cx.asof, s)
+    s = asof_cut(s, cx.asof)
+    g = np.log(s.iloc[-1] / s.iloc[-13]) / 12
+    out = s.copy()
+    for t in pd.date_range(s.index[-1] + pd.offsets.MonthEnd(1), idx[-1] + pd.offsets.MonthEnd(4), freq='ME'):
+        out[t] = out.iloc[-1] * np.exp(g)
+    return out
+
+
+def structures_price(cx, idx, ccihd):
+    """Monthly private nonresidential construction price (WP appendix eq. A1, Table A9): previous-quarter
+    nominal-share-weighted log change of the monthly prices of the structure types (NIPA 5.4.5U shares);
+    each type's monthly price is a PPI where one exists (before its start: the component's quarterly deflator,
+    smoothly interpolated), the CCIHD new-home price, or the Atkeson-Ohanian extrapolation of its own deflator."""
+    defl, nom = cx.bea('U50404', 'Q'), cx.bea('U50405', 'Q')
+    col = lambda t, ln: t[[c for c in t.columns if c.split('|')[0] == str(ln)][0]]
+    cache = {}
+
+    def monthly_growth(ln, src):
+        d = col(defl, ln)
+        if src == 'ao':
+            return np.log(atkeson_ohanian(d, idx)).diff()
+        if src == 'ccihd':
+            return np.log(ccihd).diff()
+        if src == 'steel':
+            ppi = cx.fred_opt(STEEL_PIPE)
+        elif src.startswith('geo:'):
+            ps = [cx.fred_opt(i) for i in src[4:].split('+')]
+            ppi = None if any(p is None for p in ps) else np.exp(sum(np.log(p) for p in ps) / len(ps))
+        else:
+            ppi = cx.fred_opt(src[4:])
+        ao = np.log(atkeson_ohanian(d, idx)).diff()
+        if ppi is None:
+            return ao
+        g = np.log(ppi.dropna()).diff()
+        back = ao.loc[:g.dropna().index.min()]       # before the PPI starts: the component deflator
+        return pd.concat([back.iloc[:-1], g.dropna()]).sort_index()
+
+    groups = {}
+    for ln, srcs in STRUCT_PRICE_MAP.items():
+        g = sum(w * monthly_growth(ln, s).reindex(idx) for w, s in srcs)
+        groups[ln] = g
+    G = pd.DataFrame(groups)
+    N = pd.DataFrame({ln: col(nom, ln) for ln in STRUCT_PRICE_MAP})
+    # 2020 on: data centers and general/financial/other replace the office aggregate (Mods Dec-2025)
+    new = N.index >= '2020-01-01'
+    N.loc[new, 4] = 0.0
+    N.loc[~new, [5, 6]] = 0.0
+    W = N.div(N.sum(axis=1), axis=0)
+    W = W.reindex(W.index.union(pd.date_range(W.index.max(), periods=3, freq='QE')[1:])).shift(1).ffill()
+    Wm = W.reindex(idx + pd.offsets.QuarterEnd(0)).set_axis(idx)       # month t uses the previous quarter's shares
+    g = (G * Wm).sum(axis=1, min_count=1).where(Wm.notna().all(axis=1))
+    g = g.dropna()
+    return 100 * np.exp(g.cumsum())
 
 
 def goods_import_price(cx):
@@ -562,12 +633,23 @@ def build_indicators(cx, prices, nipa_q, inv):
     price_new = prices['SA_HN1PA_USECON_fr']
     L['NomSingleStarts'] = f('HOUST1F') * price_new / prices['CCIHD_USECONfr']
     L['valNewHomeSales'] = f('HSN1F') * price_new / prices['R5312101_PPIRInterpfr']
-    # Existing-home sales (NAR) history is not public (FRED carries 13 months): the brokers' commissions
-    # indicator uses new-home sales value alone (bridges.toml valTotalHomeSales -> valNewHomeSales).
-    L['valExHomeSales'] = 0 * L['valNewHomeSales']
+    # Existing-home sales (NAR): FRED serves only the last 13 months (licensed data), so the live layer is short and
+    # the durable growth store / workbook reference layer supply the history (gdpnow/history.py). The workbook's
+    # series is unit sales deflated by the real-estate PPI (growth corr 0.99); the level constant is the
+    # trailing-12-month average median price, so existing and new sales carry comparable weights.
+    ex_units, ex_price = f('EXHOSLUSM495S'), f('HOSMEDUSM052N')
+    ex_const = ex_price.iloc[-12:].mean()          # $; new-home sales below are thousands of units x $
+    L['valExHomeSales'] = cx.splice('valExHomeSales', ex_units / 1e3 * ex_const / prices['R5312101_PPIRInterpfr'].reindex(ex_units.index),
+                                    [], 'MonthlyLevels', kind='log')
     # New single-family + multifamily construction (permanent-site), deflated by the residential structures price.
     L['SplicedNewHousingConstruction'] = (census_construction(cx, 'privsatime', 3) + census_construction(cx, 'privsatime', 4)) / prices['CCIHD_USECONfr']
-    improv = np.exp((np.log(prices['CCIHD_USECONfr']) + np.log(f('WPSID61113'))) / 2)
+    # Improvements deflator (WP Table A5b note): geometric mean of the CCIHD house price, the PPI for net inputs
+    # to residential maintenance and repair (goods) and an Atkeson-Ohanian extrapolation of the construction ECI.
+    eci = f('ECICONCOM')
+    eci.index = eci.index.to_period('Q').end_time.normalize()
+    eci_m = atkeson_ohanian(eci, prices.index)
+    inputs = f('WPUIP2321001')
+    improv = np.exp(pd.concat([np.log(prices['CCIHD_USECONfr']), np.log(inputs), np.log(eci_m)], axis=1).mean(axis=1, skipna=False))
     L['SplicedBuildingMaterials'] = f('RSBMGESD') / improv
     L['RetSalesResEquip'] = (f('RSFHFS') + f('RSEAS')) / prices['CPIMajappSplicefr']
     mh_price = seasadj(f('SPTNSAUS'), '2014')

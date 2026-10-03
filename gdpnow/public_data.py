@@ -57,7 +57,11 @@ def fred(con, series_id, asof, refresh=False):
             return s
     q = dict(series_id=series_id, api_key=os.environ['FRED_API_KEY'], file_type='json',
              realtime_start=str(asof), realtime_end=str(asof), observation_start='1947-01-01')
-    d = _get(FRED + 'series/observations?' + urllib.parse.urlencode(q))
+    try:
+        d = _get(FRED + 'series/observations?' + urllib.parse.urlencode(q))
+    except Exception:           # series without usable real-time history (e.g. licensed NAR data): current vintage
+        q.pop('realtime_start'), q.pop('realtime_end')
+        d = _get(FRED + 'series/observations?' + urllib.parse.urlencode(q))
     obs = [(o['date'], float(o['value'])) for o in d.get('observations', []) if o['value'] not in ('.', '')]
     s = pd.Series({pd.Timestamp(a): b for a, b in obs}, dtype=float).sort_index()
     _archive(con, 'fred', series_id, asof, s)
