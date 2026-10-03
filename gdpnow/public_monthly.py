@@ -343,14 +343,13 @@ def structures_price(cx, idx, ccihd):
 
 def goods_import_price(cx):
     """Goods import price (W06; WP step 5a): previous-quarter-share-weighted log change of BLS end-use import price
-    indexes (petroleum seasonally adjusted). Weights: nominal imports by category from NIPA Table 4.2.5B (lines:
-    foods 95, petroleum 107, industrial supplies ex petroleum 101-107, computers 118, capital goods ex computers
-    114-118, autos 131, consumer goods 134). The workbook's 8th category (other goods) has no BLS index and is
-    omitted (weights renormalized); growth corr with the workbook's series 0.966."""
+    indexes (petroleum seasonally adjusted). Eight categories, weights = nominal imports from NIPA Table 4.2.5B
+    (lines: foods 95, petroleum 107, industrial durable 102, industrial nondurable ex petroleum 108, computers 118,
+    capital goods ex computers 114-118, autos 131, consumer goods 134); growth corr with the workbook's 0.9875."""
     t = cx.bea('T40205B', 'Q')
     L = lambda n: t[[c for c in t.columns if c.split('|')[0] == str(n)][0]]
-    nom = {'IR0': L(95), 'IR10': L(107), 'IR1EXPET': L(101) - L(107), 'IR213COM': L(118), 'IR2EXCOM': L(114) - L(118),
-           'IR3': L(131), 'IR4': L(134)}
+    nom = {'IR0': L(95), 'IR10': L(107), 'IR1DUR': L(102), 'IR1NONDUR': L(108), 'IR213COM': L(118),
+           'IR2EXCOM': L(114) - L(118), 'IR3': L(131), 'IR4': L(134)}
     p = {k: (seasadj(cx.fred(k), '1990') if k == 'IR10' else cx.fred(k)) for k in nom}
     W = pd.DataFrame(nom)
     W = W.div(W.sum(axis=1), axis=0).shift(1)                 # previous-quarter shares
@@ -616,8 +615,8 @@ def build_indicators(cx, prices, nipa_q, inv):
     L['YPWGM@USNA'] = f('B202RC1') / cpi
     L['CPG@USECON'] = f('TLPBLCONS') / cpi
     # Federal and state & local construction: Census historical tables by owner (1993+).
-    L['CPGF@USECON'] = census_construction(cx, 'fedsatime') / cpi
-    L['CPGS@USECON'] = census_construction(cx, 'slsatime') / cpi
+    L['CPGF@USECON'] = census_construction(cx, 'fedsatime') / prices['TornPriceNonResStrMthfr']      # deflator verified: implied corr 1.000
+    L['CPGS@USECON'] = census_construction(cx, 'slsatime') / prices['TornPriceNonResStrMthfr']
     L['CPVD@USECON'] = f('PNRESCONS') / prices['TornPriceNonResStrMthfr']
     L['NMS@USECON'] = f('AMTMVS') / prices['SpliceManTradeDeflatorfr']
     L['NRST@USECON'] = f('RSAFS') / prices['SpliceRetailTradeDeflatorfr']
