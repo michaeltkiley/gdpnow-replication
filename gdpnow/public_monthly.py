@@ -451,9 +451,10 @@ def build_consumption(cx, prices):
     lv['NRSV2_USECON'], lv['NRSV2_USECONPrevious'] = fr('RSFSDP', cx.asof), fr('RSFSDP', prev_asof)
     lv['NRSXMI47_USECONlessNRSV2_USECON'] = lv['NRSXMI47_USECON'] - lv['NRSV2_USECON']
     lv['NRSXMI47_USECONPrevlessNRSV2_USECONPrev'] = lv['NRSXMI47_USECONPrevious'] - lv['NRSV2_USECONPrevious']
-    # Monthly travel services trade is not available from public APIs (BEA publishes it quarterly): the
-    # monthly columns are left empty, which disables the latest-month travel replacement (inactive on Oct 1).
-    for c in ['BMBSXR_USINT', 'BMBSMR_USINT', 'BMBSXR_USINTPrevious', 'BMBSMR_USINTPrevious']:
+    # Monthly travel services trade (BEA trade-release time series). The "Previous" (prior-vintage) columns, used
+    # only for the revision terms of the latest month, stay empty: the previous vintage is not archived publicly.
+    lv['BMBSXR_USINT'], lv['BMBSMR_USINT'] = bea_travel_monthly(cx)
+    for c in ['BMBSXR_USINTPrevious', 'BMBSMR_USINTPrevious']:
         lv[c] = empty()
     L = pd.DataFrame({k: me(v) for k, v in lv.items()}).sort_index()
     g = lambda s: 1200 * np.log(s / s.shift(1))
@@ -466,16 +467,32 @@ def build_consumption(cx, prices):
     return L, G
 
 
-def travel_quarterly(cx):
-    """Quarterly travel services exports/imports (BEA ITA, seasonally adjusted, $mil)."""
-    out = {}
-    for ind in ('ExpServTravel', 'ImpServTravel'):
-        q = dict(UserID=os.environ['BEA_API_KEY'], method='GetData', DataSetName='ITA', Indicator=ind,
-                 AreaOrCountry='AllCountries', Frequency='QSA', Year='ALL', ResultFormat='JSON')
-        rows = P._get(P.BEA + '?' + urllib.parse.urlencode(q))['BEAAPI']['Results']['Data']
-        out[ind] = pd.Series({pd.Period(r['TimePeriod'], 'Q').end_time.normalize(): float(r['DataValue'].replace(',', ''))
-                              for r in rows if r['DataValue'] not in ('', '(D)')}).sort_index()
-    return out['ExpServTravel'], out['ImpServTravel']
+def bea_travel_monthly(cx):
+    """Monthly seasonally adjusted travel services exports and imports, $ million, 1999+ (BEA trade-release
+    time-series file, Tables 2 and 3; the ITA API serves only quarterly data). Current vintage, cached in data/."""
+    if 'travel' in cx.cache:
+        return cx.cache['travel']
+    import io, re, urllib.request
+    from pathlib import Path
+    path = Path('data') / f'{cx.asof.replace("-", "")}_bea_trade_time_series.xlsx'
+    if not path.exists():
+        hdr = {'User-Agent': 'Mozilla/5.0'}
+        page = urllib.request.urlopen(urllib.request.Request(
+            'https://www.bea.gov/data/intl-trade-investment/international-trade-goods-and-services', headers=hdr), timeout=120).read().decode()
+        link = re.search(r'href="([^"]*trad\d{4}-time-series\.xlsx)"', page).group(1)
+        path.write_bytes(urllib.request.urlopen(urllib.request.Request('https://www.bea.gov' + link, headers=hdr), timeout=300).read())
+    out = []
+    for sheet in ('Table 2', 'Table 3'):                       # exports, imports of services by category
+        d = pd.read_excel(path, sheet_name=sheet, header=None)
+        hdr_row = d.index[d.iloc[:, 0].astype(str).str.strip() == 'Period'][0]
+        col = [i for i, v in enumerate(d.iloc[hdr_row]) if str(v).strip().startswith('Travel')][0]
+        m0 = d.index[d.iloc[:, 0].astype(str).str.strip() == 'Monthly'][0]
+        s_ = d.iloc[m0 + 1:, [0, col]].dropna()
+        s_.columns = ['p', 'v']
+        s_['d'] = pd.to_datetime(s_.p.astype(str).str.strip().str.replace(r'\s+', ' ', regex=True), format='%Y %b', errors='coerce') + pd.offsets.MonthEnd(0)
+        out.append(pd.to_numeric(s_.dropna(subset=['d']).set_index('d').v, errors='coerce').dropna().sort_index())
+    cx.cache['travel'] = (asof_cut(out[0], cx.asof), asof_cut(out[1], cx.asof))
+    return cx.cache['travel']
 
 
 # ------------------------------------------------------------------------------------- inventory block
@@ -657,12 +674,15 @@ def build_indicators(cx, prices, nipa_q, inv):
     # New single-family + multifamily construction (permanent-site), deflated by the residential structures price.
     L['SplicedNewHousingConstruction'] = (census_construction(cx, 'privsatime', 3) + census_construction(cx, 'privsatime', 4)) / prices['CCIHD_USECONfr']
     # Improvements deflator (WP Table A5b note): geometric mean of the CCIHD house price, the PPI for net inputs
-    # to residential maintenance and repair (goods) and an Atkeson-Ohanian extrapolation of the construction ECI.
+    # to residential maintenance and repair and an Atkeson-Ohanian extrapolation of the construction ECI. The PPI
+    # series was discontinued in Dec-2014; from 2015 the workbook's deflator is the mean of the other two
+    # (verified: exact, error 0.000 pp every month 2015-2026), so the PPI term is cut at 2014-12.
     eci = f('ECICONCOM')
     eci.index = eci.index.to_period('Q').end_time.normalize()
     eci_m = atkeson_ohanian(eci, prices.index)
-    inputs = f('WPUIP2321001')
-    improv = np.exp(pd.concat([np.log(prices['CCIHD_USECONfr']), np.log(inputs), np.log(eci_m)], axis=1).mean(axis=1, skipna=False))
+    inputs = f('WPUIP2321001').loc[:'2014-12-31']
+    parts = pd.concat([np.log(prices['CCIHD_USECONfr']), np.log(inputs), np.log(eci_m)], axis=1)
+    improv = np.exp(parts.mean(axis=1, skipna=True).where(parts.iloc[:, 0].notna() & parts.iloc[:, 2].notna()))
     L['SplicedBuildingMaterials'] = f('RSBMGESD') / improv
     L['RetSalesResEquip'] = (f('RSFHFS') + f('RSEAS')) / prices['CPIMajappSplicefr']
     mh_price = seasadj(f('SPTNSAUS'), '2014')

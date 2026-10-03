@@ -60,6 +60,6 @@ def build(con, asof, last_price_month, ref_vintage='latest', ism='public'):
         prices_T0=comp(qp, T), prices_Tm=comp(qp, T - pd.offsets.QuarterEnd(1)),
         monthly_prices=prices, cons_growth=cons_G, cons_levels=cons_L, util_travel={},
         inv_raw=inv, inv_deflators=inv_defl, cipi_paths=pd.DataFrame(), iva_paths=pd.DataFrame(), farm_other={},
-        flags={'drop_terms': [], 'travel_quarterly': PM.travel_quarterly(cx)},
+        flags={'drop_terms': []},
         source=f'public:{asof}', provenance={f: f'public:{asof}' for f in FIELD_REGISTRY})
     return inp, panel, q['actual'], qp.loc[:T]
