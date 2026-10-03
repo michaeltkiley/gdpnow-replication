@@ -1,0 +1,71 @@
+# Documented specification constants (registry S01; decision D4). These are fixed modelling choices made by
+# the GDPNow authors, NOT estimated quantities. Every entry cites its source. BVAR tightness lambda is listed
+# for comparison only: it is re-selected on every run by the Banbura-Giannone-Reichlin rule.
+# WP = Higgins (2014) FRBA WP 2014-7; Mods = "Modifications to GDPNow Model" (Atlanta Fed, Oct 2017-Dec 2025).
+
+[factor]
+n_factors = 1                       # WP step 2b
+factor_ar_lags = 3                  # WP eq 1; Mods Apr-2018 eq 6
+idiosyncratic_ar_lags = 1           # Mods Apr-2018 eq 8
+standardize = true                  # WP step 2b (mean 0, sd 1 after stationarity transform)
+outlier_replacement = false         # Mods Apr-2020 (discontinued)
+ism_gate = true                     # WP fn 12: month-h data not used until the month-h ISM manufacturing release
+
+[faar]                              # factor-augmented autoregressions for monthly indicators
+own_lags = [1, 6]                   # Mods Apr-2022 (max lowered from 12 to 6)
+own_lags_consumption = [3, 6]       # Mods Apr-2022 (min lowered from 6 to 3)
+factor_lags = [0, 3]                # WP eq 3
+selection = "AIC"                   # WP p.6
+covid_dummies = ["2020-03", "2020-12"]  # Mods Apr-2022: 10 monthly dummies, Mar-2020 through Dec-2020
+net_exports_contribution_constant = false  # WP eq 10
+
+[bridge]
+sample_start = "1985Q1"             # WP eq 6
+no_indicator_model = "AR1"          # Mods Apr-2022 (replaces WP AR(4))
+no_indicator_dummies = ["2020Q1", "2020Q2", "2020Q3", "2020Q4"]  # Mods Apr-2022
+share_weights = "previous-quarter nominal (Tornqvist approximation)"  # WP eq 7
+
+[blend]                             # combination of bridge/monthly model with quarterly BVAR
+sample_start = "1985Q1"             # Mods Jan-2023 fn 3
+recency_weight = "1/(1+t/80)^2"     # Mods Jan-2023
+restrict_sum_to_one = true          # Mods Jan-2023 eq 2
+clip_to_unit_interval = true        # Mods Jan-2023
+exclude_range = ["2020Q1", "2020Q4"]  # inclusive; Mods Apr-2022 (log-growth components); trade/inventories: Mods Jan-2023 "similar" (spec gap)
+constant = false                    # WP p.9
+
+[bvar_quarterly]
+lags = 5                            # WP step 1
+sample_start = "1968Q1"             # WP step 1
+fitted_values_start = "1985Q1"      # WP step 1
+prior = "Banbura-Giannone-Reichlin dummy observations; random walk for log levels, white noise otherwise"  # WP appendix
+sum_of_coefficients_tau = "10*lambda"   # WP appendix
+documented_lambda_quantities = 0.15     # WP appendix (comparison only)
+documented_lambda_prices = 0.12         # WP appendix (comparison only)
+
+[bvar_monthly_prices]
+lags = 12                           # WP step 2a
+sample_start = "1983-01"            # WP step 2a
+conditional_forecasts = "Waggoner-Zha (1999)"
+sum_of_coefficients = false         # WP appendix (not used for the monthly price BVAR)
+documented_lambda = 0.05            # WP appendix (comparison only)
+
+[bvar_inventory_core]
+documented_lambda = 0.07            # WP appendix (comparison only)
+iva_max_turnover_months = 5         # WP fn 34
+
+[bvar_gold]
+variables = 5
+lags = 6                            # Mods Mar-2025 fn 2
+documented_lambda = 0.25            # Mods Mar-2025 fn 2 (comparison only)
+
+[bvar_capital_goods_shares]
+variables = 11
+lags = 6                            # Mods Oct-2017 (equipment)
+
+[aggregation]
+method = "Fisher chain"             # WP appendix A3
+inventory_price = "mean of current and previous end-of-quarter deflator"   # WP step 8; verified exact vs published
+contributions = "BEA/Whelan with multinomial annualization, interactions split evenly"  # WP appendix A4-A5
+
+[travel_util]
+sample_start = "2000-01"            # Mods Oct-2017 fn 9

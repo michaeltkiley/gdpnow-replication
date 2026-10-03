@@ -1,0 +1,115 @@
+# Bridge-equation structure for the investment and government components (registry E06).
+# Sources: Higgins (2014) Tables A5a-f; Modifications Oct-2017 (residential improvements; equipment;
+# government IPP), Apr-2022 (AR(1)+2020 dummies replace AR(4)). Cross-checked against the 20261003
+# workbook (BridgeEqnCoeffs and the component tabs).
+#
+# Each subcomponent: lhs = real quantity id, nominal = nominal value id used for its expenditure share,
+# kind = "bridge" (OLS on quarterly indicator growth) or "ar1" (AR(1) + four 2020 quarterly dummies),
+# indicators = names defined in [indicators].
+
+[components.FNEZ]   # Equipment (Table A5c; Mods Oct-2017)
+label = "Equipment"
+subcomponents = [
+  { lhs = "HerzonCoreEQty", nominal = "nomCoreE", label = "Core equipment", kind = "bridge", indicators = ["NetCoreCapGoodsShipments"] },
+  { lhs = "FNENPZ_USNAqtr", nominal = "FNENPX_USNAqtr", label = "Computers and peripherals", kind = "bridge", indicators = ["NetComputersShipments"] },
+  { lhs = "TIZ_USNAqtr", nominal = "TIX_USNAqtr", label = "New trucks", kind = "bridge", indicators = ["MonthlyRealBusTruckSales"] },
+  { lhs = "AINZ_USNAqtr", nominal = "AINX_USNAqtr", label = "New autos", kind = "bridge", indicators = ["MonthlyRealBusAutoSales"] },
+  { lhs = "MVIUTZ_USNAqtr", nominal = "MVIUTX_USNAqtr", label = "Used autos and light trucks (net)", kind = "ar1" },
+  { lhs = "FNETPZ_USNAqtr", nominal = "FNETPX_USNAqtr", label = "Aircraft", kind = "bridge", indicators = ["NondefenseAircraftNetShipments"] },
+]
+
+[components.FNPZ]   # Intellectual property products (Table A5f)
+label = "Intellectual property products"
+subcomponents = [
+  { lhs = "FNPSZ_USNAqtr", nominal = "FNPSX_USNAqtr", label = "Software", kind = "bridge", indicators = ["LAPBSVA@USECON"] },
+  { lhs = "FNPEZ_USNAqtr", nominal = "FNPEX_USNAqtr", label = "Entertainment, literary, artistic originals", kind = "ar1" },
+  { lhs = "FNPRZ_USNAqtr", nominal = "FNPRX_USNAqtr", label = "Research and development", kind = "bridge", indicators = ["LAPTSVA@USECON"] },
+]
+
+[components.FNSZ]   # Nonresidential structures (Table A5a)
+label = "Nonresidential structures"
+subcomponents = [
+  { lhs = "NResStructExMineWellQuant", nominal = "nomNResStructExMineWell", label = "Structures excl. mining and wells", kind = "bridge", indicators = ["CPVD@USECON"] },
+  { lhs = "FNSMPZ_USNAqtr", nominal = "FNSMPX_USNAqtr", label = "Petroleum and natural gas wells", kind = "bridge", indicators = ["IPB31@IP"] },
+  { lhs = "FNSMIZ_USNAqtr", nominal = "FNSMIX_USNAqtr", label = "Mining", kind = "ar1" },
+]
+
+[components.FRZ]    # Residential (WP p.8 table; Table A5b; Mods Oct-2017 improvements)
+label = "Residential"
+subcomponents = [
+  { lhs = "FRSPZ_USNAqtr", nominal = "FRSPX_USNAqtr", label = "Permanent-site", kind = "bridge", indicators = ["SplicedNewHousingConstruction"] },
+  { lhs = "FRSHMZ_USNAqtr", nominal = "FRSHMX_USNAqtr", label = "Manufactured homes", kind = "bridge", indicators = ["MobileHomeVal"] },
+  { lhs = "FRSHDZ_USNAqtr", nominal = "FRSHDX_USNAqtr", label = "Dormitories", kind = "ar1" },
+  { lhs = "FRSBKZ_USNAqtr", nominal = "FRSBKX_USNAqtr", label = "Brokers' commissions", kind = "bridge", indicators = ["valTotalHomeSales"] },
+  { lhs = "FRSINZ_USNAqtr", nominal = "FRSINX_USNAqtr", label = "Improvements", kind = "bridge", indicators = ["SplicedBuildingMaterials", "LPD61DA@LABOR"] },
+  { lhs = "FREZ_USNAqtr", nominal = "FREX_USNAqtr", label = "Residential equipment", kind = "bridge", indicators = ["RetSalesResEquip"] },
+]
+
+[components.GFZ]    # Federal government (Table A5d; Mods Oct-2017 IPP)
+label = "Federal government"
+subcomponents = [
+  { lhs = "GFDESLZ_USNAqtr", nominal = "GFDESLX_USNAqtr", label = "Defense compensation (other)", kind = "ar1" },
+  { lhs = "GFDESVZ_USNAqtr", nominal = "GFDESVX_USNAqtr", label = "Defense compensation (DoD employment)", kind = "bridge", indicators = ["LAFGDA@LABOR"] },
+  { lhs = "GFDSFZ_USNAqtr", nominal = "GFDSFX_USNAqtr", label = "Defense consumption of fixed capital", kind = "ar1" },
+  { lhs = "NatDefenseTreasCatsQty", nominal = "NomNatDefenseTreasCats", label = "Defense purchases tracked by Treasury outlays", kind = "bridge", indicators = ["saFTOD@USECON"] },
+  { lhs = "GFDENZ_USNAqtr", nominal = "GFDENX_USNAqtr", label = "Defense intermediate nondurables", kind = "ar1" },
+  { lhs = "GDOAIZ_USNAqtr", nominal = "negGDOAIX_USNAqtr", label = "(-) Defense own-account investment", kind = "ar1" },
+  { lhs = "GDOSSZ_USNAqtr", nominal = "negGDOSSX_USNAqtr", label = "(-) Defense sales to other sectors", kind = "ar1" },
+  { lhs = "GFDIPZ_USNAqtr", nominal = "GFDIPX_USNAqtr", label = "Defense IPP", kind = "ar1" },
+  { lhs = "GGNESZ_USNAqtr", nominal = "GGNESX_USNAqtr", label = "Nondefense compensation", kind = "bridge", indicators = ["NonDefenseEmployment"] },
+  { lhs = "GFNSFZ_USNAqtr", nominal = "GFNSFX_USNAqtr", label = "Nondefense consumption of fixed capital", kind = "ar1" },
+  { lhs = "GFNEDZ_USNAqtr", nominal = "GFNEDX_USNAqtr", label = "Nondefense intermediate durables", kind = "bridge", indicators = ["saFTO@USECON"] },
+  { lhs = "GFNENZ_USNAqtr", nominal = "GFNENX_USNAqtr", label = "Nondefense intermediate nondurables", kind = "bridge", indicators = ["saFTO@USECON"] },
+  { lhs = "GFNESZ_USNAqtr", nominal = "GFNESX_USNAqtr", label = "Nondefense intermediate services", kind = "ar1" },
+  { lhs = "GNOAIZ_USNAqtr", nominal = "negGNOAIX_USNAqtr", label = "(-) Nondefense own-account investment", kind = "ar1" },
+  { lhs = "GNOSSZ_USNAqtr", nominal = "negGNOSSX_USNAqtr", label = "(-) Nondefense sales to other sectors", kind = "ar1" },
+  { lhs = "GFNISZ_USNAqtr", nominal = "GFNISX_USNAqtr", label = "Nondefense structures", kind = "bridge", indicators = ["CPGF@USECON"] },
+  { lhs = "GFNIEZ_USNAqtr", nominal = "GFNIEX_USNAqtr", label = "Nondefense equipment", kind = "ar1" },
+  { lhs = "GFNIPZ_USNAqtr", nominal = "GFNIPX_USNAqtr", label = "Nondefense IPP", kind = "ar1" },
+]
+
+[components.GSZ]    # State and local government (Table A5e; Mods Oct-2017 IPP)
+label = "State and local government"
+subcomponents = [
+  { lhs = "GGSESZ_USNAqtr", nominal = "GGSESX_USNAqtr", label = "Compensation", kind = "bridge", indicators = ["StateLocalEmp"] },
+  { lhs = "GSESFZ_USNAqtr", nominal = "GSESFX_USNAqtr", label = "Consumption of fixed capital", kind = "ar1" },
+  { lhs = "GSEPIZ_USNAqtr", nominal = "GSEPIX_USNAqtr", label = "Intermediate goods and services", kind = "ar1" },
+  { lhs = "GSOAIZ_USNAqtr", nominal = "negGSOAIX_USNAqtr", label = "(-) Own-account investment", kind = "ar1" },
+  { lhs = "GSOSSZ_USNAqtr", nominal = "negGSOSSX_USNAqtr", label = "(-) Sales to other sectors", kind = "ar1" },
+  { lhs = "GSISZ_USNAqtr", nominal = "GSISX_USNAqtr", label = "Structures", kind = "bridge", indicators = ["CPGS@USECON"] },
+  { lhs = "GSIEZ_USNAqtr", nominal = "GSIEX_USNAqtr", label = "Equipment", kind = "bridge", indicators = ["IP@IP"] },
+  { lhs = "GSIPZ_USNAqtr", nominal = "GSIPX_USNAqtr", label = "IPP", kind = "ar1" },
+]
+
+# Indicators that are not simply the quarterly growth of one monthly series.
+# net_levels: quarterly growth of the quarterly average of a signed sum of monthly levels.
+[indicators.NetCoreCapGoodsShipments]
+kind = "net_levels"
+terms = [["CoreCapGoodsShipments", 1], ["CoreCapGoodsExports", -1], ["CoreCapGoodsImports", 1]]
+[indicators.NetComputersShipments]
+kind = "net_levels"
+terms = [["SplicedComputersShipments", 1], ["SplicedExportsComputersAndRelated", -1], ["SplicedImportsComputersAndRelated", 1]]
+[indicators.valTotalHomeSales]
+kind = "net_levels"
+terms = [["valExHomeSales", 1], ["valNewHomeSales", 1]]
+[indicators.NonDefenseEmployment]
+kind = "net_levels"
+terms = [["LAFGOVA@USECON", 1], ["LAFGDA@LABOR", -1]]
+# Business trucks: light trucks x business share, combined geometrically with heavy trucks using the
+# previous quarter's light-truck nominal share (Table A5c).
+[indicators.MonthlyRealBusTruckSales]
+kind = "bus_trucks"
+light_units = "TLTSAR@USECON"
+business_share = "BusShareTrucks"
+heavy_units = "TSHSU@USNA"
+light_share = "LightTruckShare"
+# Business autos: (100 - consumer share) x unit auto sales (Table A5c).
+[indicators.MonthlyRealBusAutoSales]
+kind = "bus_autos"
+units = "ASTOT@USECON"
+consumer_share = "ASCPU@USNA"
+
+# Monthly series whose levels are extended additively (first-difference transform, tcode 2);
+# all others are log-difference (tcode 3) and extended multiplicatively.
+[monthly]
+additive_levels = ["BusShareTrucks", "ASCPU@USNA"]
