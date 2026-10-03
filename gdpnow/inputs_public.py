@@ -19,12 +19,12 @@ def transform(levels):
     return pd.DataFrame(out).replace([np.inf, -np.inf], np.nan)
 
 
-def build(con, asof, last_price_month, ref_vintage='latest'):
+def build(con, asof, last_price_month, ref_vintage='latest', ism='public'):
     """Returns (Inputs with public data, factor panel, actual component growth, quarterly deflators)."""
     from . import store
     if ref_vintage == 'latest':
         ref_vintage = store.latest_vintage(con) if store.table_exists(con, 'wb_vintage') else None
-    cx = PM.Ctx(con, asof, ref_vintage)
+    cx = PM.Ctx(con, asof, ref_vintage, ism)
     q = PN.build(con, asof)
     T = q['nipa']['GDPZ_USNA'].dropna().index.max()
     T1 = T + pd.offsets.QuarterEnd(1)

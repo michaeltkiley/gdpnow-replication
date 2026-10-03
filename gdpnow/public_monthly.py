@@ -98,8 +98,8 @@ class Ctx:
     """Cached access to the sources, as of one date. `ref_vintage` names a GDPNow workbook vintage loaded in
     DuckDB: its series serve as the last backward-splicing layer and as the splice quality reference."""
 
-    def __init__(self, con, asof, ref_vintage=None):
-        self.con, self.asof, self.cache, self.ref_vintage = con, str(asof), {}, ref_vintage
+    def __init__(self, con, asof, ref_vintage=None, ism='public'):
+        self.con, self.asof, self.cache, self.ref_vintage, self.ism_mode = con, str(asof), {}, ref_vintage, ism
         self._refs = {}
 
     def ref(self, sheet, col):
@@ -127,10 +127,14 @@ class Ctx:
             return live
 
     def ism(self, name, proxy):
-        """ISM manufacturing index `name` (licensed; the ISM site is login-only). History: ISM actuals seeded once
+        """ISM manufacturing index `name` (licensed; the ISM site is login-only). Core run (ism='public'): the
+        regional-survey average rescaled to the ISM 50 = no-change convention. Sensitivity run (ism='seeded'):
+        history: ISM actuals seeded once
         from the GDPNow workbook into the durable table hist_levels (flagged by source) and used up to the last
         month released before the as-of date; later months: nowcast from the regional-survey `proxy` by OLS
         fitted on the overlapping actual history, re-estimated every run (the fit is data, not a stored coefficient)."""
+        if self.ism_mode == 'public':
+            return 50 + proxy / 2
         ref = self.ref('InventoryRaw', name)
         if ref is not None:
             df = pd.DataFrame({'name': name, 'date': ref.index, 'value': ref.to_numpy(), 'source': f'workbook:{self.ref_vintage}'})
