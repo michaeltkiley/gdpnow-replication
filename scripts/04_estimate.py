@@ -21,6 +21,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--level', required=True, choices=['L2'])
     ap.add_argument('--vintage')
+    ap.add_argument('--last-price-month', default='2026-08', help='last actual month of monthly prices')
+    ap.add_argument('--mgdp-last-month', default='2026-07', help='last actual month of monthly nominal GDP')
     ap.add_argument('--force', action='store_true')
     a = ap.parse_args()
     con = store.connect()
@@ -40,14 +42,19 @@ def main():
     act = store.series_frame(con, vintage, 'QtrlyActDLog').rename(columns=lambda c: c.replace('_USNAqtr', ''))
     prices = store.series_frame(con, vintage, 'QtrlyPriceForecasts').loc[:wb.T]
 
-    est, replaced, diag = estimate.estimate_core(wb, panel, act, prices)
+    # Last actual month of the monthly price panel and of monthly nominal GDP on the vintage date
+    # (all CPI/PPI/import-export/PCE prices through Aug 2026 on Oct 1; monthly GDP through Jul).
+    last_price = pd.Timestamp(a.last_price_month) + pd.offsets.MonthEnd(0)
+    mgdp_last = pd.Timestamp(a.mgdp_last_month) + pd.offsets.MonthEnd(0)
+    est, diag = estimate.estimate_all(wb, panel, act, prices, last_price, mgdp_last)
     tag = f'estimated:{run_id}'
+    fields = ['factor', 'faar', 'bridge', 'bvar', 'prices_T1', 'blend', 'monthly_prices', 'cons_growth',
+              'util_travel', 'farm_other', 'cipi_paths', 'iva_paths', 'inv_deflators']
     prov = dict(wb.provenance)
-    for f in ['factor', 'faar', 'bridge', 'bvar', 'prices_T1']:
-        prov[f] = tag
-    prov['blend'] = f'{tag} (investment, government); workbook:{vintage} (trade, inventories: M3/M4)'
+    prov.update({f: tag for f in fields})
+    prov['cons_growth'] = f'{tag} (model-derived columns); workbook:{vintage} (data columns)'
     est = dataclasses.replace(est, provenance=prov)
-    params.save(con, run_id, est, replaced)
+    params.save(con, run_id, est, fields)
 
     # Diagnostics: our estimates next to the workbook's (benchmark only).
     rows = []
@@ -67,9 +74,12 @@ def main():
     diag_df.to_csv(DATA / f'{vintage}_diagnostics_{run_id}.csv', index=False)
 
     run = lambda i: nowcast.run(i)[1]['GDP']
-    att = estimate.attribution(wb, est, [('factor', ['factor']), ('FA-AR equations', ['faar']),
-                                         ('bridges', ['bridge']), ('quarterly BVARs', ['bvar', 'prices_T1']),
-                                         ('blend weights', ['blend'])], run)
+    att = estimate.attribution(wb, est, [
+        ('dynamic factor', ['factor']), ('FA-AR equations', ['faar']), ('bridge equations', ['bridge']),
+        ('quarterly BVARs', ['bvar', 'prices_T1']), ('monthly price BVAR', ['monthly_prices', 'cons_growth']),
+        ('travel/utility regressions', ['util_travel']), ('inventory IVA model', ['iva_paths']),
+        ('inventory CIPI block BVARs', ['cipi_paths']), ('inventory deflators', ['inv_deflators']),
+        ('farm/other inventory AR', ['farm_other']), ('blend weights', ['blend'])], run)
     att.to_csv(DATA / f'{vintage}_attribution_{run_id}.csv', index=False)
     store.replace_rows(con, 'attribution', att.assign(run_id=run_id), {'run_id': run_id})
     print(att.round(4).to_string(index=False))

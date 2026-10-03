@@ -64,3 +64,30 @@ def one_step(Y, B, p):
     fitted = X @ B
     x_next = np.concatenate([Y[-k] for k in range(1, p + 1)] + [[1.0]])
     return fitted, x_next @ B
+
+
+def residual_cov(Y, B, p):
+    y, X = lagmat(Y, p)
+    e = y - X @ B
+    return e.T @ e / len(e)
+
+
+def conditional_forecast(Y, B, p, horizon, known=None):
+    """Point forecasts for `horizon` steps after the last row of Y. `known` is a (horizon x n) array with
+    NaN where a value is unknown; known values are imposed and the unknown ones in the same step are moved
+    by their conditional expectation given the implied one-step shocks (Waggoner-Zha 1999 mean, one step at a
+    time)."""
+    S = residual_cov(Y, B, p)
+    x, out = Y.copy(), []
+    for h in range(horizon):
+        f = np.concatenate([x[-k] for k in range(1, p + 1)] + [[1.0]]) @ B
+        if known is not None:
+            o = ~np.isnan(known[h])
+            if o.any():
+                u = ~o
+                shock = known[h, o] - f[o]
+                f[u] = f[u] + S[np.ix_(u, o)] @ np.linalg.solve(S[np.ix_(o, o)], shock)
+                f[o] = known[h, o]
+        out.append(f)
+        x = np.vstack([x, f])
+    return np.array(out)

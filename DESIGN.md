@@ -252,3 +252,32 @@ Our code now estimates the factor, all 46 factor-augmented AR equations (with AI
 **Still from the workbook (provenance check flags them):** monthly price BVAR (P08/P09), travel/utility regressions (P10), farm and other inventory AR (P11), inventory CIPI/IVA system and deflators (P12–P14), trade and inventory blend weights (part of P05). These are M3 (consumption and trade) and M4 (inventories).
 
 **Pipeline:** `04_estimate.py --level L2` → `05_nowcast.py --level L2` → `06_verify.py --run L2_<vintage>`. Per-field provenance is now carried in `Inputs.provenance` and checked in stage 06.
+
+---
+
+## 10. M3–M4 result: L2 complete (2026-10-03)
+
+Every group-1 registry item is now estimated by our code from the workbook's data (provenance check: 29/29 OK). Run `L2_20261003`: **GDP 3.9635 vs published 3.6773 (+0.286 pp)**.
+
+| Stage (alone, vs L1) | Effect | Fidelity vs workbook |
+|---|---|---|
+| Dynamic factor | +0.255 | Sep-2026 value (see §9) |
+| Factor-augmented AR equations | −0.024 | §9 |
+| Bridge equations | −0.079 | §9 |
+| Quarterly BVARs | −0.001 | §9 |
+| Monthly price BVAR (34-var, 12 lags, λ=0.05, Waggoner–Zha conditioning on Sep oil and ISM prices) | ≈0 | Sep import/export/CPI/retail-deflator forecasts within 0.1–0.8 pp annualized |
+| Travel/utility regressions | ≈0 | electricity exact; travel within 0.15 (constant) |
+| Inventory IVA model | +0.041 | July exact (underlying-detail rule); August within 1–6 $bn |
+| Inventory CIPI block BVARs | −0.043 | Sep Census CIPI and MV/nonmerchant paths within a few $bn |
+| Inventory deflators | ≈0 | within 0.6 index points |
+| Farm/other inventory AR(4) | **+0.120** | not reproducible: no sample window, end date or dummy choice matches; the workbook coefficients evidently come from an older (pre-2023-revision) data vintage |
+| Blend weights (all 9) | +0.003 | all within 0.01, except federal (0.025) |
+
+**Choices and deviations (documented, not tuned to the workbook)**
+1. **Monthly price BVAR:** the last actual month on Oct 1 is August for every price series. Monthly nominal GDP (Macroeconomic Advisers/S&P) is actual through July and extended at **4.5% SAAR**, as in WP fn 21 (registry R10); the workbook shows exactly this. The BVAR conditions on September WTI and ISM prices, which were released by Oct 1. Without this conditioning, September trade prices are off by 8–13 pp; with it, they match.
+2. **Inventory IVA (P13):** the first month of the quarter uses BEA underlying-detail stocks (Mods Oct-2017; exact). Later months use a holding-gain model: IVA = −12·book₋₁·Σ w·Δln PPI, with non-negative weights over the available PPIs and turnover lags ≤4, plus an AR(1) discrepancy (WP step 7e). The workbook lacks the paper's industry net-output PPI composites (Table A8c), so the model chooses non-negative combinations of the broader PPIs that are available.
+3. **Inventory CIPI (P12):** core BVAR on the paper's 16 variables (Table A8a; 6 lags; from 1983; λ=0.07) with conditional forecasts given released data. The six block equations (Table A8b scalings) are estimated by OLS from 1997 (NAICS data), not as Bayesian blocks, and the ML step combining IVA and BVAR likelihoods (WP 7f) is not implemented. The IVA model and BVAR are used sequentially instead.
+4. **Inventory deflators (P14):** proportional extrapolation of each end-of-quarter deflator using the end-of-quarter-month change in the matching spliced trade sales deflator from the price BVAR (CPI new vehicles, carried forward, for motor-vehicle dealers). This stands in for the Denton step (WP fn 32). Of the variants tested it was closest to the workbook (mean 1.1 pp annualized).
+5. **Inventory blend history:** the paper uses fixed parameters; we re-estimate the inventory model for each past quarter. History starts 1997Q3 because NAICS monthly inventory data begin in 1997.
+6. **Consumption inputs** `*Fore` and `*Rev` (model-derived) are replaced by the published series they extend; their regressions are re-estimated (P10).
+7. **AEI-window goods trade** (gold BVAR P15, capital-goods shares BVAR P16): in L2 the workbook's August goods trade values already embed these constructions, so they are taken as data in L2 and rebuilt from public data in L3.

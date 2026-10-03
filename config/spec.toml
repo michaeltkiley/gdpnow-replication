@@ -51,6 +51,8 @@ lambda = 0.05                          # WP appendix; fixed
 
 [bvar_inventory_core]
 lambda = 0.07                          # WP appendix; fixed
+lags = 6                               # WP Table A8a note
+sample_start = "1983-01"               # WP Table A8a note
 iva_max_turnover_months = 5         # WP fn 34
 
 [bvar_gold]
