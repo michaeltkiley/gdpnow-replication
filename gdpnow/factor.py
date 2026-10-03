@@ -60,6 +60,7 @@ def _ols(y, X):
 def estimate(panel, forecast_to, n_lags=3):
     """panel: DataFrame (month-end index) of stationary series; NaN where unreleased.
     Returns FactorResult with the factor extended to `forecast_to`."""
+    panel = panel.dropna(axis=1, how="all")
     z, mean, sd = standardize(panel)
     last_data = z.dropna(how='all').index.max()
     z = z.loc[:last_data]

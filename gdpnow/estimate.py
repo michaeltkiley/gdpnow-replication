@@ -59,8 +59,11 @@ def estimate_core(inp, panel, actual_qgrowth, prices):
     faar = {}
     for sheet, t in used[['sheet', 'key']].values:
         cons = sheet == 'ConsFactorAugARCoeffs'
-        y = (inp.cons_growth if cons else inp.growth)[t]
-        coef, q, r, _ = FA.estimate(y, f, consumption=cons, const='const' in inp.faar[t])
+        src = inp.cons_growth if cons else inp.growth
+        if t not in src or src[t].dropna().shape[0] < 60:
+            continue                       # series not available (e.g. existing-home sales in L3)
+        # Constant in every equation except the net-export contribution ones (WP eq. 10).
+        coef, q, r, _ = FA.estimate(src[t], f, consumption=cons, const=not t.startswith('NetExports') and not t.startswith('NetSvc'))
         faar[t] = coef
         diag.setdefault('faar_lags', {})[t] = (q, r)
     stage = dataclasses.replace(inp, factor=f, faar=faar)
@@ -128,22 +131,36 @@ def monthly_price_bvar(prices, conditioners, last_actual, mgdp_last):
     return out
 
 
-def util_travel(cg):
-    """Electricity/gas and travel PCE regressions (P10; Mods Oct-2017; sample from Jan 2000)."""
+def util_travel(cg, travel_quarterly=None):
+    """Electricity/gas and travel PCE regressions (P10; Mods Oct-2017; sample from Jan 2000). If monthly
+    travel-services trade is unavailable (public data), the travel regressions use quarterly growth rates."""
     start = pd.Timestamp(SPEC['travel_util']['sample_start']) + pd.offsets.MonthEnd(0)
 
     def ols(y, xs, names):
         d = pd.concat([y] + xs, axis=1).dropna().loc[start:]
         A = np.column_stack([np.ones(len(d))] + [d.iloc[:, k] for k in range(1, d.shape[1])])
         return dict(zip(['Constant'] + names, np.linalg.lstsq(A, d.iloc[:, 0].to_numpy(), rcond=None)[0]))
-    return {
-        'CSEHM_USNA': ols(cg['CSEHM_USNA'], [cg['IPUTL_IP'], cg['CSEHM_USNA'].shift(1)], ['IPUTL_IP', 'CSEHM_USNALag1']),
-        'CSDTFHM_USNA': ols(cg['CSDTFHM_USNA'], [cg['BMBSXR_USINT']], ['BMBSXR_USINT']),
-        'CSFTOHM_USNA': ols(cg['CSFTOHM_USNA'], [cg['BMBSMR_USINT']], ['BMBSMR_USINT']),
-    }
+    out = {'CSEHM_USNA': ols(cg['CSEHM_USNA'], [cg['IPUTL_IP'], cg['CSEHM_USNA'].shift(1)], ['IPUTL_IP', 'CSEHM_USNALag1'])}
+    if cg['BMBSXR_USINT'].notna().sum() > 60:
+        out['CSDTFHM_USNA'] = ols(cg['CSDTFHM_USNA'], [cg['BMBSXR_USINT']], ['BMBSXR_USINT'])
+        out['CSFTOHM_USNA'] = ols(cg['CSFTOHM_USNA'], [cg['BMBSMR_USINT']], ['BMBSMR_USINT'])
+    else:
+        xq, mq = travel_quarterly
+        q = lambda g: g.resample('QE').mean()          # quarterly average of monthly SAAR log growth
+        gq = lambda s: 400 * np.log(s / s.shift(1))
+        start_q = start + pd.offsets.QuarterEnd(0)
+        def qols(y, x, name):
+            d = pd.concat([y, x], axis=1).dropna().loc[start_q:]
+            A = np.column_stack([np.ones(len(d)), d.iloc[:, 1]])
+            return dict(zip(['Constant', name], np.linalg.lstsq(A, d.iloc[:, 0].to_numpy(), rcond=None)[0]))
+        out['CSDTFHM_USNA'] = qols(q(cg['CSDTFHM_USNA']), gq(xq), 'BMBSXR_USINT')
+        out['CSFTOHM_USNA'] = qols(q(cg['CSFTOHM_USNA']), gq(mq), 'BMBSMR_USINT')
+    return out
 
 
 TRADE_NIPA = {'goods': ('XM', 'MM'), 'services': ('XS', 'MS')}
+TRADE_SERIES = {'goods': ['SplicedGoodsExports', 'SplicedGoodsImports', 'NetExportsGoodsMonthlyContrib'],
+                'services': ['SplicedServiceExports', 'SplicedServiceImports', 'NetSvcExportsMonthlyContrib']}
 
 
 def trade_model_history(kind, inp, faar, start):
@@ -172,7 +189,9 @@ def trade_blend(kind, inp, faar, actual_qgrowth, bvar_hist):
     growth (previous-quarter nominal shares of GDP), 2020 excluded."""
     x, m_ = TRADE_NIPA[kind]
     start = pd.Period(SPEC['blend']['sample_start']).end_time.normalize()
-    hist, _ = trade_model_history(kind, inp, faar, start)
+    s_ = TRADE_SERIES[kind]
+    first = max(inp.growth[t].first_valid_index() for t in s_) + pd.offsets.QuarterEnd(10)
+    hist, _ = trade_model_history(kind, inp, faar, max(start, first))
     nipa = inp.nipa
     sx = (nipa[x + 'X_USNA'] / nipa['GDPX_USNA']).shift(1)
     sm = (nipa[m_ + 'X_USNA'] / nipa['GDPX_USNA']).shift(1)
@@ -205,7 +224,8 @@ def estimate_all(inp, panel, actual_qgrowth, prices, last_price_month, mgdp_last
     for c in CONS_DEFLATORS:
         g = 1200 * np.log(mp[c]).diff()
         cg[c] = cg[c].where(cg.index <= last_price_month, g.reindex(cg.index))
-    est = dataclasses.replace(est, monthly_prices=mp, cons_growth=cg, util_travel=util_travel(cg))
+    est = dataclasses.replace(est, monthly_prices=mp, cons_growth=cg,
+                              util_travel=util_travel(cg, inp.flags.get('travel_quarterly')))
     # Trade blend weights (P05, net exports).
     blend_w = dict(est.blend)
     blend_w['PTXNETMH'] = trade_blend('goods', est, est.faar, actual_qgrowth, diag['bvar_hist'])

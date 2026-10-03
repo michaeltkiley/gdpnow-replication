@@ -1,0 +1,633 @@
+"""Monthly blocks of the L3 Inputs, built only from public sources (FRED/ALFRED as of --asof, BEA, Census,
+Treasury). Each builder reproduces a workbook series by its documented recipe (WP Tables A2, A4, A8;
+Mods); tools/validate_public.py and stage 06 benchmark them against the workbook (benchmark only).
+"""
+import json
+import os
+import urllib.parse
+
+import numpy as np
+import pandas as pd
+from statsmodels.tsa.x13 import x13_arima_analysis
+
+from . import public_data as P
+from .config import ROOT, load_toml
+
+X13 = str(ROOT / 'tools' / 'x13' / 'x13as' / 'x13as_ascii')
+MAP = load_toml('public_series.toml')
+
+
+PRICE_PREFIXES = ('CPI', 'CUSR', 'WPS', 'WPU', 'PCU', 'IR', 'IQ', 'MEDCPI', 'TRMMEAN', 'PPI')
+
+
+def shutdown_fill(s):
+    """Oct-2025 government-shutdown fill (Mods Dec-2025, registry T05): a missing October 2025 price value
+    between available September and November values is the geometric mean of the two."""
+    a, o, b = (pd.Timestamp(d) for d in ('2025-09-30', '2025-10-31', '2025-11-30'))
+    if o not in s.index and a in s.index and b in s.index:
+        s = s.copy()
+        s[o] = np.sqrt(s[a] * s[b])
+        s = s.sort_index()
+    return s
+
+
+def empty():
+    return pd.Series(dtype=float, index=pd.DatetimeIndex([]))
+
+
+def me(s):
+    """Index to month ends."""
+    s = s.copy()
+    s.index = pd.DatetimeIndex(s.index) + pd.offsets.MonthEnd(0)
+    return s[~s.index.duplicated(keep='last')]
+
+
+def seasadj(s, start='1990'):
+    """Census X-13ARIMA-SEATS default seasonal adjustment (decision D3)."""
+    x = s.loc[start:].dropna()
+    x.index = x.index.to_period('M')
+    sa = x13_arima_analysis(x, x12path=X13, outlier=True).seasadj
+    sa.index = sa.index.to_timestamp(how='end').normalize()
+    return sa
+
+
+def chain(parts, fisher=True):
+    """Fisher (or Tornqvist) chained quantity and price index of a sum of components.
+    parts: list of (nominal, price index) monthly series; returns (real level in base-period $, price)."""
+    N = pd.concat([n for n, _ in parts], axis=1)
+    Pr = pd.concat([p for _, p in parts], axis=1)
+    N.columns = Pr.columns = range(len(parts))
+    Q = N / Pr
+    d = pd.concat([N, Pr], axis=1).dropna().index
+    N, Pr, Q = N.loc[d], Pr.loc[d], Q.loc[d]
+    lasp = (Pr.shift(1) * Q).sum(axis=1) / (Pr.shift(1) * Q.shift(1)).sum(axis=1)
+    paas = (Pr * Q).sum(axis=1) / (Pr * Q.shift(1)).sum(axis=1)
+    rel = np.sqrt(lasp * paas).fillna(1.0)
+    q = rel.cumprod()
+    nom = N.sum(axis=1)
+    q = q * nom.loc['2017'].mean() / q.loc['2017'].mean() if len(q.loc['2017']) else q
+    return q, 100 * nom / q
+
+
+def atkeson_ohanian(q_price, months_index):
+    """Monthly price index from a quarterly one (WP appendix): within quarter t each month grows at the
+    quarter t-1 over t-5 annual inflation rate; anchored to quarterly levels at quarter ends."""
+    q = q_price.dropna()
+    g = np.log(q / q.shift(4)) / 12          # monthly log growth used during the following quarter
+    out = {}
+    for t in months_index:
+        qe = t + pd.offsets.QuarterEnd(0)
+        prev = qe - pd.offsets.QuarterEnd(1)
+        if prev not in q.index or np.isnan(g.get(prev, np.nan)):
+            continue
+        k = 3 - (qe.month - t.month)          # 1, 2, 3 within the quarter
+        out[t] = q[prev] * np.exp(g[prev] * k)
+    return pd.Series(out)
+
+
+def census(series, dataset, category, data_type, seasonal='yes', time_from='1992'):
+    """Census EITS time series (current vintage). Returns monthly Series."""
+    q = dict(get='cell_value,time_slot_id', category_code=category, data_type_code=data_type,
+             seasonally_adj=seasonal, time=f'from {time_from}', key=os.environ.get('CENSUS_API_KEY', ''))
+    q['for'] = 'us:*'
+    url = f'https://api.census.gov/data/timeseries/eits/{dataset}?' + urllib.parse.urlencode(q)
+    rows = P._get(url)
+    hdr, data = rows[0], rows[1:]
+    i, j = hdr.index('cell_value'), hdr.index('time')
+    s = pd.Series({pd.Period(r[j], 'M').end_time.normalize(): float(r[i]) for r in data if r[i] not in ('', '(S)')})
+    return s.sort_index()
+
+
+class Ctx:
+    """Cached access to the sources, as of one date."""
+
+    def __init__(self, con, asof):
+        self.con, self.asof, self.cache = con, str(asof), {}
+
+    def fred(self, fid):
+        if ('f', fid) not in self.cache:
+            s = me(P.fred(self.con, fid, self.asof))
+            self.cache[('f', fid)] = shutdown_fill(s) if fid.startswith(PRICE_PREFIXES) else s
+        return self.cache[('f', fid)]
+
+    def fred_opt(self, fid):
+        """Like fred(), but None if the id does not exist on FRED."""
+        try:
+            return self.fred(fid)
+        except Exception:
+            return None
+
+    def bea(self, table, freq='M', line=None, ds=None):
+        key = ('b', table, freq)
+        if key not in self.cache:
+            dsn = ds or ('NIPA' if table.startswith('T') else 'NIUnderlyingDetail')
+            self.cache[key] = P.bea_table(self.con, dsn, table, freq, self.asof)
+        t = self.cache[key]
+        if line is None:
+            return t
+        return t[[c for c in t.columns if c.split('|')[0] == str(line)][0]]
+
+    def census(self, *a, **k):
+        key = ('c',) + a + tuple(sorted(k.items()))
+        if key not in self.cache:
+            self.cache[key] = census(*a, **k)
+        return self.cache[key]
+
+
+def asof_cut(s, asof):
+    """Drop observations for months not yet ended at the vintage date (safety for current-vintage APIs)."""
+    return s.loc[:pd.Timestamp(asof) - pd.offsets.MonthEnd(1)]
+
+
+# ----------------------------------------------------------------------------------------- price panel
+def splice_back(new, old):
+    """Extend `new` backwards with the growth of `old` (ratio link at the first common month)."""
+    new, old = new.dropna(), old.dropna()
+    common = new.index.intersection(old.index)
+    if len(common) == 0:
+        return new
+    t = common[0]
+    return new.combine_first(old * new[t] / old[t])
+
+
+def cleveland_index(rate):
+    """Index from an annualized monthly percent-change series (Cleveland Fed median / trimmed-mean CPI)."""
+    r = rate.dropna()
+    return 100 * np.exp(np.log1p(r / 100).cumsum() / 12)
+
+
+def build_prices(cx):
+    f, b = cx.fred, cx.bea
+    out = {
+        'PCU_USECONfr': f('CPIAUCSL'), 'PCUSLFE_USECONfr': f('CPILFESL'), 'PCUSND_USECONfr': f('CUSR0000SAN'),
+        'PCUSSLE_USECONfr': f('CUSR0000SASLE'), 'UH_CPIDATAfr': f('CPIHOSSL'),
+        'PA49207_USECONfr': f('WPSFD49207'), 'PA41312_PPIfr': f('WPSFD41312'), 'PC152_PPIfr': f('WPSID6152'),
+        'PC9115_PPIfr': f('WPSID69115'),
+        'SplicedMedianfr': cleveland_index(f('MEDCPIM158SFRBCLE')), 'SplicedTrimfr': cleveland_index(f('TRMMEANCPIM158SFRBCLE')),
+        'PXEA_USECONsplicefr': f('IQ'),
+    }
+    out['R5312101_PPIRInterpfr'] = splice_back(f('PCU5312105312101'), f('CPIHOSSL'))
+    out['saRMFG_PPIRsplicefr'] = seasadj(f('PCUOMFGOMFG'), '1985')
+    # Trade sales deflators (NIPA underlying detail 2BUI), spliced with the SIC-based tables (2AUI).
+    for name, line_new in [('SpliceManTradeDeflatorfr', 2), ('SpliceWholesaleTradeDeflatorfr', 28),
+                           ('SpliceRetailTradeDeflatorfr', 51)]:
+        out[name] = b('U002BUI', line=line_new)
+    # PCE implicit deflators (NIPA underlying detail 2.4.4U lines).
+    for name, line in [('CDMVNMDeffr', 5), ('CDMVUMDeffr', 12), ('CNEMDeffr', 113), ('CSFPMDeffr', 236)]:
+        out[name] = b('U20404', line=line)
+    cons = pce_aggregates(cx)
+    out['CoreRealRetailPCEDeffr'] = cons['core_retail_price_incl_food_svc']
+    out['CoreRealRetailPCEDefExFoodSvcfr'] = cons['core_retail_price']
+    out['HerzonServicesExFoodDeffr'] = cons['other_services_price']
+    out['CPIMajappSplicefr'] = f('CUSR0000SAH3')
+    out['SA_HN1PA_USECON_fr'] = seasadj(f('ASPNHSUS'), '1975')
+    resid = cx.bea('T50304', 'Q', line=22)          # permanent-site residential price index
+    idx = pd.date_range('1965-01-31', pd.Timestamp(cx.asof), freq='ME')
+    out['CCIHD_USECONfr'] = atkeson_ohanian(resid, idx)
+    out['TornPriceNonResStrMthfr'] = structures_price(cx, idx)
+    out['PMEA_USECONsplicefr'] = goods_import_price(cx)
+    out['MGDPN_USECONsplicefr'] = monthly_nominal_gdp(cx)
+    df = pd.DataFrame({k: me(v) for k, v in out.items()}).sort_index()
+    svc = services_trade_deflators(cx, df)
+    df['ImpSvcDefmthA1fr'], df['ExpSvcDefmthA1fr'] = svc
+    return df
+
+
+def structures_price(cx, idx):
+    """Monthly nonresidential-structures price (W07, simplified): Atkeson-Ohanian interpolation of the NIPA
+    deflator for structures excluding mining exploration, shafts and wells, extended past the last quarter
+    with the average monthly growth of the BLS new nonresidential building construction PPIs."""
+    deflator = cx.bea('U50404', 'Q', line=2)        # nonresidential structures price index
+    m = atkeson_ohanian(deflator, idx)
+    ppis = [p for p in (cx.fred_opt(i) for i in ['PCU236221236221', 'PCU236223236223', 'PCU236222236222',
+                                                  'PCU236224236224', 'PCU2362112362111']) if p is not None]
+    ppi = pd.concat([np.log(p).diff() for p in ppis], axis=1).mean(axis=1)
+    last_q = deflator.dropna().index.max()
+    m = m.loc[:last_q]
+    for t in pd.date_range(last_q + pd.offsets.MonthEnd(1), pd.Timestamp(cx.asof), freq='ME'):
+        if t in ppi.index and not np.isnan(ppi[t]):
+            m[t] = m.iloc[-1] * np.exp(ppi[t])
+    return m
+
+
+def goods_import_price(cx):
+    """Goods import price (W06; WP step 5a): Tornqvist index of BLS end-use import price indexes, weighted
+    by previous-quarter nominal NIPA imports of the matching categories (Table 4.2.5B)."""
+    nipa = cx.bea('T40205B', 'Q')
+    find = lambda text: nipa[[c for c in nipa.columns if text.lower() in c.lower() and 'import' not in c.lower()
+                              and int(c.split('|')[0]) > 94][0]]
+    cats = {'IR0': 'Foods, feeds, and beverages', 'IR10': 'Petroleum and products', 'IR1EXFUEL': 'Industrial supplies and materials, except petroleum',
+            'IR2': 'Capital goods, except automotive', 'IR3': 'Automotive vehicles, engines, and parts',
+            'IR4': 'Consumer goods, except food and automotive'}
+    w, p = {}, {}
+    for fid, text in cats.items():
+        try:
+            w[fid] = find(text)
+        except IndexError:
+            continue
+        p[fid] = seasadj(cx.fred(fid), '1990') if fid == 'IR10' else cx.fred(fid)
+    W = pd.DataFrame(w)
+    W = W.div(W.sum(axis=1), axis=0).shift(1)                 # previous-quarter shares
+    Wm = W.resample('ME').ffill().reindex(pd.date_range(W.index.min(), pd.Timestamp(cx.asof), freq='ME')).ffill()
+    Wm.index = Wm.index + pd.offsets.MonthEnd(0)
+    G = pd.DataFrame({k: np.log(v).diff() for k, v in p.items()})
+    g = (G * Wm.reindex(G.index)).sum(axis=1, min_count=len(p))
+    g = g.dropna()
+    lvl = np.exp(g.cumsum())
+    return splice_back(100 * lvl / lvl.loc['2017'].mean(), cx.fred('IR'))
+
+
+def monthly_nominal_gdp(cx):
+    """Monthly nominal GDP (D3 substitute for the Macroeconomic Advisers/S&P series): proportional Denton-type
+    interpolation of BEA quarterly nominal GDP with monthly nominal PCE (ratio held linear within quarter),
+    extended past the last quarter with PCE growth."""
+    gdp = cx.bea('T10105', 'Q', line=1)
+    pce = cx.bea('T20805', 'M', line=1)
+    ratio_q = gdp / pce.resample('QE').mean()
+    ratio_m = ratio_q.resample('ME').interpolate().reindex(pce.index).ffill().bfill()
+    return pce * ratio_m
+
+
+def services_trade_deflators(cx, prices):
+    """Monthly services import/export deflators (P09; WP Table A2): quarterly regression of the NIPA services
+    deflator log change on the goods import (export) price log change and the deflator's lagged 4-quarter
+    change; monthly series built with the fitted quarterly relation applied to monthly goods price changes."""
+    out = []
+    for line_n, line_r, goods in [(21, 21, 'PMEA_USECONsplicefr'), (18, 18, 'PXEA_USECONsplicefr')]:
+        d = 100 * cx.bea('T10105', 'Q', line=line_n) / cx.bea('T10106', 'Q', line=line_r)
+        gq = np.log(prices[goods].resample('QE').mean())
+        y, x1, x2 = np.log(d).diff(), gq.diff(), np.log(d).diff(4).shift(1)
+        dd = pd.concat([y, x1, x2], axis=1, keys=['y', 'a', 'b']).dropna()
+        A = np.column_stack([np.ones(len(dd)), dd.a, dd.b])
+        beta = np.linalg.lstsq(A, dd.y.to_numpy(), rcond=None)[0]
+        dm = atkeson_ohanian(d, prices.index)
+        last = d.dropna().index.max()
+        m = dm.loc[:last]
+        gm = np.log(prices[goods]).diff()
+        lag4 = np.log(d).diff(4)
+        for t in prices.index[prices.index > last]:
+            if np.isnan(gm.get(t, np.nan)):
+                break
+            q_prev = t - pd.offsets.QuarterEnd(1)
+            m[t] = m.iloc[-1] * np.exp(beta[0] / 3 + beta[1] * gm[t] + beta[2] * lag4.get(q_prev, 0) / 3)
+        out.append(m)
+    return out
+
+
+# --------------------------------------------------------------------------------- consumption block
+def pce_aggregates(cx):
+    """PCE buckets from NIPA underlying detail (2.4.5U nominal, 2.4.4U prices), Fisher-chained."""
+    if ('pce',) in cx.cache:
+        return cx.cache[('pce',)]
+    N, Pr = cx.bea('U20405'), cx.bea('U20404')
+    line = lambda t, n: t[[c for c in t.columns if c.split('|')[0] == str(n)][0]]
+    pick = lambda n: (line(N, n), line(Pr, n))
+    M = cx.bea('T20805')
+    Mp = cx.bea('T20804')
+    mline = lambda t, n: t[[c for c in t.columns if c.split('|')[0] == str(n)][0]]
+    # Retail control goods (PCE goods excluding motor vehicles and parts and gasoline/energy goods).
+    core = [(mline(M, n), mline(Mp, n)) for n in (5, 6, 7, 9, 10, 12)]
+    core_q, core_p = chain(core)
+    food_svc = pick(236)
+    core_f_q, core_f_p = chain(core + [food_svc])
+    # Services less food services, electricity and gas, and net foreign travel.
+    svc = (mline(M, 13), mline(Mp, 13))
+    minus = [pick(236), pick(169), pick(336)]
+    travel_in = pick(339)
+    oth_nom = svc[0] - sum(n for n, _ in minus) + travel_in[0]
+    # Fisher subtraction via chaining the services aggregate with negative weights on the removed items.
+    parts = [svc] + [(-n, p) for n, p in minus] + [travel_in]
+    oth_q, oth_p = chain(parts)
+    res = {'core_retail_nominal': core_q * core_p / 100, 'core_retail_real': core_q, 'core_retail_price': core_p,
+           'core_retail_price_incl_food_svc': core_f_p,
+           'other_services_nominal': oth_nom, 'other_services_real': oth_q, 'other_services_price': oth_p}
+    cx.cache[('pce',)] = res
+    return res
+
+
+def build_consumption(cx, prices):
+    N, Pr = cx.bea('U20405'), cx.bea('U20404')
+    line = lambda t, n: t[[c for c in t.columns if c.split('|')[0] == str(n)][0]]
+    real = lambda n: line(N, n) / line(Pr, n) * 100
+    agg = pce_aggregates(cx)
+    lv = {
+        'CDMNM_USNA': line(N, 6), 'CDMTNM_USNA': line(N, 9), 'CDMVNM_USNA': line(N, 5), 'CDMVNHM_USNA': real(5),
+        'CDMVUM_USNA': line(N, 12), 'CDMVUHM_USNA': real(12), 'CNEM_USNA': line(N, 113), 'CNEHM_USNA': real(113),
+        'CSEM_USNA': line(N, 169), 'CSEHM_USNA': real(169), 'CSFPM_USNA': line(N, 236), 'CSFPHM_USNA': real(236),
+        'CSFTOM_USNA': line(N, 336), 'CSFTOHM_USNA': real(336), 'CSDTFM_USNA': -line(N, 339), 'CSDTFHM_USNA': real(339),
+        'sumCoreNomRetailPCEExFoodSvc': agg['core_retail_nominal'], 'CoreRealRetailPCEQtyExFoodSvc': agg['core_retail_real'],
+        'sumNomServicesPCEExFoodExUtilExForTravel': agg['other_services_nominal'],
+        'HerzonServicesLessFoodUtilTravelQty': agg['other_services_real'],
+        'IPUTL_IP': cx.fred('IPUTIL'),
+    }
+    # Retail control (retail & food services ex motor vehicles, gas stations, building materials) and food
+    # services, current and previous vintage (for the revision terms of the latest-month nowcast).
+    prev_asof = (pd.Timestamp(cx.asof) - pd.DateOffset(months=1)).date()
+    fr = lambda fid, asof: me(P.fred(cx.con, fid, asof))
+    ctrl = lambda asof: fr('RSFSXMV', asof) - fr('RSGASS', asof) - fr('RSBMGESD', asof)
+    lv['NRSXMI47_USECON'], lv['NRSXMI47_USECONPrevious'] = ctrl(cx.asof), ctrl(prev_asof)
+    lv['NRSV2_USECON'], lv['NRSV2_USECONPrevious'] = fr('RSFSDP', cx.asof), fr('RSFSDP', prev_asof)
+    lv['NRSXMI47_USECONlessNRSV2_USECON'] = lv['NRSXMI47_USECON'] - lv['NRSV2_USECON']
+    lv['NRSXMI47_USECONPrevlessNRSV2_USECONPrev'] = lv['NRSXMI47_USECONPrevious'] - lv['NRSV2_USECONPrevious']
+    # Monthly travel services trade is not available from public APIs (BEA publishes it quarterly): the
+    # monthly columns are left empty, which disables the latest-month travel replacement (inactive on Oct 1).
+    for c in ['BMBSXR_USINT', 'BMBSMR_USINT', 'BMBSXR_USINTPrevious', 'BMBSMR_USINTPrevious']:
+        lv[c] = empty()
+    L = pd.DataFrame({k: me(v) for k, v in lv.items()}).sort_index()
+    g = lambda s: 1200 * np.log(s / s.shift(1))
+    nominal_ratio = ['NRSXMI47_USECONlessNRSV2_USECON', 'NRSXMI47_USECONPrevlessNRSV2_USECONPrev']
+    G = pd.DataFrame({k: g(L[k]) for k in L.columns if not k.startswith('CSDTFM')})
+    G['CSEHM_USNAFore'] = G['CSEHM_USNA']
+    G['CSFTOHM_USNARev'], G['CSDTFHM_USNARev'] = G['CSFTOHM_USNA'], G['CSDTFHM_USNA']
+    G['CoreRealRetailPCEDefExFoodSvcfr'] = g(prices['CoreRealRetailPCEDefExFoodSvcfr'])
+    G['CSFPMDeffr'] = g(prices['CSFPMDeffr'])
+    return L, G
+
+
+def travel_quarterly(cx):
+    """Quarterly travel services exports/imports (BEA ITA, seasonally adjusted, $mil)."""
+    out = {}
+    for ind in ('ExpServTravel', 'ImpServTravel'):
+        q = dict(UserID=os.environ['BEA_API_KEY'], method='GetData', DataSetName='ITA', Indicator=ind,
+                 AreaOrCountry='AllCountries', Frequency='QSA', Year='ALL', ResultFormat='JSON')
+        rows = P._get(P.BEA + '?' + urllib.parse.urlencode(q))['BEAAPI']['Results']['Data']
+        out[ind] = pd.Series({pd.Period(r['TimePeriod'], 'Q').end_time.normalize(): float(r['DataValue'].replace(',', ''))
+                              for r in rows if r['DataValue'] not in ('', '(D)')}).sort_index()
+    return out['ExpServTravel'], out['ImpServTravel']
+
+
+# ------------------------------------------------------------------------------------- inventory block
+def advance_overlay(hist, adv):
+    """Append advance-report months (Census advance datasets) beyond the end of the full-report history."""
+    hist = hist.dropna()
+    extra = adv.loc[adv.index > hist.index.max()].dropna()
+    return pd.concat([hist, extra])
+
+
+def build_inventory(cx, prices, regional):
+    f, b = cx.fred, cx.bea
+    line = lambda t, n, fr='M': b(t, fr, line=n)
+    adv = lambda cat, dt: asof_cut(cx.census('x', 'advm3', cat, dt), cx.asof)
+    dur_ti, dur_vs = adv('MDM', 'TI'), adv('MDM', 'VS')
+    raw = {
+        'NMIDG_USECON': advance_overlay(f('AMDMTI'), dur_ti), 'NMSDG_USECON': advance_overlay(f('AMDMVS'), dur_vs),
+        # The advance report covers durable goods only: nondurable stocks/shipments end with the full M3 report.
+        'NMING_USECON': f('AMNMTI'), 'NMSNG_USECON': f('AMNMVS'),
+        'NWIH_USECON': advance_overlay(f('WHLSLRIMSA'), asof_cut(cx.census('x', 'mwtsadv', '42', 'IM'), cx.asof)),
+        'NWSH_USECON': f('WHLSLRSMSA'),
+        'NRIXM_USECON': advance_overlay(f('MRTSIM4400AUSS'), asof_cut(cx.census('x', 'mrtsadv', '4400A', 'IM'), cx.asof)),
+        'NRSXM_USECON': f('RSXFS') - f('RSMVPD'), 'NRSI1_USECON': f('RSMVPD'),
+        'ADS_USECON': f('DAUTOSAAR'), 'AFS_USECON': f('FAUTOSAAR'), 'TLSAR_USECON': f('DLTRUCKSSAAR'),
+        'TMSAR_USECON': f('FLTRUCKSSAAR'), 'IAU_IP': f('MVAAUTLTTS'),
+        'IPMDG_IP': f('IPDMAN'), 'IPMND_IP': f('IPNMAN'), 'IPMFG_IP': f('IPMANSICS'), 'IP51_IP': f('IPCONGD'),
+        'LADURGA_USECON': f('DMANEMP'), 'LANDURA_USECON': f('NDMANEMP'), 'LARTRDA_USECON': f('USTRADE'),
+        'LAWTRDA_USECON': f('USWTRADE'),
+        'PA41312_PPI': f('WPSFD41312'), 'PA49207_PPI': f('WPSFD49207'), 'PC1112_PPI': f('WPSID61112'),
+        'PC1113_PPI': f('WPSID61113'), 'PC1_PPI': f('WPSID61'), 'sa_PIN_PPI_': seasadj(f('PPIIDC'), '1985'),
+        'UCD_CPIDATA': f('CUSR0000SAD'), 'UCN_CPIDATA': f('CUSR0000SAN'), 'UTW_CPIDATA': f('CUSR0000SETA01'),
+        'JCNLGOM_USNA': line('U20404', 115), 'PZTEXP_USECON': f('WTISPLC'),
+        # BEA underlying detail: sales deflators (2BUI), real and nominal stocks (1BU / 1BUC), monthly IVA
+        # (5.7.5BM3), real CIPI (5.7.6BM).
+        'DTSMD_USNA': line('U002BUI', 3), 'DTSMN_USNA': line('U002BUI', 16), 'DTSWM_USNA': line('U002BUI', 28),
+        'DTSR_USNA': line('U002BUI', 51), 'DTSRI1_USNA': line('U002BUI', 52),
+        'TIMDH_USNA': line('U001B', 3), 'TIMD_USNA': line('U001BC', 3), 'TIMNH_USNA': line('U001B', 16),
+        'TIMN_USNA': line('U001BC', 16), 'TIWMH_USNA': line('U001B', 28), 'TIWM_USNA': line('U001BC', 28),
+        'TIRH_USNA': line('U001B', 51), 'TIR_USNA': line('U001BC', 51), 'TIRI1H_USNA': line('U001B', 52),
+        'TIRI1_USNA': line('U001BC', 52),
+        'VNMDIM_USNA': line('U50705BM3', 4), 'VNMNIM_USNA': line('U50705BM3', 5), 'VNWLMIM_USNA': line('U50705BM3', 9),
+        'VNRIM_USNA': line('U50705BM3', 15), 'VNRDVIM_USNA': line('U50705BM3', 16),
+        'VNRDVHM_USNA': line('U50706BM', 16), 'VNWWHM_USNA': line('U50706BM', 12),
+    }
+    # ISM indexes are licensed (D3): public substitutes are averages of regional Fed manufacturing surveys,
+    # rescaled to the ISM-style 50 = no-change convention.
+    raw['NAPMC_USECON'] = 50 + regional['composite'] / 2
+    raw['NAPMII_USECON'] = 50 + regional['inventories'] / 2
+    raw['NAPMPI_USECON'] = 50 + regional['prices'] / 2
+    # Discontinued SIC-basis sales deflators are not available publicly; the core BVAR runs on NAICS data.
+    for c in ['DTSMD1_USNA', 'DTSMN1_USNA', 'DTSW1_USNA', 'DTSRX1_USNA', 'DTSRAD1_USNA']:
+        raw[c] = empty()
+    return pd.DataFrame({k: me(v) if len(v) else v for k, v in raw.items()}).sort_index()
+
+
+def regional_surveys(cx):
+    """Public regional Fed manufacturing surveys (Philadelphia, New York, Dallas): diffusion indexes averaged
+    across available districts (D2/D3 substitutes for ISM components)."""
+    f = cx.fred_opt
+    comp = [f('GACDFSA066MSFRBPHI'), f('GACDISA066MSFRBNY'), f('BACTSAMFRBDAL')]
+    inv = [f('IVCDFSA066MSFRBPHI'), f('IVCDISA066MSFRBNY')]
+    prc = [f('PPCDFSA066MSFRBPHI'), f('PPCDISA066MSFRBNY'), f('PRMSAMFRBDAL')]
+    avg = lambda xs: pd.concat([x for x in xs if x is not None], axis=1).mean(axis=1)
+    return {'composite': avg(comp), 'inventories': avg(inv), 'prices': avg(prc),
+            'philly_current': f('GACDFSA066MSFRBPHI'), 'philly_future': f('GAFDFSA066MSFRBPHI'),
+            'empire': f('GACDISA066MSFRBNY'), 'dallas': f('BACTSAMFRBDAL'), 'michigan': f('UMCSENT')}
+
+
+# ----------------------------------------------------------------------------------- indicator panel
+def bls(cx, sid, start=1985):
+    """BLS public API v1 (no key): monthly series, in 10-year request windows (cached in the archive)."""
+    s = P._archived(cx.con, 'bls', sid, cx.asof)
+    if s is not None:
+        return s
+    end = pd.Timestamp(cx.asof).year
+    vals = {}
+    for y0 in range(start, end + 1, 10):
+        body = json.dumps({'seriesid': [sid], 'startyear': str(y0), 'endyear': str(min(y0 + 9, end))}).encode()
+        import urllib.request
+        req = urllib.request.Request('https://api.bls.gov/publicAPI/v1/timeseries/data/', data=body,
+                                     headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(req, timeout=120) as r:
+            d = json.loads(r.read().decode())
+        for row in d['Results']['series'][0]['data']:
+            if row['period'].startswith('M') and row['period'] != 'M13':
+                vals[pd.Period(f"{row['year']}-{row['period'][1:]}", 'M').end_time.normalize()] = float(row['value'])
+    s = pd.Series(vals).sort_index()
+    P._archive(cx.con, 'bls', sid, cx.asof, s)
+    return s
+
+
+def treasury_defense_outlays(cx):
+    """Monthly Treasury Statement: Department of Defense - Military Programs outlays (Treasury Fiscal Data
+    API, table MTS 5). Returns monthly $mil (NSA)."""
+    s = P._archived(cx.con, 'treasury', 'MTS5_DOD', cx.asof)
+    if s is not None:
+        return s
+    url = ('https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/mts/mts_table_5'
+           '?filter=classification_desc:eq:Total--Department of Defense--Military Programs'
+           '&fields=record_date,current_month_gross_outly_amt&page[size]=1000&sort=record_date')
+    rows = P._get(url.replace(' ', '%20'))['data']
+    s = pd.Series({pd.Timestamp(r['record_date']) + pd.offsets.MonthEnd(0): float(r['current_month_gross_outly_amt']) / 1e6
+                   for r in rows if r['current_month_gross_outly_amt'] not in (None, 'null')}).sort_index()
+    P._archive(cx.con, 'treasury', 'MTS5_DOD', cx.asof, s)
+    return s
+
+
+def enduse(cx, flow, code):
+    """Census end-use trade (NSA $mil, from 2013), seasonally adjusted with X-13 (current vintage, cut at the
+    vintage date)."""
+    key = ('eu', flow, code)
+    if key in cx.cache:
+        return cx.cache[key]
+    s = P._archived(cx.con, f'census_enduse_{flow}', code, cx.asof)
+    if s is None:
+        var, val = ('E_ENDUSE', 'ALL_VAL_MO') if flow == 'exports' else ('I_ENDUSE', 'GEN_VAL_MO')
+        url = (f'https://api.census.gov/data/timeseries/intltrade/{flow}/enduse?get={val}&{var}={code}'
+               f'&time=from+2013-01&key={os.environ.get("CENSUS_API_KEY", "")}')
+        try:
+            rows = P._get(url, tries=2)
+        except Exception:          # code not published (e.g. retired end-use category): contributes zero
+            rows = [[]]
+        s = pd.Series({pd.Period(r[-1], 'M').end_time.normalize(): float(r[0]) / 1e6 for r in rows[1:]}, dtype=float).sort_index()
+        P._archive(cx.con, f'census_enduse_{flow}', code, cx.asof, s)
+    s = asof_cut(s, cx.asof)
+    if s.empty:
+        cx.cache[key] = pd.Series(0.0, index=pd.date_range('2013-01-31', pd.Timestamp(cx.asof), freq='ME'))
+        return cx.cache[key]
+    try:
+        sa = seasadj(s, '2013')
+    except Exception:
+        sa = s
+    cx.cache[key] = sa
+    return sa
+
+
+def last_month_like(s, ref):
+    """Cut a current-vintage series at the last month of a reference series from the ALFRED vintage."""
+    return s.loc[:ref.dropna().index.max()]
+
+
+def build_indicators(cx, prices, nipa_q, inv):
+    f, b = cx.fred, cx.bea
+    cpi = prices['PCU_USECONfr']
+    cap = f('WPSFD41312')
+    L = {}
+    # Direct FRED series (validated mappings in config/public_series.toml [fred]).
+    direct = {v: k for k, v in MAP['fred'].items()}
+    for tick in ['LANAGRA@USECON', 'LAPRIVA@USECON', 'LAGOODA@USECON', 'LAMANUA@USECON', 'LADURGA@USECON',
+                 'LANDURA@USECON', 'LAPSRVA@USECON', 'LARTRDA@USECON', 'LAWTRDA@USECON', 'LACONSA@USECON',
+                 'LAFIREA@USECON', 'LAMINGA@USECON', 'LALEIHA@USECON', 'LASRVOA@USECON', 'LAPBSVA@USECON',
+                 'LAEDUHA@USECON', 'LAFGOVA@USECON', 'LAP15A@USECON', 'LAPTSVA@USECON', 'LAD61A@USECON',
+                 'LRPRIVA@USECON', 'LRMANUA@USECON', 'LOMANUA@USECON', 'LE@USECON', 'LENA@USECON', 'LRM25@USECON',
+                 'LUMD@USECON', 'IP@IP', 'IPMFG@IP', 'CUMFG@IP', 'CUT@IP', 'IPTP@IP', 'IP54@IP', 'IP53@IP', 'IPFP@IP',
+                 'IP521@IP', 'IP51@IP', 'IP511@IP', 'IP512@IP', 'IPB31@IP', 'YPLTPMH@USECON', 'YPDHM@USECON',
+                 'CQM@USNA', 'CDQM@USNA', 'CNQM@USNA', 'CSQM@USNA', 'HST@USECON', 'HST1@USECON', 'HSTNE@USECON',
+                 'HSTMW@USECON', 'HSTS@USECON', 'HSTW@USECON', 'HPT@USECON', 'HN1US@USECON', 'HN1SUS@USECON',
+                 'HN1MT@USECON', 'ADS@USECON', 'ASTOT@USECON', 'TLTSAR@USECON', 'TSHSU@USNA']:
+        L[tick] = f(direct[tick])
+    L['HSTM@USECON'] = f('HOUST') - f('HOUST1F')
+    L['YPWGM@USNA'] = f('B202RC1') / cpi
+    L['CPG@USECON'] = f('TLPBLCONS') / cpi
+    # Federal and state & local construction are not separately available from public APIs: total public
+    # construction deflated by the structures price stands in for both (registry E06 note).
+    pub = f('TLPBLCONS') / prices['TornPriceNonResStrMthfr']
+    L['CPGF@USECON'], L['CPGS@USECON'] = pub, pub
+    L['CPVD@USECON'] = f('PNRESCONS') / prices['TornPriceNonResStrMthfr']
+    L['NMS@USECON'] = f('AMTMVS') / prices['SpliceManTradeDeflatorfr']
+    L['NRST@USECON'] = f('RSAFS') / prices['SpliceRetailTradeDeflatorfr']
+    L['NWSH@USECON'] = f('WHLSLRSMSA') / prices['SpliceWholesaleTradeDeflatorfr']
+    L['ManInvShipRatio'] = f('AMTMTI') / f('AMTMVS')
+    L['WholeSaleInvSalesRatio'] = f('WHLSLRIRSA')
+    L['RetailInvSalesRatio'] = inv['NRIXM_USECON'] / inv['NRSXM_USECON']
+    # Labour-market constructions.
+    L['URUnround'] = 100 * f('UNEMPLOY') / f('CLF16OV')
+    L['LFPRUnround'] = 100 * f('CLF16OV') / f('CNP16OV')
+    L['LoserOnLayoff'] = 100 * f('LNS13023653') / f('CLF16OV')
+    ic = f('IC4WSA')
+    L['WeeklyClaims'] = ic.groupby(ic.index.to_period('M')).last().pipe(lambda s: s.set_axis(s.index.to_timestamp(how='end').normalize()))
+    L['StateLocalEmp'] = f('CES9092000001') + f('CES9093000001')
+    payroll = f('PAYEMS')
+    # Detailed CES series (DoD civilian; production employees) publish one month after headline payrolls.
+    lag1 = payroll.iloc[:-1]
+    L['LAFGDA@LABOR'] = last_month_like(bls(cx, 'CES9091911001'), lag1)
+    L['LPD61DA@LABOR'] = last_month_like(bls(cx, 'CES2023611806'), lag1)
+    # Autos and trucks (NIPA underlying detail 7.2.5S).
+    u7 = lambda n: b('U70205S', line=n)
+    L['ASCPU@USNA'] = u7(11)
+    L['BusShareTrucks'] = 100 * (1 - consumer_truck_share(cx))
+    # Housing constructions.
+    price_new = prices['SA_HN1PA_USECON_fr']
+    L['NomSingleStarts'] = f('HOUST1F') * price_new / prices['CCIHD_USECONfr']
+    L['valNewHomeSales'] = f('HSN1F') * price_new / prices['R5312101_PPIRInterpfr']
+    # Existing-home sales (NAR) history is not public (FRED carries 13 months): the brokers' commissions
+    # indicator uses new-home sales value alone (bridges.toml valTotalHomeSales -> valNewHomeSales).
+    L['valExHomeSales'] = 0 * L['valNewHomeSales']
+    L['SplicedNewHousingConstruction'] = f('PRRESCONS') / prices['CCIHD_USECONfr']
+    improv = np.exp((np.log(prices['CCIHD_USECONfr']) + np.log(f('WPSID61113'))) / 2)
+    L['SplicedBuildingMaterials'] = f('RSBMGESD') / improv
+    L['RetSalesResEquip'] = (f('RSFHFS') + f('RSEAS')) / prices['CPIMajappSplicefr']
+    mh_price = seasadj(f('SPTNSAUS'), '2014')
+    mh = f('SHTSAUS') * 12 * mh_price.reindex(f('SHTSAUS').index).ffill()
+    L['MobileHomeVal'] = mh / seasadj(f('WPU1553'), '1985')
+    L['HSM@USECON'] = f('SHTSAUS') * 12 / 1000
+    # Treasury outlays (X-13 adjusted, CPI-deflated).
+    L['saFTO@USECON'] = seasadj(f('MTSO133FMS'), '1990') / cpi
+    L['saFTOD@USECON'] = seasadj(treasury_defense_outlays(cx), '2000') / cpi
+    # Manufacturers' shipments and orders (M3 / advance M3).
+    adv = lambda c, d: asof_cut(cx.census('x', 'advm3', c, d), cx.asof)
+    nxa = advance_overlay(f('ANXAVS'), adv('NXA', 'VS'))
+    comp_ship = f('ACRPVS')
+    comp_defl = atkeson_ohanian(b('U50504', 'Q', line=4), prices.index)   # computers price index
+    L['CoreCapGoodsShipments'] = (nxa - comp_ship) / cap
+    L['RealCapitalShipments'] = nxa / cap
+    L['DefenseShipments'] = advance_overlay(f('ADEFVS'), adv('DEF', 'VS')) / cpi
+    L['SplicedDurableGoodsOrders'] = advance_overlay(f('DGORDER'), adv('MDM', 'NO')) / cap
+    L['SplicedComputersShipments'] = comp_ship / comp_defl
+    trade = build_trade(cx, prices, comp_defl, cap)
+    L.update(trade)
+    aircraft_ppi = seasadj(f('PCU336411336411'), '1990')
+    net_air = (advance_overlay(f('ANAPVS'), adv('NAP', 'VS')) - trade['_air_x'] + trade['_air_m'])
+    L['NondefenseAircraftNetShipments'] = net_air / aircraft_ppi
+    contrib = {'NetExportsGoodsMonthlyContrib': L.pop('_contrib_Goods'), 'NetSvcExportsMonthlyContrib': L.pop('_contrib_Svc')}
+    for k in [k for k in L if k.startswith('_')]:
+        del L[k]
+    # Philly Fed survey levels (BOFGX future activity; BOISM current activity on ISM-style scale).
+    L['BOFGX@SURVEYS'] = f('GAFDFSA066MSFRBPHI')
+    L['BOISM@SURVEYS'] = 50 + f('GACDFSA066MSFRBPHI') / 2
+    return pd.DataFrame({k: me(v) for k, v in L.items()}).sort_index(), pd.DataFrame({k: me(v) for k, v in contrib.items()})
+
+
+def consumer_truck_share(cx):
+    """Consumer share of light-truck unit sales: NIPA underlying detail 7.2.5S line 20 (thousands, SAAR) over
+    total light-truck sales (domestic + imports, millions SAAR; lines 17 + 18)."""
+    t = cx.bea('U70205S')
+    ln = lambda n: t[[c for c in t.columns if c.split('|')[0] == str(n)][0]]
+    return ln(20) / 1000 / (ln(17) + ln(18))
+
+
+def build_trade(cx, prices, comp_defl, cap):
+    """Real goods and services trade (WP Table A4): BOP goods (less Census-basis nonmonetary gold, Mods
+    Mar-2025) and services, the latest month from the advance goods report; end-use detail for computers,
+    core capital goods and aircraft (Census end-use, X-13 adjusted)."""
+    f = cx.fred
+    gx, gm = f('BOPGEXP'), f('BOPGIMP')
+    gold_x, gold_m = enduse(cx, 'exports', '12260'), enduse(cx, 'imports', '14270')
+    gx = gx.sub(gold_x.reindex(gx.index).fillna(0))
+    gm = gm.sub(gold_m.reindex(gm.index).fillna(0))
+    # Advance goods report month (Census basis, total): extrapolate BOP ex gold with its growth.
+    adv = asof_cut(cx.census('x', 'ftdadv', 'CBG', 'EXP'), cx.asof)
+    adv_m = asof_cut(cx.census('x', 'ftdadv', 'CBG', 'IMP'), cx.asof)
+    for s, a in ((gx, adv), (gm, adv_m)):
+        for t in a.index[a.index > s.index.max()]:
+            p = t - pd.offsets.MonthEnd(1)
+            if p in a.index and p in s.index:
+                s[t] = s[p] * a[t] / a[p]
+    out = {'SplicedGoodsExports': gx / prices['PXEA_USECONsplicefr'], 'SplicedGoodsImports': gm / prices['PMEA_USECONsplicefr'],
+           'SplicedServiceExports': f('BOPSEXP') / prices['ExpSvcDefmthA1fr'],
+           'SplicedServiceImports': f('BOPSIMP') / prices['ImpSvcDefmthA1fr']}
+    eu = lambda flow, codes: pd.concat([enduse(cx, flow, c) for c in codes], axis=1).sum(axis=1, min_count=1)
+    comp_x, comp_m = eu('exports', ['21300', '21301']), eu('imports', ['21300', '21301'])
+    noncore = ['21300', '21301', '22000', '22010', '22020', '22220', '21320', '21100', '20005']
+    core_x = enduse(cx, 'exports', '2') - eu('exports', [c for c in noncore])
+    core_m = enduse(cx, 'imports', '2') - eu('imports', [c for c in noncore])
+    out['SplicedExportsComputersAndRelated'] = comp_x / comp_defl
+    out['SplicedImportsComputersAndRelated'] = comp_m / comp_defl
+    out['CoreCapGoodsExports'] = core_x / cap
+    out['CoreCapGoodsImports'] = core_m / cap
+    out['_air_x'] = eu('exports', ['22000', '22010', '22020'])
+    out['_air_m'] = eu('imports', ['22000', '22010', '22020'])
+    nomgdp = prices['MGDPN_USECONsplicefr']
+    for kind, (x, m, nx, nm) in {'Goods': (out['SplicedGoodsExports'], out['SplicedGoodsImports'], gx, gm),
+                                 'Svc': (out['SplicedServiceExports'], out['SplicedServiceImports'], f('BOPSEXP'), f('BOPSIMP'))}.items():
+        wx, wm = (12 / 1000 * nx / nomgdp).shift(1), (12 / 1000 * nm / nomgdp).shift(1)
+        c = wx * 1200 * np.log(x / x.shift(1)) - wm * 1200 * np.log(m / m.shift(1))
+        out[f'_contrib_{kind}'] = c
+    return out

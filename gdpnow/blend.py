@@ -52,4 +52,5 @@ def bridge_model_history(cid, inp, coefs, faar, start, hist_cache=None):
         fits[s['lhs']] = f
     nom = pd.DataFrame({s['lhs']: inp.nominal[s['nominal']] for s in subs}).shift(1).reindex(idx)
     shares = nom.div(nom.sum(axis=1), axis=0)
-    return (pd.DataFrame(fits) * shares).sum(axis=1, min_count=1)
+    # Quarters where any subcomponent's fit is unavailable are dropped (no partial sums).
+    return (pd.DataFrame(fits) * shares).sum(axis=1, min_count=len(subs))

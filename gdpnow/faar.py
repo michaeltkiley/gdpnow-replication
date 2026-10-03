@@ -46,12 +46,16 @@ def estimate(y, f, consumption=False, const=True):
     for q, r in itertools.product(range(qmin, qmax + 1), range(rmin, rmax + 1)):
         X, yy = design(y, f, q, r, qmax, rmax, const)
         X = X.loc[:, X.abs().sum() > 0]          # drop dummies for months outside the sample
+        if len(yy) < max(3 * X.shape[1], 24):
+            continue
         b, *_ = np.linalg.lstsq(X.to_numpy(), yy.to_numpy(), rcond=None)
         ssr = float(((yy.to_numpy() - X.to_numpy() @ b) ** 2).sum())
         n, k = len(yy), X.shape[1]
         aic = n * np.log(ssr / n) + 2 * k
         if best is None or aic < best[0]:
             best = (aic, q, r, dict(zip(X.columns, b)))
+    if best is None:
+        raise ValueError(f'FA-AR: insufficient data ({y.notna().sum()} obs)')
     aic, q, r, coef = best
     out = {k: v for k, v in coef.items() if not k.startswith('covid')}
     return out, q, r, aic

@@ -17,9 +17,44 @@ from gdpnow import estimate, inputs, nowcast, params, store
 from gdpnow.config import DATA
 
 
+def run_l3(a, con, vintage, wb):
+    """L3: estimate everything from the public bundle (stage 02); the workbook is used only for diagnostics."""
+    import pickle
+    run_id = f'L3_{a.asof.replace("-", "")}'
+    path = DATA / f'{a.asof.replace("-", "")}_public_inputs.pkl'
+    d = pickle.load(open(path, 'rb'))
+    inp, panel, act, qprices = d['bundle']
+    last = pd.Timestamp(d['last_price_month'])
+    est, diag = estimate.estimate_all(inp, panel, act, qprices, last,
+                                      inp.monthly_prices['MGDPN_USECONsplicefr'].dropna().index.max())
+    tag = f'estimated:{run_id}'
+    fields = ['factor', 'faar', 'bridge', 'bvar', 'prices_T1', 'blend', 'monthly_prices', 'cons_growth',
+              'util_travel', 'farm_other', 'cipi_paths', 'iva_paths', 'inv_deflators']
+    prov = {f: f'public:{a.asof}' for f in inputs.FIELD_REGISTRY}
+    prov.update({f: tag for f in fields})
+    est = dataclasses.replace(est, provenance=prov)
+    params.save(con, run_id, est, fields)
+    rows = []
+    wbf = wb.factor
+    j = pd.concat([diag['factor'].factor, wbf], axis=1, keys=['ours', 'wb']).dropna()
+    rows.append(('factor', 'corr', 'full sample', 1.0, j.ours.corr(j.wb)))
+    rows.append(('factor', 'Sep value', str(diag['factor'].last_data.date()), wbf[diag['factor'].last_data],
+                 diag['factor'].factor[diag['factor'].last_data]))
+    for lhs, c in est.bridge.items():
+        rows += [('bridge', lhs, k, wb.bridge.get(lhs, {}).get(k), v) for k, v in c.items()]
+    rows += [('blend', k, 'monthly', wb.blend[k][0], v[0]) for k, v in est.blend.items()]
+    rows += [('bvar', k, '', wb.bvar.get(k), v) for k, v in est.bvar.items()]
+    pd.DataFrame(rows, columns=['block', 'item', 'term', 'workbook', 'ours']).to_csv(
+        DATA / f'{a.asof.replace("-", "")}_diagnostics_{run_id}.csv', index=False)
+    est_pkl = DATA / f'{a.asof.replace("-", "")}_estimated_{run_id}.pkl'
+    pickle.dump({'est': est, 'diag_blend_hist': diag.get('inventory_model_history')}, open(est_pkl, 'wb'))
+    print(f'estimates stored for {run_id}')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('--level', required=True, choices=['L2'])
+    ap.add_argument('--level', required=True, choices=['L2', 'L3'])
+    ap.add_argument('--asof', help='L3 only: as-of date of the public data bundle')
     ap.add_argument('--vintage')
     ap.add_argument('--last-price-month', default='2026-08', help='last actual month of monthly prices')
     ap.add_argument('--mgdp-last-month', default='2026-07', help='last actual month of monthly nominal GDP')
@@ -34,6 +69,9 @@ def main():
             return
 
     wb = inputs.from_workbook(con, vintage)
+    if a.level == 'L3':
+        run_l3(a, con, vintage, wb)
+        return
     # L2 data: the workbook's own series (monthly panel with transformation codes; ISM levels for the factor).
     tick = store.query(con, "SELECT ticker FROM wb_series_meta WHERE vintage = ? AND sheet = 'TransformedMonthlySeries' "
                             "AND tcode IS NOT NULL", (vintage,)).ticker

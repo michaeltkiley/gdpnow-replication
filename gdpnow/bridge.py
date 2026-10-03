@@ -23,10 +23,13 @@ def missing_months(inp, series):
 
 def indicator_history(name, inp, faar, start):
     """Quarterly history of an indicator built with the nowcast quarter's availability pattern."""
-    series = C.indicator_series(name)
-    pattern = missing_months(inp, series)
+    series = [t for t in C.indicator_series(name) if t not in set(inp.flags.get('drop_terms', []))]
+    pattern = missing_months(inp, [t for t in series if t in inp.growth])
+    # Quarters before every underlying series has a year of data are skipped (no fabricated history).
+    firsts = [inp.growth[t].first_valid_index() for t in series if t in inp.growth]
+    first_ok = max(firsts) + pd.offsets.QuarterEnd(4) if firsts else start
     out = {}
-    for qe in pd.date_range(start, inp.T, freq='QE'):
+    for qe in pd.date_range(max(start, first_ok), inp.T, freq='QE'):
         mask = [C.m.months(qe, 3)[k - 1] for k in pattern]
         mon = C.Monthly(inp, inp.growth, inp.levels, faar, q_end=qe, mask=mask)
         out[qe] = C.indicator_growth(name, mon, inp)

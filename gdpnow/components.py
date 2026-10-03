@@ -52,7 +52,8 @@ def indicator_growth(name, mon, inp):
     if spec is None:
         return m.q_growth_from_growth(mon.growth(name), q)
     if spec['kind'] == 'net_levels':
-        lev = sum(sign * mon.level(t) for t, sign in spec['terms'])
+        drop = set(inp.flags.get('drop_terms', []))
+        lev = sum(sign * mon.level(t) for t, sign in spec['terms'] if t not in drop)
         return m.q_growth_from_levels(lev, q)
     p = q - pd.offsets.QuarterEnd(1)
     if spec['kind'] == 'bus_trucks':
@@ -74,7 +75,7 @@ def indicator_series(name):
     if spec is None:
         return [name]
     if spec['kind'] == 'net_levels':
-        return [t for t, _ in spec['terms']]
+        return [t for t, _ in spec['terms']]   # callers drop unavailable terms
     return [v for k, v in spec.items() if k not in ('kind', 'light_share')]
 
 
@@ -204,13 +205,14 @@ def travel(inp, window, fill, coef_ticker, actual_ticker, trade, lhs):
     """Travel PCE (Mods Oct-2017): replace the latest PCE month with the travel-services regression when that
     month's trade data first appear; otherwise add the predicted revision from revised trade data."""
     cg, c = inp.cons_growth, inp.util_travel[lhs]
-    actual, tr, tr_prev = cg[actual_ticker], cg[trade], cg[trade + 'Previous']
+    empty = pd.Series(dtype=float, index=pd.DatetimeIndex([]))
+    actual, tr, tr_prev = cg[actual_ticker], cg.get(trade, empty), cg.get(trade + 'Previous', empty)
     slope = c[trade]
     # Revisions are predicted only when PCE and travel-trade data end in the same month; for the older
     # months of the window, not when that month is Feb, Aug or Nov (workbook Consumption rows 54/60; the
     # two state cells it compares are blank in the posted workbook, so its cached travel cells differ).
     latest = actual.dropna().index.max()
-    same = latest == tr.dropna().index.max()
+    same = len(tr.dropna()) > 0 and latest == tr.dropna().index.max()
     y = pd.Series(np.nan, index=window)
     for i, t in enumerate(window):
         if not _num(actual, t):
