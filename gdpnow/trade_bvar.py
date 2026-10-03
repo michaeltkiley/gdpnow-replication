@@ -7,9 +7,9 @@ the Census Advance Economic Indicators (AEI) report, which gives total goods tra
   * Capital-goods-shares BVAR (Mods Oct-2017): shares of aircraft, computers and core in total capital goods
     exports and imports, conditional on month-t shipments and AEI total capital goods (11 variables).
 
-Public-data notes: the six aggregates for month t come from the AEI PDF (pdftotext; cached in data/), the
-history from the Census end-use API (2013+, X-13 adjusted here). AEI values are rescaled to our X-13 scale with
-the t-1 overlap. Census-basis gold (X12260/M14270) stands in for BEA's BOP gold (not public).
+Public data: the six aggregates for month t come from the AEI PDF (pdftotext; cached in data/); the history,
+BOP-basis gold and capital-goods detail from BEA's IDS-0182 (gdpnow/ids0182.py), whose Census-basis SA series
+equal the AEI's published SA values.
 """
 import re
 import subprocess
@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 from . import bvar
+from . import ids0182 as IDS
 from .config import load_toml
 
 SPEC = load_toml('spec.toml')
@@ -53,13 +54,16 @@ def aei_table(cx, month):
     return out
 
 
-def _six(cx, flow):
-    return pd.DataFrame({c: _sa(cx, flow, c) for c in CODES})
-
-
 def _sa(cx, flow, code):
-    from .public_monthly import enduse
-    return enduse(cx, flow, code)
+    return IDS.series(cx, flow, code)
+
+
+def _six(cx, flow):
+    """The six AEI end-use aggregates (BEA IDS-0182, Census basis SA; exports 'Other goods' = codes 5 + 6)."""
+    six = pd.DataFrame({c: _sa(cx, flow, c) for c in CODES})
+    if flow == 'exports':
+        six['5'] = six['5'] + _sa(cx, flow, '6')
+    return six
 
 
 def _fit_forecast(Y, known, lags, lam, delta):
@@ -73,18 +77,16 @@ def gold_adjusted_growth(cx, prices, aei, t):
     tm1 = t - pd.offsets.MonthEnd(1)
     cfnai = cx.fred('CFNAI')
     out = {}
-    for flow, pcol, gold_code in (('exports', 'PXEA_USECONsplicefr', '12260'), ('imports', 'PMEA_USECONsplicefr', '14270')):
+    for flow, pcol in (('exports', 'PXEA_USECONsplicefr'), ('imports', 'PMEA_USECONsplicefr')):
         six = _six(cx, flow)
-        gold = _sa(cx, flow, gold_code).reindex(six.index).fillna(0)
+        gold = IDS.series(cx, flow, 'NMGLD', 'BP-based').reindex(six.index).fillna(0)     # BOP-basis gold (Mods Mar-2025)
         price = prices[pcol].reindex(six.index.union([t]))
         a = {c: aei[(flow, c)] for c in CATS}
-        # AEI -> our X-13 scale using the t-1 overlap (AEI's own t-1 column vs our value)
-        scale = {c: six.loc[tm1, k] / a[c][1] for c, k in zip(CATS, CODES)}
-        other_t = sum(a[c][0] * scale[c] for c in CATS if c != 'Industrial Supplies')
+        other_t = sum(a[c][0] for c in CATS if c != 'Industrial Supplies')
         other = (six.drop(columns='1').sum(axis=1)).reindex(six.index.union([t]))
         other[t] = other_t
         isx = (six['1'] - gold)
-        out[flow] = dict(is_exgold=isx, other=other, price=price, six=six, gold=gold, scale=scale, aei=a)
+        out[flow] = dict(is_exgold=isx, other=other, price=price, six=six, gold=gold)
     start = pd.Timestamp('2013-01-31')
     idx = pd.date_range(start, t, freq='ME')
     cols = {}
@@ -112,22 +114,21 @@ def gold_adjusted_growth(cx, prices, aei, t):
 def capital_goods_t(cx, ship, aei, t):
     """Month-t nominal capital goods trade by category from the 11-variable shares BVAR.
     ship: nominal manufacturer shipments {'air','comp','core'} (month-end Series, may end before t).
-    Returns {('exports'|'imports', 'air'|'comp'|'core'): nominal $mil (X-13 scale)}."""
+    Returns {('exports'|'imports', 'air'|'comp'|'core'): nominal $mil}."""
     spec = SPEC['bvar_capital_goods_shares']
     tm1 = t - pd.offsets.MonthEnd(1)
     idx = pd.date_range('2013-01-31', t, freq='ME')
     eu = lambda flow, codes: pd.concat([_sa(cx, flow, c) for c in codes], axis=1).sum(axis=1, min_count=1)
-    noncore = {'exports': ['21300', '21301', '22000', '22090', '22220', '21320', '21100', '20005'],
-               'imports': ['21300', '21301', '22000', '22010', '22020', '22220', '21320', '21100', '20005']}
+    noncore = ['21300', '21301', '22000', '22010', '22020', '22220', '21320', '21100', '20005']
     cols, tot = {}, {}
     for flow in ('exports', 'imports'):
         total = _sa(cx, flow, '2').reindex(idx)
         a = aei[(flow, 'Capital Goods')]
-        total[t] = a[0] * total[tm1] / a[1]                       # AEI -> our scale via the t-1 overlap
+        total[t] = a[0]
         tot[flow] = total
-        parts = {'air': eu(flow, ['22000', '22090'] if flow == 'exports' else ['22000', '22010', '22020']),
+        parts = {'air': eu(flow, ['22000', '22010', '22020']),
                  'comp': eu(flow, ['21300', '21301'])}
-        parts['core'] = _sa(cx, flow, '2') - eu(flow, noncore[flow])
+        parts['core'] = _sa(cx, flow, '2') - eu(flow, noncore)
         for k, v in parts.items():
             cols[f'sh_{k}_{flow}'] = (v.reindex(idx) / total).where(idx < t)
         cols[f'ltot_{flow}'] = np.log(total)

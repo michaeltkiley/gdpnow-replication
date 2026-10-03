@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.x13 import x13_arima_analysis
 
-from . import history as H, trade_bvar as TB, public_data as P
+from . import history as H, ids0182 as IDS, trade_bvar as TB, public_data as P
 from .config import ROOT, load_toml
 
 X13 = str(ROOT / 'tools' / 'x13' / 'x13as' / 'x13as_ascii')
@@ -500,32 +500,8 @@ def treasury_defense_outlays(cx):
 
 
 def enduse(cx, flow, code):
-    """Census end-use trade (NSA $mil, from 2013), seasonally adjusted with X-13 (current vintage, cut at the
-    vintage date)."""
-    key = ('eu', flow, code)
-    if key in cx.cache:
-        return cx.cache[key]
-    s = P._archived(cx.con, f'census_enduse_{flow}', code, cx.asof)
-    if s is None:
-        var, val = ('E_ENDUSE', 'ALL_VAL_MO') if flow == 'exports' else ('I_ENDUSE', 'GEN_VAL_MO')
-        url = (f'https://api.census.gov/data/timeseries/intltrade/{flow}/enduse?get={val}&{var}={code}'
-               f'&time=from+2013-01&key={os.environ.get("CENSUS_API_KEY", "")}')
-        try:
-            rows = P._get(url, tries=2)
-        except Exception:          # code not published (e.g. retired end-use category): contributes zero
-            rows = [[]]
-        s = pd.Series({pd.Period(r[-1], 'M').end_time.normalize(): float(r[0]) / 1e6 for r in rows[1:]}, dtype=float).sort_index()
-        P._archive(cx.con, f'census_enduse_{flow}', code, cx.asof, s)
-    s = asof_cut(s, cx.asof)
-    if s.empty:
-        cx.cache[key] = pd.Series(0.0, index=pd.date_range('2013-01-31', pd.Timestamp(cx.asof), freq='ME'))
-        return cx.cache[key]
-    try:
-        sa = seasadj(s, '2013')
-    except Exception:
-        sa = s
-    cx.cache[key] = sa
-    return sa
+    """Census-basis end-use trade, seasonally adjusted by BEA (IDS-0182, 1999+; gdpnow/ids0182.py)."""
+    return IDS.series(cx, flow, code)
 
 
 def last_month_like(s, ref):
@@ -638,36 +614,6 @@ def consumer_truck_share(cx):
     return ln(20) / 1000 / (ln(17) + ln(18))
 
 
-CENSUS_HIST = {'exports': 'https://www.census.gov/foreign-trade/statistics/historical/NSAEXP.xlsx',
-               'imports': 'https://www.census.gov/foreign-trade/statistics/historical/NSAIMP.xlsx'}
-
-
-def census_capital_goods(cx, flow):
-    """Monthly capital goods exports/imports, NSA, from the Census historical end-use exhibit (1990s to
-    present, five end-use aggregates). Archived in raw_pulls; X-13 seasonally adjusted here."""
-    key = ('cg', flow)
-    if key in cx.cache:
-        return cx.cache[key]
-    s = P._archived(cx.con, 'census_hist', f'capgoods_{flow}', cx.asof)
-    if s is None:
-        import io, urllib.request, openpyxl
-        req = urllib.request.Request(CENSUS_HIST[flow], headers={'User-Agent': 'Mozilla/5.0'})
-        wb = openpyxl.load_workbook(io.BytesIO(urllib.request.urlopen(req, timeout=120).read()), read_only=True, data_only=True)
-        rows = list(wb.worksheets[0].iter_rows(values_only=True))
-        months = {m: i + 1 for i, m in enumerate(['January', 'February', 'March', 'April', 'May', 'June', 'July',
-                                                  'August', 'September', 'October', 'November', 'December'])}
-        vals, year = {}, None
-        for r in rows[5:]:
-            if isinstance(r[0], int):
-                year = r[0]
-            elif r[0] in months and year is not None and isinstance(r[4], (int, float)):
-                vals[pd.Timestamp(year=year, month=months[r[0]], day=1) + pd.offsets.MonthEnd(0)] = float(r[4])
-        s = pd.Series(vals).sort_index()
-        P._archive(cx.con, 'census_hist', f'capgoods_{flow}', cx.asof, s)
-    s = asof_cut(s, cx.asof)
-    cx.cache[key] = seasadj(s, '1990')
-    return cx.cache[key]
-
 
 def census_construction(cx, table, column=1):
     """Census construction put in place, SA annual rate, $ millions, from the public historical tables
@@ -691,19 +637,13 @@ def census_construction(cx, table, column=1):
     return cx.cache[key]
 
 
-def bea_quarterly_to_monthly(cx, table, line, indicator):
-    """BEA quarterly trade detail (T4.2.5B, 1999+) -> monthly via proportional Denton on `indicator`."""
-    q = cx.bea(table, 'Q', line=line)
-    return H.denton_pfd(q, indicator)
-
-
 def build_trade(cx, prices, comp_defl, cap, ship=None):
-    """Real goods and services trade (WP Table A4): BOP goods (less Census-basis nonmonetary gold, Mods
-    Mar-2025) and services, the latest month from the advance goods report; end-use detail for computers,
-    core capital goods and aircraft (Census end-use, X-13 adjusted)."""
+    """Real goods and services trade (WP Table A4): BOP goods (less BOP-basis nonmonetary gold, Mods
+    Mar-2025) and services, the latest month from the AEI report and gold/capital-goods BVARs; end-use detail for
+    computers, core capital goods and aircraft (BEA IDS-0182, seasonally adjusted by BEA)."""
     f = cx.fred
     gx, gm = f('BOPGEXP'), f('BOPGIMP')
-    gold_x, gold_m = enduse(cx, 'exports', '12260'), enduse(cx, 'imports', '14270')
+    gold_x, gold_m = IDS.series(cx, 'exports', 'NMGLD', 'BP-based'), IDS.series(cx, 'imports', 'NMGLD', 'BP-based')
     gx = gx.sub(gold_x.reindex(gx.index).fillna(0))
     gm = gm.sub(gold_m.reindex(gm.index).fillna(0))
     # AEI window: the month after the last full report is known only from the advance report. The Census-basis
@@ -721,29 +661,17 @@ def build_trade(cx, prices, comp_defl, cap, ship=None):
            'SplicedServiceImports': f('BOPSIMP') / prices['ImpSvcDefmthA1fr']}
     eu = lambda flow, codes: pd.concat([enduse(cx, flow, c) for c in codes], axis=1).sum(axis=1, min_count=1)
     comp_x, comp_m = eu('exports', ['21300', '21301']), eu('imports', ['21300', '21301'])
-    noncore_m = ['21300', '21301', '22000', '22010', '22020', '22220', '21320', '21100', '20005']
-    # Export aircraft codes differ from import codes (22090 = aircraft, engines and parts).
-    noncore_x = ['21300', '21301', '22000', '22090', '22220', '21320', '21100', '20005']
-    core_x = enduse(cx, 'exports', '2') - eu('exports', noncore_x)
-    core_m = enduse(cx, 'imports', '2') - eu('imports', noncore_m)
-    # Long histories (decision 2026-10-03): the Census end-use API serves only 2013+. Earlier months come from
-    # independent real monthly data via the durable growth store (gdpnow/history.py): total capital goods
-    # trade (Census historical exhibit) for core capital goods, and BEA quarterly trade detail (1999+)
-    # allocated to months with capital goods trade (Denton) for computers and civilian aircraft.
-    cg_x, cg_m = census_capital_goods(cx, 'exports'), census_capital_goods(cx, 'imports')
+    noncore = ['21300', '21301', '22000', '22010', '22020', '22220', '21320', '21100', '20005']
+    core_x = enduse(cx, 'exports', '2') - eu('exports', noncore)
+    core_m = enduse(cx, 'imports', '2') - eu('imports', noncore)
+    # Histories before 1999 (start of IDS-0182) come from the durable growth store / workbook reference layer.
     sp = lambda name, live, prox=(), kind=None: cx.splice(name, live, prox, 'MonthlyLevels', name, kind)
-    comp_x_q = bea_quarterly_to_monthly(cx, 'T40205B', 26, cg_x)
-    comp_m_q = bea_quarterly_to_monthly(cx, 'T40205B', 118, cg_m)
-    air_x_q = bea_quarterly_to_monthly(cx, 'T40205B', 23, cg_x)
-    air_m_q = bea_quarterly_to_monthly(cx, 'T40205B', 115, cg_m)
-    out['SplicedExportsComputersAndRelated'] = sp('SplicedExportsComputersAndRelated', comp_x / comp_defl,
-                                                  [('bea_computers_denton', comp_x_q / comp_defl)])
-    out['SplicedImportsComputersAndRelated'] = sp('SplicedImportsComputersAndRelated', comp_m / comp_defl,
-                                                  [('bea_computers_denton', comp_m_q / comp_defl)])
-    out['CoreCapGoodsExports'] = sp('CoreCapGoodsExports', core_x / cap, [('census_capgoods_total', cg_x / cap)])
-    out['CoreCapGoodsImports'] = sp('CoreCapGoodsImports', core_m / cap, [('census_capgoods_total', cg_m / cap)])
-    out['_air_x'] = sp('AircraftExportsNominal', eu('exports', ['22000', '22090']), [('bea_aircraft_denton', air_x_q)])
-    out['_air_m'] = sp('AircraftImportsNominal', eu('imports', ['22000', '22010', '22020']), [('bea_aircraft_denton', air_m_q)])
+    out['SplicedExportsComputersAndRelated'] = sp('SplicedExportsComputersAndRelated', comp_x / comp_defl)
+    out['SplicedImportsComputersAndRelated'] = sp('SplicedImportsComputersAndRelated', comp_m / comp_defl)
+    out['CoreCapGoodsExports'] = sp('CoreCapGoodsExports', core_x / cap)
+    out['CoreCapGoodsImports'] = sp('CoreCapGoodsImports', core_m / cap)
+    out['_air_x'] = sp('AircraftExportsNominal', eu('exports', ['22000', '22010', '22020']))
+    out['_air_m'] = sp('AircraftImportsNominal', eu('imports', ['22000', '22010', '22020']))
     if aei is not None:
         # Capital-goods-shares BVAR (registry P16): month-t category trade after the advance reports.
         cgt = TB.capital_goods_t(cx, ship, aei, t_aei)
