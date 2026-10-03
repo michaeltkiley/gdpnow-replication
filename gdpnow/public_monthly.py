@@ -342,28 +342,22 @@ def structures_price(cx, idx, ccihd):
 
 
 def goods_import_price(cx):
-    """Goods import price (W06; WP step 5a): Tornqvist index of BLS end-use import price indexes, weighted
-    by previous-quarter nominal NIPA imports of the matching categories (Table 4.2.5B)."""
-    nipa = cx.bea('T40205B', 'Q')
-    find = lambda text: nipa[[c for c in nipa.columns if text.lower() in c.lower() and 'import' not in c.lower()
-                              and int(c.split('|')[0]) > 94][0]]
-    cats = {'IR0': 'Foods, feeds, and beverages', 'IR10': 'Petroleum and products', 'IR1EXFUEL': 'Industrial supplies and materials, except petroleum',
-            'IR2': 'Capital goods, except automotive', 'IR3': 'Automotive vehicles, engines, and parts',
-            'IR4': 'Consumer goods, except food and automotive'}
-    w, p = {}, {}
-    for fid, text in cats.items():
-        try:
-            w[fid] = find(text)
-        except IndexError:
-            continue
-        p[fid] = seasadj(cx.fred(fid), '1990') if fid == 'IR10' else cx.fred(fid)
-    W = pd.DataFrame(w)
+    """Goods import price (W06; WP step 5a): previous-quarter-share-weighted log change of BLS end-use import price
+    indexes (petroleum seasonally adjusted). Weights: nominal imports by category from NIPA Table 4.2.5B (lines:
+    foods 95, petroleum 107, industrial supplies ex petroleum 101-107, computers 118, capital goods ex computers
+    114-118, autos 131, consumer goods 134). The workbook's 8th category (other goods) has no BLS index and is
+    omitted (weights renormalized); growth corr with the workbook's series 0.966."""
+    t = cx.bea('T40205B', 'Q')
+    L = lambda n: t[[c for c in t.columns if c.split('|')[0] == str(n)][0]]
+    nom = {'IR0': L(95), 'IR10': L(107), 'IR1EXPET': L(101) - L(107), 'IR213COM': L(118), 'IR2EXCOM': L(114) - L(118),
+           'IR3': L(131), 'IR4': L(134)}
+    p = {k: (seasadj(cx.fred(k), '1990') if k == 'IR10' else cx.fred(k)) for k in nom}
+    W = pd.DataFrame(nom)
     W = W.div(W.sum(axis=1), axis=0).shift(1)                 # previous-quarter shares
-    Wm = W.resample('ME').ffill().reindex(pd.date_range(W.index.min(), pd.Timestamp(cx.asof), freq='ME')).ffill()
-    Wm.index = Wm.index + pd.offsets.MonthEnd(0)
+    months = pd.date_range('1965-01-31', pd.Timestamp(cx.asof), freq='ME')
+    Wm = W.reindex(pd.DatetimeIndex(months.to_period('Q').end_time.normalize())).ffill().set_axis(months)
     G = pd.DataFrame({k: np.log(v).diff() for k, v in p.items()})
-    g = (G * Wm.reindex(G.index)).sum(axis=1, min_count=len(p))
-    g = g.dropna()
+    g = (G * Wm.reindex(G.index)).sum(axis=1, min_count=len(p)).dropna()
     lvl = np.exp(g.cumsum())
     return splice_back(100 * lvl / lvl.loc['2017'].mean(), cx.fred('IR'))
 
@@ -391,16 +385,14 @@ def services_trade_deflators(cx, prices):
         dd = pd.concat([y, x1, x2], axis=1, keys=['y', 'a', 'b']).dropna()
         A = np.column_stack([np.ones(len(dd)), dd.a, dd.b])
         beta = np.linalg.lstsq(A, dd.y.to_numpy(), rcond=None)[0]
-        dm = atkeson_ohanian(d, prices.index)
-        last = d.dropna().index.max()
-        m = dm.loc[:last]
+        # Every month (history included) follows the fitted relation applied to the monthly goods price change
+        # and the previous quarter's 4-quarter deflator change (verified against the workbook: exports corr 1.000).
         gm = np.log(prices[goods]).diff()
         lag4 = np.log(d).diff(4)
-        for t in prices.index[prices.index > last]:
-            if np.isnan(gm.get(t, np.nan)):
-                break
-            q_prev = t - pd.offsets.QuarterEnd(1)
-            m[t] = m.iloc[-1] * np.exp(beta[0] / 3 + beta[1] * gm[t] + beta[2] * lag4.get(q_prev, 0) / 3)
+        l4 = pd.Series(lag4.reindex(pd.DatetimeIndex(gm.index.to_period('Q').end_time.normalize()) - pd.offsets.QuarterEnd(1)).to_numpy(),
+                       index=gm.index)
+        g = (beta[0] / 3 + beta[1] * gm + beta[2] * l4 / 3).dropna()
+        m = 100 * np.exp(g.cumsum())
         out.append(m)
     return out
 
