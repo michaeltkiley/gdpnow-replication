@@ -70,19 +70,15 @@ def chain(parts, fisher=True):
 
 
 def atkeson_ohanian(q_price, months_index):
-    """Monthly price index from a quarterly one (WP appendix): within quarter t each month grows at the
-    quarter t-1 over t-5 annual inflation rate; anchored to quarterly levels at quarter ends."""
+    """Monthly price index from a quarterly one (WP appendix "Atkeson-Ohanian interpolation"): every month of
+    quarter t grows at 1/12 of the quarter t-1 over t-5 inflation rate, chained continuously across quarters
+    (no re-anchoring to the quarterly levels; verified against the workbook's implied computers deflator).
+    Level anchored at the first quarter-end level; only growth rates matter."""
     q = q_price.dropna()
-    g = np.log(q / q.shift(4)) / 12          # monthly log growth used during the following quarter
-    out = {}
-    for t in months_index:
-        qe = t + pd.offsets.QuarterEnd(0)
-        prev = qe - pd.offsets.QuarterEnd(1)
-        if prev not in q.index or np.isnan(g.get(prev, np.nan)):
-            continue
-        k = 3 - (qe.month - t.month)          # 1, 2, 3 within the quarter
-        out[t] = q[prev] * np.exp(g[prev] * k)
-    return pd.Series(out)
+    g = np.log(q / q.shift(4)) / 12
+    months = [t for t in months_index if (t + pd.offsets.QuarterEnd(0) - pd.offsets.QuarterEnd(1)) in g.dropna().index]
+    gm = pd.Series({t: g[t + pd.offsets.QuarterEnd(0) - pd.offsets.QuarterEnd(1)] for t in months}).sort_index()
+    return np.exp(gm.cumsum()) * float(q[gm.index[0] + pd.offsets.QuarterEnd(0) - pd.offsets.QuarterEnd(1)])
 
 
 def census(series, dataset, category, data_type, seasonal='yes', time_from='1992'):
@@ -129,6 +125,28 @@ class Ctx:
         except Exception as e:                       # never lose a series because history splicing failed
             print(f'  splice skipped for {name}: {str(e)[:80]}')
             return live
+
+    def ism(self, name, proxy):
+        """ISM manufacturing index `name` (licensed; the ISM site is login-only). History: ISM actuals seeded once
+        from the GDPNow workbook into the durable table hist_levels (flagged by source) and used up to the last
+        month released before the as-of date; later months: nowcast from the regional-survey `proxy` by OLS
+        fitted on the overlapping actual history, re-estimated every run (the fit is data, not a stored coefficient)."""
+        ref = self.ref('InventoryRaw', name)
+        if ref is not None:
+            df = pd.DataFrame({'name': name, 'date': ref.index, 'value': ref.to_numpy(), 'source': f'workbook:{self.ref_vintage}'})
+            self.con.register('_l', df)
+            self.con.execute('CREATE TABLE IF NOT EXISTS hist_levels AS SELECT * FROM _l LIMIT 0')
+            self.con.execute('DELETE FROM hist_levels WHERE name = ?', [name])
+            self.con.execute('INSERT INTO hist_levels SELECT * FROM _l')
+            self.con.unregister('_l')
+        st = self.con.execute('SELECT date, value FROM hist_levels WHERE name = ? ORDER BY date', [name]).fetchdf()
+        actual = pd.Series(st.value.to_numpy(), index=pd.to_datetime(st.date))
+        cutoff = (pd.Timestamp(self.asof) - pd.Timedelta(days=1)).to_period('M').end_time.normalize() - pd.offsets.MonthEnd(1)
+        actual = actual.loc[:cutoff]
+        j = pd.concat([actual, proxy], axis=1, keys=['y', 'x']).dropna()
+        b = np.polyfit(j.x, j.y, 1)
+        later = proxy.loc[proxy.index > actual.index.max()].dropna()
+        return pd.concat([actual, pd.Series(np.polyval(b, later.to_numpy()), index=later.index)]).sort_index()
 
     def long_history(self, df, sheet):
         """Splice every column of df backward (reference layer) where the workbook series is longer."""
@@ -484,7 +502,8 @@ def build_inventory(cx, prices, regional):
         'NMING_USECON': f('AMNMTI'), 'NMSNG_USECON': f('AMNMVS'),
         'NWIH_USECON': advance_overlay(f('WHLSLRIMSA'), asof_cut(cx.census('x', 'mwtsadv', '42', 'IM'), cx.asof)),
         'NWSH_USECON': f('WHLSLRSMSA'),
-        'NRIXM_USECON': advance_overlay(f('MRTSIM4400AUSS'), asof_cut(cx.census('x', 'mrtsadv', '4400A', 'IM'), cx.asof)),
+        # Retail ex-autos inventories: Census API (FRED's mirror of this series is stale since 2023)
+        'NRIXM_USECON': advance_overlay(asof_cut(cx.census('x', 'mrts', '4400A', 'IM'), cx.asof), asof_cut(cx.census('x', 'mrtsadv', '4400A', 'IM'), cx.asof)),
         'NRSXM_USECON': f('RSXFS') - f('RSMVPD'), 'NRSI1_USECON': f('RSMVPD'),
         'ADS_USECON': f('DAUTOSAAR'), 'AFS_USECON': f('FAUTOSAAR'), 'TLSAR_USECON': f('DLTRUCKSSAAR'),
         'TMSAR_USECON': f('FLTRUCKSSAAR'), 'IAU_IP': f('MVAAUTLTTS'),
@@ -507,11 +526,10 @@ def build_inventory(cx, prices, regional):
         'VNRIM_USNA': line('U50705BM3', 15), 'VNRDVIM_USNA': line('U50705BM3', 16),
         'VNRDVHM_USNA': line('U50706BM', 16), 'VNWWHM_USNA': line('U50706BM', 12),
     }
-    # ISM indexes are licensed (D3): public substitutes are averages of regional Fed manufacturing surveys,
-    # rescaled to the ISM-style 50 = no-change convention.
-    raw['NAPMC_USECON'] = 50 + regional['composite'] / 2
-    raw['NAPMII_USECON'] = 50 + regional['inventories'] / 2
-    raw['NAPMPI_USECON'] = 50 + regional['prices'] / 2
+    # ISM indexes are licensed (D3): actuals from the durable store, latest months nowcast from regional Fed surveys.
+    raw['NAPMC_USECON'] = cx.ism('NAPMC_USECON', regional['composite'])
+    raw['NAPMII_USECON'] = cx.ism('NAPMII_USECON', regional['inventories'])
+    raw['NAPMPI_USECON'] = cx.ism('NAPMPI_USECON', regional['prices'])
     # Discontinued SIC-basis sales deflators are not available publicly; the core BVAR runs on NAICS data.
     for c in ['DTSMD1_USNA', 'DTSMN1_USNA', 'DTSW1_USNA', 'DTSRX1_USNA', 'DTSRAD1_USNA']:
         raw[c] = empty()
