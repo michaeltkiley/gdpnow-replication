@@ -113,7 +113,7 @@ def provenance_checks(con, run_id, level, rows):
     group = dict(zip(reg.id, reg.group))
     for r in prov.itertuples():
         g = group.get(r.registry_id, '?')
-        from_wb = r.source.startswith('workbook')
+        from_wb = 'workbook' in r.source
         if level == 'L1':
             ok, note = True, 'L1 test fixture: workbook values expected'
         elif level == 'L2':

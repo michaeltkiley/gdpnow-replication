@@ -122,7 +122,7 @@ Atlanta Fed constructed series are rebuilt from their documented definitions. Wh
   - COVID dummies
   - recency weights 1/(1+t/80)²
   - 2020 exclusions
-- **λ for every BVAR** is re-selected on every run by the Bańbura–Giannone–Reichlin rule, with the documented values (0.15, 0.12, 0.05, 0.07, 0.25) reported for comparison.
+- **λ for every BVAR is fixed at the documented values** (0.15, 0.12, 0.05, 0.07, 0.25). *Revised 2026-10-03:* the workbook's quarterly BVAR is reproduced only at exactly λ = 0.15 (sharp minimum), so GDPNow evidently fixes λ. The Bańbura–Giannone–Reichlin rule gives ≈0.09 and is reported as a sensitivity (≈0.001 pp of headline on this date). The BVAR coefficients themselves are re-estimated every run.
 - Nothing is ever calibrated to match the workbook.
 - Where the documentation is silent, the factor and factor-augmented AR samples use the full data span. AIC lag choices are compared with `FactorAugARCoeffs` as a diagnostic only.
 
@@ -227,3 +227,28 @@ Every run writes a provenance manifest. Each group 1–3 registry entry gets one
 6. **Lookup case-insensitivity.** Excel lookups ignore case, so `DSf_USNA` in the sheet matches `DSF_USNA` in the data. Our code uses the stored spelling.
 
 **Code layout produced in M1:** `gdpnow/{config,store,workbook,inputs,monthly,components,aggregate,nowcast}.py`, `scripts/{01_ingest_workbook,05_nowcast,06_verify}.py`, `config/{spec,bridges}.toml`. The assembly code consumes an `Inputs` bundle, so L2/L3 only have to produce that bundle from our own estimates; the assembly is the same code L1 has verified.
+
+---
+
+## 9. M2 result: L2 core re-estimation (2026-10-03)
+
+Our code now estimates the factor, all 46 factor-augmented AR equations (with AIC lag selection), all 44 bridge equations, both quarterly BVARs, and the six investment/government blend weights, from the workbook's data. Run `L2_20261003`: **GDP 3.8261 vs published 3.6773 (+0.149 pp)**. Diagnostics are in `data/20261003_diagnostics_L2_20261003.csv`, attribution in `data/20261003_attribution_L2_20261003.csv`.
+
+| Stage (our estimate replaces the workbook's) | Headline effect alone | Cumulative | Fidelity vs workbook |
+|---|---|---|---|
+| Dynamic factor | **+0.255** | +0.255 | correlation 0.9994 over 1967–2026, but Sep-2026 value +0.016 vs −0.341 |
+| Factor-augmented AR equations | −0.024 | +0.243 | 9/46 exact (1e-14); 28/46 same AIC lags; rest differ moderately |
+| Bridge equations | −0.079 | +0.166 | 21/21 AR(1)+dummy exact; 22 indicator bridges close (median coef. diff 0.03) |
+| Quarterly quantity and price BVARs | −0.001 | +0.164 | forecasts within 0.05 pp (quantities) and 0.16 pp (prices) at documented λ |
+| Blend weights (investment, government) | −0.017 | +0.149 | within 0.003 of workbook except federal (0.630 vs 0.655) |
+
+**Findings**
+1. **The factor's latest month dominates.** On Oct 1 only five panel series in the workbook report September (claims, two Philly Fed indexes, ISM composite and inventories). On these our factor, like the Atlanta Fed's own `AltFactor` sheet (+0.003), shows a neutral September; the official factor shows −0.341, which must reflect September data the workbook does not contain (ISM subindexes, Conference Board, Michigan, other surveys). *Decision (2026-10-03):* add public September surveys in L3 (per D2) and report the latest-month gap as its own line in the gap decomposition.
+2. **λ is fixed in GDPNow today.** The workbook's quarterly BVAR is reproduced only at exactly λ = 0.15. The BGR rule gives ≈0.09, with a headline effect of ≈0.001 pp. *D4 revised:* λ is fixed at the documented values; the BGR rule is reported as a sensitivity.
+3. **Bridge regressors use the nowcast quarter's availability pattern** (paper eq. 5). Past quarters' indicators are rebuilt with the currently missing months replaced by factor-augmented AR forecasts, so bridge coefficients depend on the nowcast date. Excluding 2020 from indicator bridges does *not* improve the fit to the workbook (median difference 0.06 vs 0.03), so it isn't applied (not documented).
+4. **Blend weights confirm the 2022/2023 specification:** restricted WLS with weights 1/(1+t/80)², 2020 excluded. Including 2020 gives very different weights (e.g. equipment 0.98 vs 0.86).
+5. **Factor-augmented AR residual differences** don't come from the sample window, the factor version or dummies. They are most likely an older estimation vintage for some equations (construction, home sales and trade were revised in late September).
+
+**Still from the workbook (provenance check flags them):** monthly price BVAR (P08/P09), travel/utility regressions (P10), farm and other inventory AR (P11), inventory CIPI/IVA system and deflators (P12–P14), trade and inventory blend weights (part of P05). These are M3 (consumption and trade) and M4 (inventories).
+
+**Pipeline:** `04_estimate.py --level L2` → `05_nowcast.py --level L2` → `06_verify.py --run L2_<vintage>`. Per-field provenance is now carried in `Inputs.provenance` and checked in stage 06.

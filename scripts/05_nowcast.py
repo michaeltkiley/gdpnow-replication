@@ -1,8 +1,8 @@
 """Stage 05: assemble the GDPNow nowcast from an Inputs bundle and store results in DuckDB.
 
-L1 builds the bundle from the workbook (code-correctness test). L2/L3 bundles come from stage 04.
+L1 builds the bundle from the workbook (code-correctness test); L2/L3 overlay our stage-04 estimates.
 
-Usage: python scripts/05_nowcast.py --level L1 [--vintage YYYYMMDD] [--force]
+Usage: python scripts/05_nowcast.py --level L1|L2 [--vintage YYYYMMDD] [--force]
 """
 import argparse
 import datetime as dt
@@ -12,12 +12,12 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from gdpnow import inputs, nowcast, store
+from gdpnow import inputs, nowcast, params, store
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('--level', required=True, choices=['L1'])
+    ap.add_argument('--level', required=True, choices=['L1', 'L2'])
     ap.add_argument('--vintage', help='workbook vintage (default: latest loaded)')
     ap.add_argument('--force', action='store_true')
     a = ap.parse_args()
@@ -31,6 +31,8 @@ def main():
             return
 
     inp = inputs.from_workbook(con, vintage)
+    if a.level != 'L1':     # our estimates from stage 04 replace the workbook's
+        inp = params.overlay(con, run_id, inp)
     comps, agg, inter = nowcast.run(inp)
 
     tag = lambda df: df.assign(run_id=run_id)[['run_id'] + list(df.columns)]
@@ -39,7 +41,7 @@ def main():
                        tag(pd.DataFrame([(k, float(v)) for k, v in agg.items()], columns=['key', 'value'])),
                        {'run_id': run_id})
     store.replace_rows(con, 'nowcast_intermediates', tag(inter), {'run_id': run_id})
-    prov = [(field, reg, inp.source) for field, regs in inputs.FIELD_REGISTRY.items() for reg in regs]
+    prov = [(field, reg, inp.provenance[field]) for field, regs in inputs.FIELD_REGISTRY.items() for reg in regs]
     store.replace_rows(con, 'provenance', tag(pd.DataFrame(prov, columns=['field', 'registry_id', 'source'])),
                        {'run_id': run_id})
     store.replace_rows(con, 'runs', pd.DataFrame([{

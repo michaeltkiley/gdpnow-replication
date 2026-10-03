@@ -1,6 +1,6 @@
 # Documented specification constants (registry S01; decision D4). These are fixed modelling choices made by
-# the GDPNow authors, NOT estimated quantities. Every entry cites its source. BVAR tightness lambda is listed
-# for comparison only: it is re-selected on every run by the Banbura-Giannone-Reichlin rule.
+# the GDPNow authors, NOT estimated quantities. Every entry cites its source. BVAR tightness lambda is a fixed
+# constant (D4 revised): the workbook BVAR is reproduced only at the documented value; the BGR rule is a sensitivity.
 # WP = Higgins (2014) FRBA WP 2014-7; Mods = "Modifications to GDPNow Model" (Atlanta Fed, Oct 2017-Dec 2025).
 
 [factor]
@@ -39,24 +39,24 @@ sample_start = "1968Q1"             # WP step 1
 fitted_values_start = "1985Q1"      # WP step 1
 prior = "Banbura-Giannone-Reichlin dummy observations; random walk for log levels, white noise otherwise"  # WP appendix
 sum_of_coefficients_tau = "10*lambda"   # WP appendix
-documented_lambda_quantities = 0.15     # WP appendix (comparison only)
-documented_lambda_prices = 0.12         # WP appendix (comparison only)
+lambda_quantities = 0.15               # WP appendix; fixed (D4 revised 2026-10-03: workbook BVAR matched exactly at 0.15)
+lambda_prices = 0.12                   # WP appendix; fixed
 
 [bvar_monthly_prices]
 lags = 12                           # WP step 2a
 sample_start = "1983-01"            # WP step 2a
 conditional_forecasts = "Waggoner-Zha (1999)"
 sum_of_coefficients = false         # WP appendix (not used for the monthly price BVAR)
-documented_lambda = 0.05            # WP appendix (comparison only)
+lambda = 0.05                          # WP appendix; fixed
 
 [bvar_inventory_core]
-documented_lambda = 0.07            # WP appendix (comparison only)
+lambda = 0.07                          # WP appendix; fixed
 iva_max_turnover_months = 5         # WP fn 34
 
 [bvar_gold]
 variables = 5
 lags = 6                            # Mods Mar-2025 fn 2
-documented_lambda = 0.25            # Mods Mar-2025 fn 2 (comparison only)
+lambda = 0.25                          # Mods Mar-2025 fn 2; fixed
 
 [bvar_capital_goods_shares]
 variables = 11

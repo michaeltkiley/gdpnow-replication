@@ -14,29 +14,41 @@ ADDITIVE = set(BRIDGES['monthly']['additive_levels'])
 
 
 class Monthly:
-    """Lazily fills monthly growth (factor-augmented AR) and levels for the quarter being nowcast."""
+    """Lazily fills monthly growth (factor-augmented AR) and levels through quarter-end `q_end`.
 
-    def __init__(self, inp, growth, levels, faar):
+    `mask` (optional) lists month-end dates whose values are treated as unreleased; used to rebuild
+    historical indicator values with the current quarter's data-availability pattern (Higgins 2014 eq. 5).
+    """
+
+    def __init__(self, inp, growth, levels, faar, q_end=None, mask=()):
         self.inp, self.g, self.lv, self.faar = inp, growth, levels, faar
-        self.start = inp.T1 - pd.offsets.MonthEnd(24)
+        self.q_end = q_end if q_end is not None else inp.T1
+        self.start = self.q_end - pd.offsets.MonthEnd(24)
+        self.mask = pd.DatetimeIndex(mask)
         self._g, self._l = {}, {}
+
+    def _masked(self, s):
+        s = s.loc[:self.q_end].copy()
+        s[s.index.isin(self.mask)] = np.nan
+        return s
 
     def growth(self, t):
         if t not in self._g:
-            x = self.g[t] if t in self.g else pd.Series(dtype=float)
-            self._g[t] = m.faar_fill(x, self.inp.factor, self.faar[t], self.start, self.inp.T1)
+            x = self._masked(self.g[t]) if t in self.g else pd.Series(dtype=float)
+            self._g[t] = m.faar_fill(x, self.inp.factor, self.faar[t], self.start, self.q_end)
         return self._g[t]
 
     def level(self, t):
         if t not in self._l:
-            self._l[t] = m.level_fill(self.lv[t], self.growth(t), self.start, self.inp.T1, additive=t in ADDITIVE)
+            self._l[t] = m.level_fill(self._masked(self.lv[t]), self.growth(t), self.start, self.q_end,
+                                      additive=t in ADDITIVE)
         return self._l[t]
 
 
 def indicator_growth(name, mon, inp):
-    """Quarterly growth (400*dlog, SAAR) of a bridge indicator for T1."""
+    """Quarterly growth (400*dlog, SAAR) of a bridge indicator for quarter mon.q_end."""
     spec = BRIDGES['indicators'].get(name)
-    q = inp.T1
+    q = mon.q_end
     if spec is None:
         return m.q_growth_from_growth(mon.growth(name), q)
     if spec['kind'] == 'net_levels':
@@ -44,7 +56,7 @@ def indicator_growth(name, mon, inp):
         return m.q_growth_from_levels(lev, q)
     p = q - pd.offsets.QuarterEnd(1)
     if spec['kind'] == 'bus_trucks':
-        s = inp.nominal[spec['light_share']][inp.T]
+        s = inp.nominal[spec['light_share']][p]
         def idx(qe):
             light = m.q_mean(mon.level(spec['business_share']), qe) * m.q_mean(mon.level(spec['light_units']), qe)
             return light ** s * m.q_mean(mon.level(spec['heavy_units']), qe) ** (1 - s)
@@ -54,6 +66,16 @@ def indicator_growth(name, mon, inp):
             return (100 - m.q_mean(mon.level(spec['consumer_share']), qe)) * m.q_mean(mon.level(spec['units']), qe)
         return 400 * np.log(idx(q) / idx(p))
     raise ValueError(spec['kind'])
+
+
+def indicator_series(name):
+    """Monthly series an indicator is built from."""
+    spec = BRIDGES['indicators'].get(name)
+    if spec is None:
+        return [name]
+    if spec['kind'] == 'net_levels':
+        return [t for t, _ in spec['terms']]
+    return [v for k, v in spec.items() if k not in ('kind', 'light_share')]
 
 
 def subcomponent_growth(sub, mon, inp, out):

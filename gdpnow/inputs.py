@@ -39,6 +39,7 @@ class Inputs:
     farm_other: dict                # farm / other inventory AR(4) coefficients
     flags: dict = field(default_factory=dict)
     source: str = ''
+    provenance: dict = field(default_factory=dict)   # Inputs field -> source label
 
 
 # Registry entries (registry/parameters.csv) carried by each Inputs field; used for the provenance manifest.
@@ -92,4 +93,5 @@ def from_workbook(con, vintage):
         farm_other=_coef_dict(coef[coef.sheet == 'FarmOtherInvCoeffs']),
         flags={'use_published_prior_cipi': False},   # Inventories!C2 = 0 in this vintage
         source=f'workbook:{vintage}',
+        provenance={f: f'workbook:{vintage}' for f in FIELD_REGISTRY},
     )
