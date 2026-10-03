@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.x13 import x13_arima_analysis
 
-from . import history as H, public_data as P
+from . import history as H, trade_bvar as TB, public_data as P
 from .config import ROOT, load_toml
 
 X13 = str(ROOT / 'tools' / 'x13' / 'x13as' / 'x13as_ascii')
@@ -204,7 +204,7 @@ def build_prices(cx):
         'SplicedMedianfr': cleveland_index(f('MEDCPIM158SFRBCLE')), 'SplicedTrimfr': cleveland_index(f('TRMMEANCPIM158SFRBCLE')),
         'PXEA_USECONsplicefr': f('IQ'),
     }
-    out['R5312101_PPIRInterpfr'] = splice_back(f('PCU5312105312101'), f('CPIHOSSL'))
+    out['R5312101_PPIRInterpfr'] = cx.splice('R5312101_PPIRInterpfr', f('PCU5312105312101'), [('cpi_shelter', f('CPIHOSSL'))], 'MonthlyPriceLevels')
     out['saRMFG_PPIRsplicefr'] = seasadj(f('PCUOMFGOMFG'), '1985')
     # Trade sales deflators (NIPA underlying detail 2BUI), spliced with the SIC-based tables (2AUI).
     for name, line_new in [('SpliceManTradeDeflatorfr', 2), ('SpliceWholesaleTradeDeflatorfr', 28),
@@ -217,7 +217,7 @@ def build_prices(cx):
     out['CoreRealRetailPCEDeffr'] = cons['core_retail_price_incl_food_svc']
     out['CoreRealRetailPCEDefExFoodSvcfr'] = cons['core_retail_price']
     out['HerzonServicesExFoodDeffr'] = cons['other_services_price']
-    out['CPIMajappSplicefr'] = f('CUSR0000SAH3')
+    out['CPIMajappSplicefr'] = bls(cx, 'CUSR0000SEHK01', start=1967)      # CPI major appliances (BLS only; not on FRED)
     out['SA_HN1PA_USECON_fr'] = seasadj(f('ASPNHSUS'), '1975')
     resid = cx.bea('T50304', 'Q', line=22)          # permanent-site residential price index
     idx = pd.date_range('1965-01-31', pd.Timestamp(cx.asof), freq='ME')
@@ -476,7 +476,7 @@ def bls(cx, sid, start=1985):
         with urllib.request.urlopen(req, timeout=120) as r:
             d = json.loads(r.read().decode())
         for row in d['Results']['series'][0]['data']:
-            if row['period'].startswith('M') and row['period'] != 'M13':
+            if row['period'].startswith('M') and row['period'] != 'M13' and row['value'] not in ('-', ''):
                 vals[pd.Period(f"{row['year']}-{row['period'][1:]}", 'M').end_time.normalize()] = float(row['value'])
     s = pd.Series(vals).sort_index()
     P._archive(cx.con, 'bls', sid, cx.asof, s)
@@ -554,10 +554,9 @@ def build_indicators(cx, prices, nipa_q, inv):
     L['HSTM@USECON'] = f('HOUST') - f('HOUST1F')
     L['YPWGM@USNA'] = f('B202RC1') / cpi
     L['CPG@USECON'] = f('TLPBLCONS') / cpi
-    # Federal and state & local construction are not separately available from public APIs: total public
-    # construction deflated by the structures price stands in for both (registry E06 note).
-    pub = f('TLPBLCONS') / prices['TornPriceNonResStrMthfr']
-    L['CPGF@USECON'], L['CPGS@USECON'] = pub, pub
+    # Federal and state & local construction: Census historical tables by owner (1993+).
+    L['CPGF@USECON'] = census_construction(cx, 'fedsatime') / cpi
+    L['CPGS@USECON'] = census_construction(cx, 'slsatime') / cpi
     L['CPVD@USECON'] = f('PNRESCONS') / prices['TornPriceNonResStrMthfr']
     L['NMS@USECON'] = f('AMTMVS') / prices['SpliceManTradeDeflatorfr']
     L['NRST@USECON'] = f('RSAFS') / prices['SpliceRetailTradeDeflatorfr']
@@ -590,7 +589,8 @@ def build_indicators(cx, prices, nipa_q, inv):
     # Existing-home sales (NAR) history is not public (FRED carries 13 months): the brokers' commissions
     # indicator uses new-home sales value alone (bridges.toml valTotalHomeSales -> valNewHomeSales).
     L['valExHomeSales'] = 0 * L['valNewHomeSales']
-    L['SplicedNewHousingConstruction'] = f('PRRESCONS') / prices['CCIHD_USECONfr']
+    # New single-family + multifamily construction (permanent-site), deflated by the residential structures price.
+    L['SplicedNewHousingConstruction'] = (census_construction(cx, 'privsatime', 3) + census_construction(cx, 'privsatime', 4)) / prices['CCIHD_USECONfr']
     improv = np.exp((np.log(prices['CCIHD_USECONfr']) + np.log(f('WPSID61113'))) / 2)
     L['SplicedBuildingMaterials'] = f('RSBMGESD') / improv
     L['RetSalesResEquip'] = (f('RSFHFS') + f('RSEAS')) / prices['CPIMajappSplicefr']
@@ -613,10 +613,12 @@ def build_indicators(cx, prices, nipa_q, inv):
     L['DefenseShipments'] = advance_overlay(f('ADEFVS'), adv('DEF', 'VS')) / cpi
     L['SplicedDurableGoodsOrders'] = advance_overlay(f('DGORDER'), adv('MDM', 'NO')) / cap
     L['SplicedComputersShipments'] = comp_ship / comp_defl
-    trade = build_trade(cx, prices, comp_defl, cap)
+    anap = advance_overlay(f('ANAPVS'), adv('NAP', 'VS'))
+    ship = {'air': anap, 'comp': comp_ship, 'core': nxa - comp_ship - anap}
+    trade = build_trade(cx, prices, comp_defl, cap, ship)
     L.update(trade)
     aircraft_ppi = seasadj(f('PCU336411336411'), '1990')
-    net_air = (advance_overlay(f('ANAPVS'), adv('NAP', 'VS')) - trade['_air_x'] + trade['_air_m'])
+    net_air = (anap - trade['_air_x'] + trade['_air_m'])
     L['NondefenseAircraftNetShipments'] = net_air / aircraft_ppi
     contrib = {'NetExportsGoodsMonthlyContrib': L.pop('_contrib_Goods'), 'NetSvcExportsMonthlyContrib': L.pop('_contrib_Svc')}
     for k in [k for k in L if k.startswith('_')]:
@@ -667,13 +669,35 @@ def census_capital_goods(cx, flow):
     return cx.cache[key]
 
 
+def census_construction(cx, table, column=1):
+    """Census construction put in place, SA annual rate, $ millions, from the public historical tables
+    (fedsatime, slsatime, privsatime; 1993+). Needed because the EITS API has no owner split or
+    single/multifamily detail. `column` is the position in the table (1 = total). Archived in raw_pulls."""
+    key = ('constr', table, column)
+    if key in cx.cache:
+        return cx.cache[key]
+    s = P._archived(cx.con, 'census_hist', f'construction_{table}_{column}', cx.asof)
+    if s is None:
+        import io, urllib.request
+        req = urllib.request.Request(f'https://www.census.gov/construction/c30/xlsx/{table}.xlsx',
+                                     headers={'User-Agent': 'Mozilla/5.0'})
+        d = pd.read_excel(io.BytesIO(urllib.request.urlopen(req, timeout=120).read()), header=None, skiprows=4,
+                          usecols=[0, column])
+        d.columns = ['d', 'v']
+        d['d'] = pd.to_datetime(d.d.astype(str).str.replace(r'[pr]$', '', regex=True), format='%b-%y', errors='coerce') + pd.offsets.MonthEnd(0)
+        s = pd.to_numeric(d.dropna(subset=['d']).set_index('d').v, errors='coerce').dropna().sort_index()
+        P._archive(cx.con, 'census_hist', f'construction_{table}_{column}', cx.asof, s)
+    cx.cache[key] = asof_cut(s, cx.asof)
+    return cx.cache[key]
+
+
 def bea_quarterly_to_monthly(cx, table, line, indicator):
     """BEA quarterly trade detail (T4.2.5B, 1999+) -> monthly via proportional Denton on `indicator`."""
     q = cx.bea(table, 'Q', line=line)
     return H.denton_pfd(q, indicator)
 
 
-def build_trade(cx, prices, comp_defl, cap):
+def build_trade(cx, prices, comp_defl, cap, ship=None):
     """Real goods and services trade (WP Table A4): BOP goods (less Census-basis nonmonetary gold, Mods
     Mar-2025) and services, the latest month from the advance goods report; end-use detail for computers,
     core capital goods and aircraft (Census end-use, X-13 adjusted)."""
@@ -682,22 +706,26 @@ def build_trade(cx, prices, comp_defl, cap):
     gold_x, gold_m = enduse(cx, 'exports', '12260'), enduse(cx, 'imports', '14270')
     gx = gx.sub(gold_x.reindex(gx.index).fillna(0))
     gm = gm.sub(gold_m.reindex(gm.index).fillna(0))
-    # Advance goods report month (Census basis, total): extrapolate BOP ex gold with its growth.
+    # AEI window: the month after the last full report is known only from the advance report. The Census-basis
+    # ex-gold growth (gold BVAR, registry P15) extrapolates the BOP measure ex gold.
     adv = asof_cut(cx.census('x', 'ftdadv', 'CBG', 'EXP'), cx.asof)
-    adv_m = asof_cut(cx.census('x', 'ftdadv', 'CBG', 'IMP'), cx.asof)
-    for s, a in ((gx, adv), (gm, adv_m)):
-        for t in a.index[a.index > s.index.max()]:
-            p = t - pd.offsets.MonthEnd(1)
-            if p in a.index and p in s.index:
-                s[t] = s[p] * a[t] / a[p]
+    t_aei = adv.index.max()
+    aei = None
+    if t_aei > gx.index.max() and ship is not None:
+        aei = TB.aei_table(cx, t_aei)
+        gg = TB.gold_adjusted_growth(cx, prices, aei, t_aei)
+        gx[t_aei] = gx[t_aei - pd.offsets.MonthEnd(1)] * gg['exports']
+        gm[t_aei] = gm[t_aei - pd.offsets.MonthEnd(1)] * gg['imports']
     out = {'SplicedGoodsExports': gx / prices['PXEA_USECONsplicefr'], 'SplicedGoodsImports': gm / prices['PMEA_USECONsplicefr'],
            'SplicedServiceExports': f('BOPSEXP') / prices['ExpSvcDefmthA1fr'],
            'SplicedServiceImports': f('BOPSIMP') / prices['ImpSvcDefmthA1fr']}
     eu = lambda flow, codes: pd.concat([enduse(cx, flow, c) for c in codes], axis=1).sum(axis=1, min_count=1)
     comp_x, comp_m = eu('exports', ['21300', '21301']), eu('imports', ['21300', '21301'])
-    noncore = ['21300', '21301', '22000', '22010', '22020', '22220', '21320', '21100', '20005']
-    core_x = enduse(cx, 'exports', '2') - eu('exports', [c for c in noncore])
-    core_m = enduse(cx, 'imports', '2') - eu('imports', [c for c in noncore])
+    noncore_m = ['21300', '21301', '22000', '22010', '22020', '22220', '21320', '21100', '20005']
+    # Export aircraft codes differ from import codes (22090 = aircraft, engines and parts).
+    noncore_x = ['21300', '21301', '22000', '22090', '22220', '21320', '21100', '20005']
+    core_x = enduse(cx, 'exports', '2') - eu('exports', noncore_x)
+    core_m = enduse(cx, 'imports', '2') - eu('imports', noncore_m)
     # Long histories (decision 2026-10-03): the Census end-use API serves only 2013+. Earlier months come from
     # independent real monthly data via the durable growth store (gdpnow/history.py): total capital goods
     # trade (Census historical exhibit) for core capital goods, and BEA quarterly trade detail (1999+)
@@ -714,8 +742,18 @@ def build_trade(cx, prices, comp_defl, cap):
                                                   [('bea_computers_denton', comp_m_q / comp_defl)])
     out['CoreCapGoodsExports'] = sp('CoreCapGoodsExports', core_x / cap, [('census_capgoods_total', cg_x / cap)])
     out['CoreCapGoodsImports'] = sp('CoreCapGoodsImports', core_m / cap, [('census_capgoods_total', cg_m / cap)])
-    out['_air_x'] = sp('AircraftExportsNominal', eu('exports', ['22000', '22010', '22020']), [('bea_aircraft_denton', air_x_q)])
+    out['_air_x'] = sp('AircraftExportsNominal', eu('exports', ['22000', '22090']), [('bea_aircraft_denton', air_x_q)])
     out['_air_m'] = sp('AircraftImportsNominal', eu('imports', ['22000', '22010', '22020']), [('bea_aircraft_denton', air_m_q)])
+    if aei is not None:
+        # Capital-goods-shares BVAR (registry P16): month-t category trade after the advance reports.
+        cgt = TB.capital_goods_t(cx, ship, aei, t_aei)
+        add = lambda ser, v: pd.concat([ser.dropna().loc[:t_aei - pd.offsets.MonthEnd(1)], pd.Series({t_aei: v})])
+        out['SplicedExportsComputersAndRelated'] = add(out['SplicedExportsComputersAndRelated'], cgt[('exports', 'comp')] / comp_defl[t_aei])
+        out['SplicedImportsComputersAndRelated'] = add(out['SplicedImportsComputersAndRelated'], cgt[('imports', 'comp')] / comp_defl[t_aei])
+        out['CoreCapGoodsExports'] = add(out['CoreCapGoodsExports'], cgt[('exports', 'core')] / cap[t_aei])
+        out['CoreCapGoodsImports'] = add(out['CoreCapGoodsImports'], cgt[('imports', 'core')] / cap[t_aei])
+        out['_air_x'] = add(out['_air_x'], cgt[('exports', 'air')])
+        out['_air_m'] = add(out['_air_m'], cgt[('imports', 'air')])
     nomgdp = prices['MGDPN_USECONsplicefr']
     for kind, (x, m, nx, nm) in {'Goods': (out['SplicedGoodsExports'], out['SplicedGoodsImports'], gx, gm),
                                  'Svc': (out['SplicedServiceExports'], out['SplicedServiceImports'], f('BOPSEXP'), f('BOPSIMP'))}.items():

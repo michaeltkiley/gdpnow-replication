@@ -63,6 +63,7 @@ lambda = 0.25                          # Mods Mar-2025 fn 2; fixed
 [bvar_capital_goods_shares]
 variables = 11
 lags = 6                            # Mods Oct-2017 (equipment)
+lambda = 0.25                       # NOT documented for this BVAR: assumed equal to the gold BVAR's (Mods Mar-2025); sensitivity to be reported
 
 [aggregation]
 method = "Fisher chain"             # WP appendix A3
