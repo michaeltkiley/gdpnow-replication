@@ -643,10 +643,11 @@ def build_indicators(cx, prices, nipa_q, inv):
     L['CPGF@USECON'] = census_construction(cx, 'fedsatime') / prices['TornPriceNonResStrMthfr']      # deflator verified: implied corr 1.000
     L['CPGS@USECON'] = census_construction(cx, 'slsatime') / prices['TornPriceNonResStrMthfr']
     L['CPVD@USECON'] = f('PNRESCONS') / prices['TornPriceNonResStrMthfr']
-    L['NMS@USECON'] = f('AMTMVS') / prices['SpliceManTradeDeflatorfr']
+    L['NMS@USECON'] = advance_overlay(f('AMTMVS'), asof_cut(cx.census('x', 'm3', 'MTM', 'VS'), cx.asof)) / prices['SpliceManTradeDeflatorfr']
     L['NRST@USECON'] = f('RSAFS') / prices['SpliceRetailTradeDeflatorfr']
     L['NWSH@USECON'] = f('WHLSLRSMSA') / prices['SpliceWholesaleTradeDeflatorfr']
-    L['ManInvShipRatio'] = f('AMTMTI') / f('AMTMVS')
+    L['ManInvShipRatio'] = (advance_overlay(f('AMTMTI'), asof_cut(cx.census('x', 'm3', 'MTM', 'TI'), cx.asof)) /
+                            advance_overlay(f('AMTMVS'), asof_cut(cx.census('x', 'm3', 'MTM', 'VS'), cx.asof)))
     L['WholeSaleInvSalesRatio'] = f('WHLSLRIRSA')
     L['RetailInvSalesRatio'] = inv['NRIXM_USECON'] / inv['NRSXM_USECON']
     # Labour-market constructions.

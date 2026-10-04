@@ -4,7 +4,9 @@ For each raw / constructed / transformed input: is it built from public data at 
 series go, does it end in the same month, and how closely do its growth rates and recent levels match the
 workbook's. Writes registry/input_audit.csv and prints a summary. The workbook is used only as a benchmark here.
 
-Usage: python tools/audit_inputs.py [--asof 20261001] [--vintage latest]
+Usage: python tools/audit_inputs.py [--asof 20261001] [--vintage latest] [--all]
+--all audits EVERY series of the workbook's data sheets (not only the registered inputs) and writes
+registry/input_audit_all.csv with a `used` flag.
 """
 import argparse
 import pickle
@@ -64,6 +66,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--asof', default='20261001')
     ap.add_argument('--vintage', default='latest')
+    ap.add_argument('--all', action='store_true')
     a = ap.parse_args()
     con = store.connect(read_only=True) if 'read_only' in store.connect.__code__.co_varnames else store.connect()
     v = store.latest_vintage(con) if a.vintage == 'latest' else a.vintage
@@ -73,23 +76,31 @@ def main():
               'ConsTransformedMonthlySeries': inp.cons_growth, 'QtrlyGDPData': inp.nipa, 'NomQtrlyComps': inp.nominal,
               'dLogQtrlyGrowth': inp.q_hist, 'InvDefDatafr': inp.inv_deflators}
     reg = pd.read_csv('registry/inputs_used.csv')
-    reg = reg[reg['class'].isin(DATA_CLASSES)]
+    used = set(zip(reg.sheet, reg.key))
+    if a.all:
+        targets = []
+        for sheet in ('MonthlyLevels', 'InventoryRaw', 'ConsMonthlyLevels', 'MonthlyPriceLevels', 'QtrlyGDPData', 'NomQtrlyComps',
+                      'TransformedMonthlySeries', 'ConsTransformedMonthlySeries'):
+            wb_f = store.series_frame(con, v, sheet)
+            targets += [(sheet, k, 'all') for k in wb_f.columns]
+        reg_rows = pd.DataFrame(targets, columns=['sheet', 'key', 'class'])
+    else:
+        reg_rows = reg[reg['class'].isin(DATA_CLASSES)]
     out = []
-    for sheet, g in reg.groupby('sheet'):
+    for sheet, g in reg_rows.groupby('sheet'):
         pub_f = frames.get(sheet)
         wb_f = store.series_frame(con, v, sheet)
         for key in g.key.unique():
-            r = {'sheet': sheet, 'key': key, 'class': g[g.key == key]['class'].iloc[0]}
+            r = {'sheet': sheet, 'key': key, 'class': g[g.key == key]['class'].iloc[0], 'used': (sheet, key) in used}
             if wb_f is None or key not in wb_f.columns or wb_f[key].dropna().empty:
                 out.append({**r, 'status': 'NO-WORKBOOK-SERIES'})
                 continue
             if pub_f is None or key not in pub_f.columns:
                 out.append({**r, 'status': 'NOT-BUILT'})
                 continue
-            tc = 'diff' if sheet in ('TransformedMonthlySeries', 'ConsTransformedMonthlySeries', 'dLogQtrlyGrowth') else 'level'
             out.append({**r, **compare(pub_f[key], wb_f[key])})
     df = pd.DataFrame(out)
-    df.to_csv('registry/input_audit.csv', index=False)
+    df.to_csv('registry/input_audit_all.csv' if a.all else 'registry/input_audit.csv', index=False)
     print(df.status.value_counts().to_string())
     print('\nPOOR / NOT-BUILT / MISSING / CHECK:')
     bad = df[df.status.str.startswith(('POOR', 'NOT-BUILT', 'MISSING', 'CHECK'))]

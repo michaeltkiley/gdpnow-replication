@@ -111,21 +111,31 @@ def monthly_price_bvar(prices, conditioners, last_actual, mgdp_last):
     cond = conditioners.copy()
     D = D.join(cond.loc[:last_actual])
     start = pd.Timestamp(spec['sample_start']) + pd.offsets.MonthEnd(0)
-    Y = D.loc[start:].dropna(axis=1, how='any')
-    horizon = 4
-    future = pd.date_range(last_actual + pd.offsets.MonthEnd(1), periods=horizon, freq='ME')
-    known = np.full((horizon, Y.shape[1]), np.nan)
+    Dw = D.loc[start:]
+    # Ragged edge: keep series whose only missing months are at the tail (up to 3 months short of last_actual); the
+    # BVAR is fitted on the months where all of them exist and their missing tail months are conditionally forecast
+    # (months where some series already have data impose those values as known).
+    last_ok = Dw.apply(lambda c: c.last_valid_index())
+    interior_gaps = Dw.apply(lambda c: c.loc[:c.last_valid_index()].isna().any() if c.last_valid_index() is not None else True)
+    keep = [c for c in Dw.columns if not interior_gaps[c] and last_ok[c] >= last_actual - pd.offsets.MonthEnd(3)]
+    Y = Dw[keep]
+    complete = Y.dropna().index.max()
+    hist = Y.loc[:complete]
+    future = pd.date_range(complete + pd.offsets.MonthEnd(1), last_actual + pd.offsets.MonthEnd(4), freq='ME')
+    known = Y.reindex(future).to_numpy().copy()
     for c in cond.columns:
         if c in Y:
-            known[:, list(Y.columns).index(c)] = cond[c].reindex(future).to_numpy()
-    B = bvar.fit(Y.to_numpy(), spec['lags'], spec['lambda'], np.zeros(Y.shape[1]), sum_coef=False)
-    fc = pd.DataFrame(bvar.conditional_forecast(Y.to_numpy(), B, spec['lags'], horizon, known),
+            j = list(Y.columns).index(c)
+            known[:, j] = np.where(np.isnan(known[:, j]), cond[c].reindex(future).to_numpy(), known[:, j])
+    B = bvar.fit(hist.to_numpy(), spec['lags'], spec['lambda'], np.zeros(hist.shape[1]), sum_coef=False)
+    fc = pd.DataFrame(bvar.conditional_forecast(hist.to_numpy(), B, spec['lags'], len(future), known),
                       index=future, columns=Y.columns)
     out = lv.copy().reindex(lv.index.union(future))
     for c in lv.columns:
         if c in fc:
             for t in future:
-                out.loc[t, c] = out.loc[t - pd.offsets.MonthEnd(1), c] * np.exp(fc.loc[t, c] / 1200)
+                if np.isnan(out.loc[t, c]):
+                    out.loc[t, c] = out.loc[t - pd.offsets.MonthEnd(1), c] * np.exp(fc.loc[t, c] / 1200)
     g = prices[MGDP].loc[:mgdp_last]
     ext = pd.date_range(mgdp_last + pd.offsets.MonthEnd(1), future[-1], freq='ME')
     vals = g.iloc[-1] * np.exp(np.arange(1, len(ext) + 1) * 4.5 / 1200)

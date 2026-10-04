@@ -1,0 +1,174 @@
+sheet,target,status,used,source,corr,ratio_cv,n,category,data_type,sa
+ConsMonthlyLevels,BMBSMR_USINTPrevious,MISSING,False,NO MATCH >= 0.98,,,,,,
+ConsMonthlyLevels,BMBSXR_USINTPrevious,MISSING,False,NO MATCH >= 0.98,,,,,,
+ConsMonthlyLevels,CSDTFHM_USNARev,NOT-BUILT,False,bea:NIUnderlyingDetail:U20406:M,1.0,0.0,139.0,339,value,sa?
+ConsMonthlyLevels,CSDTFHM_USNARev,NOT-BUILT,False,bea:NIUnderlyingDetail:U20405:M,0.9992,0.1027,139.0,339,value,sa?
+ConsMonthlyLevels,CSEHM_USNAFore,NOT-BUILT,False,bea:NIUnderlyingDetail:U20406:M,1.0,0.0,139.0,169,value,sa?
+ConsMonthlyLevels,CSEHM_USNAFore,NOT-BUILT,False,bea:NIUnderlyingDetail:U20406:M,0.99963,0.0133,139.0,386,value,sa?
+ConsMonthlyLevels,CSEHM_USNAFore,NOT-BUILT,False,bea:NIUnderlyingDetail:U20406:M,0.99963,0.0133,139.0,165,value,sa?
+ConsMonthlyLevels,CSEHM_USNAFore,NOT-BUILT,False,bea:NIPA:T20806:M,0.98714,0.0542,139.0,15,value,sa?
+ConsMonthlyLevels,CSFPMDeffr,NOT-BUILT,False,bea:NIUnderlyingDetail:U20404:M,0.99879,0.0003,139.0,236,value,sa?
+ConsMonthlyLevels,CSFPMDeffr,NOT-BUILT,False,bea:NIUnderlyingDetail:U20404:M,0.9884,0.0004,139.0,235,value,sa?
+ConsMonthlyLevels,CSFTOHM_USNARev,NOT-BUILT,False,bea:NIUnderlyingDetail:U20406:M,1.0,0.0,139.0,336,value,sa?
+ConsMonthlyLevels,CSFTOHM_USNARev,NOT-BUILT,False,bea:NIUnderlyingDetail:U20405:M,0.99949,0.0193,139.0,336,value,sa?
+ConsMonthlyLevels,CoreRealRetailPCEDefExFoodSvcfr,NOT-BUILT,False,bea:NIUnderlyingDetail:U20404:M,0.98801,0.0057,139.0,369,value,sa?
+InventoryRaw,C0F_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTSMD1_USNA,MISSING,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTSMN1_USNA,MISSING,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTSR1_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTSR5211_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTSR5391_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTSR561_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTSR5711_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTSR5791_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTSRAD1_USNA,MISSING,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTSRFS1_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTSRN1_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTSRX1_USNA,MISSING,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTST1_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,DTST_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U002BUI:M,1.0,0.0,138.0,1,value,sa?
+InventoryRaw,DTSW1_USNA,MISSING,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,JCNODM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U20404:M,1.0,0.0,139.0,121,value,sa?
+InventoryRaw,JCNODM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U20404:M,0.99973,0.0004,139.0,122,value,sa?
+InventoryRaw,JRSI1_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U002BUI:M,0.9811,0.0021,112.0,52,value,sa?
+InventoryRaw,JRSI2_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,JRSI3_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,JRSI4_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U002BUI:M,0.99063,0.0008,112.0,54,value,sa?
+InventoryRaw,JRSI5_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U002BUI:M,0.99123,0.0006,112.0,55,value,sa?
+InventoryRaw,JRSI6_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,JRSI7_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,JRSI8_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,JRSJ1_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,JRSJ2_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U002BUI:M,0.98718,0.0014,112.0,57,value,sa?
+InventoryRaw,JRSJ3_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,JRSJ4_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,JRST_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U002BUI:M,0.98446,0.0067,112.0,51,value,sa?
+InventoryRaw,JRSXM_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,JRS_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U002BUI:M,0.98457,0.0017,112.0,51,value,sa?
+InventoryRaw,LIDURGA_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,LINDURA_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,MIFDG_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,MIFNG_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,MIMDG_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,MIMNG_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,MIWDG_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,MIWNG_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,MODG_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,NAPMC_USECON,POOR,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,NAPMII_USECON,POOR,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,NAPMPI_USECON,POOR,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,NARII1_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,NARIXM_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,NARI_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,NAWIH_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,NMIFDG_USECON,NOT-BUILT,False,census:m3,0.99999,0.0,138.0,MDM,FI,yes
+InventoryRaw,NMIFNDG_USECON,NOT-BUILT,False,census:m3,0.99995,0.0001,138.0,MNM,FI,yes
+InventoryRaw,NMIMDG_USECON,NOT-BUILT,False,census:m3,0.99999,0.0,138.0,MDM,MI,yes
+InventoryRaw,NMIMNDG_USECON,NOT-BUILT,False,census:m3,0.99998,0.0,138.0,MNM,MI,yes
+InventoryRaw,NMIWDG_USECON,NOT-BUILT,False,census:m3,0.99988,0.0001,138.0,MDM,WI,yes
+InventoryRaw,NMIWNDG_USECON,NOT-BUILT,False,census:m3,0.99999,0.0001,138.0,MNM,WI,yes
+InventoryRaw,NMODG_USECON,NOT-BUILT,False,census:advm3,1.0,0.0,139.0,MDM,NO,yes
+InventoryRaw,NMODG_USECON,NOT-BUILT,False,census:m3,1.0,0.0,139.0,MDM,NO,yes
+InventoryRaw,NMODG_USECON,NOT-BUILT,False,census:m3,0.98634,0.1028,139.0,36S,NO,yes
+InventoryRaw,NMODG_USECON,NOT-BUILT,False,census:advm3,0.98633,0.1028,139.0,36S,NO,yes
+InventoryRaw,NRS_USECON,NOT-BUILT,False,census:marts,1.0,0.0,139.0,44000,SM,yes
+InventoryRaw,NRS_USECON,NOT-BUILT,False,census:mrts,1.0,0.0,138.0,44000,SM,yes
+InventoryRaw,NRS_USECON,NOT-BUILT,False,census:mtis,0.99813,0.0128,138.0,RETAIL,SM,yes
+InventoryRaw,NRS_USECON,NOT-BUILT,False,census:mrts,0.99077,0.0093,138.0,44X72,SM,yes
+InventoryRaw,PA49207_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,PC152_PPI,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,PC9115_PPI,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,PCUSLFE_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,PCUSND_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,PCUSSLE_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,PCU_USECON,NOT-BUILT,False,bea:NIUnderlyingDetail:U20404:M,1.0,0.0,139.0,227,value,sa?
+InventoryRaw,PCU_USECON,NOT-BUILT,False,bea:NIUnderlyingDetail:U20404:M,1.0,0.0,139.0,228,value,sa?
+InventoryRaw,PCU_USECON,NOT-BUILT,False,bea:NIUnderlyingDetail:U20404:M,1.0,0.0,139.0,229,value,sa?
+InventoryRaw,PCU_USECON,NOT-BUILT,False,bea:NIUnderlyingDetail:U20404:M,0.99992,0.0001,139.0,277,value,sa?
+InventoryRaw,PZALL_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,PZTEXP_USECON,GOOD+ENDS-EARLY,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,TAMCA_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,TAXA_USECON,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,TIMH_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001B:M,1.0,0.0,138.0,2,value,sa?
+InventoryRaw,TIM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001BC:M,1.0,0.0,138.0,2,value,sa?
+InventoryRaw,TIRI2H_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001B:M,1.0,0.0,138.0,53,value,sa?
+InventoryRaw,TIRI2_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001BC:M,1.0,0.0,138.0,53,value,sa?
+InventoryRaw,TIRI4H_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001B:M,1.0,0.0,138.0,54,value,sa?
+InventoryRaw,TIRI4_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001BC:M,1.0,0.0,138.0,54,value,sa?
+InventoryRaw,TIRI5H_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001B:M,1.0,0.0,138.0,55,value,sa?
+InventoryRaw,TIRI5_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001BC:M,1.0,0.0,138.0,55,value,sa?
+InventoryRaw,TIRI8H_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001B:M,1.0,0.0,138.0,56,value,sa?
+InventoryRaw,TIRI8H_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001BC:M,0.98721,0.0532,138.0,56,value,sa?
+InventoryRaw,TIRI8_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001BC:M,1.0,0.0,138.0,56,value,sa?
+InventoryRaw,TIRI8_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001B:M,0.98721,0.0546,138.0,56,value,sa?
+InventoryRaw,TIRJ2H_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001B:M,1.0,0.0,138.0,57,value,sa?
+InventoryRaw,TIRJ2H_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001BC:M,0.98054,0.0694,138.0,57,value,sa?
+InventoryRaw,TIRJ2_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001BC:M,1.0,0.0,138.0,57,value,sa?
+InventoryRaw,TIRJ2_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001B:M,0.98054,0.0712,138.0,57,value,sa?
+InventoryRaw,TIROH_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001B:M,1.0,0.0,138.0,60,value,sa?
+InventoryRaw,TIRO_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U001BC:M,1.0,0.0,138.0,60,value,sa?
+InventoryRaw,TMMCA_USINT,NOT-BUILT,False,ids0182:imports:Census-based,1.0,0.0,138.0,MGENMR,value,SA
+InventoryRaw,TMMCA_USINT,NOT-BUILT,False,ids0182:imports:Census-based,1.0,0.0,138.0,MGOODS,value,SA
+InventoryRaw,TMMCA_USINT,NOT-BUILT,False,census:ftdadv,1.0,0.0,139.0,CBG,IMP,yes
+InventoryRaw,TMMCA_USINT,NOT-BUILT,False,ids0182:imports:BP-based,0.99886,0.0023,138.0,MGOODS,value,SA
+InventoryRaw,TMXA_USINT,NOT-BUILT,False,ids0182:exports:Census-based,1.0,0.0,138.0,XGENMR,value,SA
+InventoryRaw,TMXA_USINT,NOT-BUILT,False,ids0182:exports:Census-based,1.0,0.0,138.0,XGOODS,value,SA
+InventoryRaw,TMXA_USINT,NOT-BUILT,False,census:ftdadv,1.0,0.0,139.0,CBG,EXP,yes
+InventoryRaw,TMXA_USINT,NOT-BUILT,False,ids0182:exports:BP-based,0.99884,0.0033,138.0,XGOODS,value,SA
+InventoryRaw,UEE_CPIDATA,NOT-BUILT,False,bea:NIUnderlyingDetail:U20404:M,1.0,0.0,139.0,233,value,sa?
+InventoryRaw,VN2HM_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNHM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50706BM:M,1.0,0.0,137.0,1,value,sa?
+InventoryRaw,VNHM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM1:M,0.99159,0.6462,137.0,1,value,sa?
+InventoryRaw,VNMBM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM2:M,1.0,0.0,137.0,3,value,sa?
+InventoryRaw,VNMDB20M_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNMDBM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM2:M,1.0,0.0,137.0,4,value,sa?
+InventoryRaw,VNMDI20M_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNMFM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM1:M,1.0,0.0,137.0,3,value,sa?
+InventoryRaw,VNMFM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50706BM:M,0.98663,2.1223,137.0,3,value,sa?
+InventoryRaw,VNMIM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM3:M,1.0,0.0,137.0,3,value,sa?
+InventoryRaw,VNMNB20M_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNMNBM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM2:M,1.0,0.0,137.0,5,value,sa?
+InventoryRaw,VNMNBM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM1:M,0.98061,12.061,137.0,5,value,sa?
+InventoryRaw,VNMNI20M_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNRB2M_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNRBM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM2:M,1.0,0.0,137.0,15,value,sa?
+InventoryRaw,VNRBM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM1:M,0.99535,1.7462,137.0,15,value,sa?
+InventoryRaw,VNRBM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50706BM:M,0.9914,2.0306,137.0,15,value,sa?
+InventoryRaw,VNRDV2HM_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNRDV2M_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNRDVB2M_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNRDVBM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM2:M,1.0,0.0,137.0,16,value,sa?
+InventoryRaw,VNRDVBM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM1:M,0.99672,11.4353,137.0,16,value,sa?
+InventoryRaw,VNRDVBM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50706BM:M,0.99479,8.6367,137.0,16,value,sa?
+InventoryRaw,VNRDVI2M_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNRDVM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM1:M,1.0,0.0,137.0,16,value,sa?
+InventoryRaw,VNRDVM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50706BM:M,0.99767,0.123,137.0,16,value,sa?
+InventoryRaw,VNRDVM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM2:M,0.99672,0.7644,137.0,16,value,sa?
+InventoryRaw,VNRI2M_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNWLMBM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM2:M,1.0,0.0,137.0,9,value,sa?
+InventoryRaw,VNWMB2M_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNWMI2M_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNWW2HM_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNWWB2M_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNWWI2M_USNA,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+InventoryRaw,VNWWIM_USNA,NOT-BUILT,False,bea:NIUnderlyingDetail:U50705BM3:M,1.0,0.0,137.0,12,value,sa?
+InventoryRaw,sa_RMFG_PPIR_,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+MonthlyLevels,BOISM@SURVEYS,POOR,False,NO MATCH >= 0.98,,,,,,
+MonthlyLevels,CoreCapGoodsExports,FAIR,True,NO MATCH >= 0.98,,,,,,
+MonthlyLevels,CoreRetailSales,NOT-BUILT,False,census:mrts,0.9907,0.0682,138.0,44W72,SM,yes
+MonthlyLevels,CoreRetailSales,NOT-BUILT,False,census:marts,0.99069,0.0687,139.0,44W72,SM,yes
+MonthlyLevels,CoreRetailSales,NOT-BUILT,False,census:marts,0.98207,0.0677,139.0,44Y72,SM,yes
+MonthlyLevels,CoreRetailSales,NOT-BUILT,False,census:mrts,0.98205,0.0671,138.0,44Y72,SM,yes
+MonthlyLevels,ManInvShipRatio,EXACT+ENDS-EARLY,False,census:mtis,0.98851,0.002,138.0,MNFCTR,IR,yes
+MonthlyLevels,ManInvShipRatio,EXACT+ENDS-EARLY,False,census:m3,0.98848,0.002,139.0,MTM,IS,yes
+MonthlyLevels,MobileHomeVal,FAIR,False,NO MATCH >= 0.98,,,,,,
+MonthlyLevels,NMS@USECON,EXACT+ENDS-EARLY,False,bea:NIUnderlyingDetail:U002BU:M,0.99231,0.0075,138.0,2,value,sa?
+MonthlyLevels,NRST@USECON,EXACT+ENDS-EARLY,False,bea:NIUnderlyingDetail:U002BU:M,0.99101,0.0091,138.0,51,value,sa?
+MonthlyLevels,NRST@USECON,EXACT+ENDS-EARLY,False,census:mrts,0.98956,0.0749,138.0,44Z72,SM,yes
+MonthlyLevels,NRST@USECON,EXACT+ENDS-EARLY,False,census:marts,0.98954,0.0753,139.0,44Z72,SM,yes
+MonthlyLevels,SplicedNonCoreNonComputerNonSvcExports,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+MonthlyLevels,SplicedNonCoreNonComputerNonSvcImports,NOT-BUILT,False,NO MATCH >= 0.98,,,,,,
+MonthlyLevels,WholeSaleInvSalesRatio,FAIR,False,census:mwts,0.99185,0.0023,138.0,42,IR,yes
+MonthlyLevels,WholeSaleInvSalesRatio,FAIR,False,census:mtis,0.99185,0.0023,138.0,WHLSLR,IR,yes
+MonthlyLevels,saFTO@USECON,FAIR,False,NO MATCH >= 0.98,,,,,,
+MonthlyLevels,saFTOD@USECON,FAIR,False,NO MATCH >= 0.98,,,,,,
