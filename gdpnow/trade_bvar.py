@@ -67,7 +67,7 @@ def _six(cx, flow):
 
 
 def _fit_forecast(Y, known, lags, lam, delta):
-    B = bvar.fit(Y.to_numpy(), lags, lam, np.asarray(delta, float), sum_coef=False)
+    B = bvar.fit(Y.to_numpy(), lags, lam, np.asarray(delta, float), sum_coef=True)      # BGR sum-of-coefficients prior
     return bvar.conditional_forecast(Y.to_numpy(), B, lags, 1, known)[0]
 
 
@@ -82,7 +82,7 @@ def choose_lambda(hist, lags, grid, n_test):
         for m in range(len(Y) - n_test, len(Y)):
             known = np.full((1, Y.shape[1]), np.nan)
             known[0, 6:] = Y[m, 6:]
-            B = bvar.fit(Y[:m], lags, lam, np.ones(Y.shape[1]), sum_coef=False)
+            B = bvar.fit(Y[:m], lags, lam, np.ones(Y.shape[1]), sum_coef=True)
             f = bvar.conditional_forecast(Y[:m], B, lags, 1, known)[0]
             e.append(np.mean((f[:6] - Y[m, :6]) ** 2))
         err[lam] = np.mean(e)
@@ -105,7 +105,7 @@ def gold_adjusted_growth(cx, prices, aei, t):
         other[t] = other_t
         isx = (six['1'] - gold)
         out[flow] = dict(is_exgold=isx, other=other, price=price, six=six, gold=gold)
-    start = pd.Timestamp('2013-01-31')
+    start = pd.Timestamp(spec['sample_start']) + pd.offsets.MonthEnd(0)
     idx = pd.date_range(start, t, freq='ME')
     cols = {}
     for flow in ('exports', 'imports'):
@@ -135,7 +135,7 @@ def capital_goods_t(cx, ship, aei, t):
     Returns {('exports'|'imports', 'air'|'comp'|'core'): nominal $mil}."""
     spec = SPEC['bvar_capital_goods_shares']
     tm1 = t - pd.offsets.MonthEnd(1)
-    idx = pd.date_range('2013-01-31', t, freq='ME')
+    idx = pd.date_range(pd.Timestamp(spec['sample_start']) + pd.offsets.MonthEnd(0), t, freq='ME')
     eu = lambda flow, codes: pd.concat([_sa(cx, flow, c) for c in codes], axis=1).sum(axis=1, min_count=1)
     noncore = ['21300', '21301', '22000', '22010', '22020', '22220', '21320', '21100', '20005']
     cols, tot = {}, {}

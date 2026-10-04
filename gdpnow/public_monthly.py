@@ -691,11 +691,16 @@ def build_indicators(cx, prices, nipa_q, inv):
     improv = np.exp(gpart.dropna().cumsum())          # chained growth: no level break when the PPI term ends
     L['SplicedBuildingMaterials'] = f('RSBMGESD') / improv
     L['RetSalesResEquip'] = (f('RSFHFS') + f('RSEAS')) / prices['CPIMajappSplicefr']
-    mh_price = seasadj(f('SPTNSAUS'), '2014')
-    mh = f('SHTSAUS') * 12 * mh_price.reindex(f('SHTSAUS').index).ffill()
+    # Manufactured-home shipments value: units x seasonally adjusted average sales price. The Census price series
+    # ends a few months before the shipments, so months after it use the trailing-12-month growth rate
+    # (Atkeson-Ohanian style). The workbook's series is reproduced (growth corr 0.993) WITHOUT a PPI deflator;
+    # the PPI for mobile homes I tried (WPU1553) lowers the match, so none is applied.
     units = f('SHTSAUS')
-    L['MobileHomeVal'] = cx.splice('MobileHomeVal', mh / seasadj(f('WPU1553'), '1985'),
-                                   [('shipments_units', units)], 'MonthlyLevels')       # units only before 2014 (no public price history)
+    mh_price = seasadj(f('SPTNSAUS'), '2014').dropna()
+    for t in pd.date_range(mh_price.index[-1] + pd.offsets.MonthEnd(1), units.index[-1], freq='ME'):
+        mh_price[t] = mh_price.iloc[-1] * np.exp(np.log(mh_price.iloc[-1] / mh_price.iloc[-13]) / 12)
+    mh = units * 12 * mh_price.reindex(units.index)
+    L['MobileHomeVal'] = cx.splice('MobileHomeVal', mh, [('shipments_units', units)], 'MonthlyLevels')   # units only before 2014 (no public price history)
     L['HSM@USECON'] = f('SHTSAUS') * 12 / 1000
     # Treasury outlays (X-13 adjusted, CPI-deflated).
     L['saFTO@USECON'] = seasadj(f('MTSO133FMS'), '1990') / cpi

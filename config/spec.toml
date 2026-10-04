@@ -55,12 +55,19 @@ lags = 6                               # WP Table A8a note
 sample_start = "1983-01"               # WP Table A8a note
 iva_max_turnover_months = 5         # WP fn 34
 
+# Sample starts and priors of the two trade BVARs are NOT documented by the Atkeson authors. They were chosen by
+# comparing August 2026 implied outcomes with the single published vintage (a calibration risk, flagged in DESIGN.md):
+# capital-goods shares: full BEA IDS-0182 sample (1999+; 2013+ gave a very different August split); gold: 2013+
+# (closer to the workbook-implied forecast than 1999+; no specification tried reproduced it). Both use the BGR
+# sum-of-coefficients prior.
 [bvar_gold]
+sample_start = "2013-01"
 variables = 5
 lags = 6                            # Mods Mar-2025 fn 2
 lambda = 0.25                          # Mods Mar-2025 fn 2; fixed
 
 [bvar_capital_goods_shares]
+sample_start = "1999-01"
 variables = 11
 lags = 6                            # Mods Oct-2017 (equipment)
 # lambda is not documented for this BVAR: chosen each run by recursive pseudo-out-of-sample error (trade_bvar.choose_lambda)
