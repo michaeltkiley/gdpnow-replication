@@ -130,9 +130,12 @@ release and extended at 4.5% SAAR.
 within the quarter), extended at 4.5% SAAR after the last actual month as GDPNow does. Month-to-month movements
 differ from the Macro Advisers series. It is used only for the GDP shares in the net-exports contribution formula.
 
-**DD3. Existing-home sales (NAR).** The public source (FRED) carries only the latest 13 months. Earlier history
-comes from the workbook-derived prefix (DD4). The level of the series (existing versus new sales) uses unit sales ×
-the trailing 12-month average NAR median price ÷ the real-estate-brokerage PPI.
+**DD3. Existing-home sales (NAR).** NAR sells the historical data file (its site: "Historical data can be
+purchased"); its free monthly release PDFs and the FRED mirror carry only the latest 13–14 months, and no complete
+free source was found (FRED/ALFRED hold no longer history). Earlier history therefore comes from the
+workbook-derived prefix (DD4), with the 13 public months as the live layer. The level of the series (existing
+versus new sales) uses unit sales × the trailing 12-month average NAR median price ÷ the real-estate-brokerage
+PPI. The series enters only the brokers'-commissions bridge (about 15% of residential investment).
 
 **DD4. Workbook-derived history prefix (data only).** For 65 series the public source starts later than the model
 needs (for example Census end-use trade from 1999, Treasury defense outlays from 2015, NAR existing-home sales, and
