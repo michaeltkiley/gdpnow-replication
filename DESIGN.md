@@ -1,3 +1,5 @@
+> **Development notes.** This file is the chronological design and development log. For the current implementation and every difference from the GDPNow approach, see [IMPLEMENTATION.md](IMPLEMENTATION.md), which supersedes this file where they differ.
+
 # GDPNow Replication — Design Memo (for approval)
 
 Status: **Decisions D1–D5 approved 2026-10-03** (see §4). No model code has been written yet.

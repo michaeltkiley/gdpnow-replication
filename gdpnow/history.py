@@ -176,3 +176,19 @@ def denton_pfd(quarterly, indicator, average=True):
         p = t - pd.offsets.MonthEnd(1)
         out[t] = out[p] * indicator[t] / indicator[p]
     return out.sort_index()
+
+
+def export_prefix(con, path):
+    """Write the list of series whose early history comes from the GDPNow workbook (growth rates only): the first
+    public month and the months before it that are filled from the workbook. Returns the DataFrame."""
+    live = con.execute("SELECT name, min(date) AS public_data_start FROM hist_growth WHERE source = 'live' GROUP BY name").fetchdf().set_index('name')
+    wb = con.execute("SELECT name, min(date) AS filled_from FROM hist_growth WHERE source LIKE 'workbook%' GROUP BY name").fetchdf().set_index('name')
+    d = wb.join(live, how='inner')
+    d['prefix_months'] = [(r.public_data_start.year - r.filled_from.year) * 12 + (r.public_data_start.month - r.filled_from.month)
+                          for r in d.itertuples()]
+    d = d[d.prefix_months > 0].reset_index().rename(columns={'name': 'series'})
+    for c in ('filled_from', 'public_data_start'):
+        d[c] = d[c].dt.strftime('%Y-%m')
+    d = d.sort_values('public_data_start')[['series', 'filled_from', 'public_data_start', 'prefix_months']]
+    d.to_csv(path, index=False)
+    return d

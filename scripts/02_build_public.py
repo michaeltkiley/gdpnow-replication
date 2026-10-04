@@ -37,6 +37,8 @@ def main():
     bundle = inputs_public.build(con, a.asof, last, ism=a.ism)
     with open(out, 'wb') as f:
         pickle.dump({'bundle': bundle, 'asof': a.asof, 'last_price_month': str(last.date())}, f)
+    from gdpnow import history
+    history.export_prefix(con, 'registry/workbook_history_prefix.csv')
     inp = bundle[0]
     print(f'built {out.name}: T={inp.T.date()} T1={inp.T1.date()} monthly series={inp.growth.shape[1]} '
           f'factor panel={bundle[1].shape}')

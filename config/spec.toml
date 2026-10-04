@@ -1,6 +1,6 @@
-# Documented specification constants (registry S01; decision D4). These are fixed modelling choices made by
-# the GDPNow authors, NOT estimated quantities. Every entry cites its source. BVAR tightness lambda is a fixed
-# constant (D4 revised): the workbook BVAR is reproduced only at the documented value; the BGR rule is a sensitivity.
+# Documented specification constants. These are fixed modelling choices made by the GDPNow authors, NOT
+# estimated quantities; every entry cites its source. BVAR tightness lambda is a fixed constant at the documented
+# value (the workbook's quarterly BVAR is reproduced only at 0.15); the data-driven BGR rule is not implemented.
 # WP = Higgins (2014) FRBA WP 2014-7; Mods = "Modifications to GDPNow Model" (Atlanta Fed, Oct 2017-Dec 2025).
 
 [factor]
@@ -39,7 +39,7 @@ sample_start = "1968Q1"             # WP step 1
 fitted_values_start = "1985Q1"      # WP step 1
 prior = "Banbura-Giannone-Reichlin dummy observations; random walk for log levels, white noise otherwise"  # WP appendix
 sum_of_coefficients_tau = "10*lambda"   # WP appendix
-lambda_quantities = 0.15               # WP appendix; fixed (D4 revised 2026-10-03: workbook BVAR matched exactly at 0.15)
+lambda_quantities = 0.15               # WP appendix; fixed
 lambda_prices = 0.12                   # WP appendix; fixed
 
 [bvar_monthly_prices]
@@ -56,11 +56,9 @@ sample_start = "1983-01"               # WP Table A8a note
 iva_max_turnover_months = 5         # WP fn 34
 ism_in_inventory_models = "actual_only"   # 'always' | 'actual_only': with only regional-survey stand-ins for ISM, drop NAPMII/NAPMC from the inventory BVAR and blocks
 
-# Sample starts and priors of the two trade BVARs are NOT documented by the Atkeson authors. They were chosen by
-# comparing August 2026 implied outcomes with the single published vintage (a calibration risk, flagged in DESIGN.md):
-# capital-goods shares: full BEA IDS-0182 sample (1999+; 2013+ gave a very different August split); gold: 2013+
-# (closer to the workbook-implied forecast than 1999+; no specification tried reproduced it). Both use the BGR
-# sum-of-coefficients prior.
+# Sample starts and priors of the two trade BVARs are not documented by the GDPNow authors. Choices made here:
+# capital-goods shares use the full BEA IDS-0182 sample (1999+), gold uses 2013+, both with the BGR
+# sum-of-coefficients prior; the choices were checked against one published vintage (see IMPLEMENTATION.md, MD6).
 [bvar_gold]
 sample_start = "2013-01"
 variables = 5
