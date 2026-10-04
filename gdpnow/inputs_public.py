@@ -44,7 +44,8 @@ def build(con, asof, last_price_month, ref_vintage='latest', ism='public'):
     # substitutes for ISM (D2/D3) and Michigan sentiment.
     panel = growth[[c for c in growth.columns if c in TC]].copy()
     panel['NAPMC_USECON'] = inv['NAPMC_USECON']
-    panel['NAPMII_USECON'] = inv['NAPMII_USECON']
+    if ism == 'seeded':          # the ISM inventories index is left out when only a regional-survey stand-in exists
+        panel['NAPMII_USECON'] = inv['NAPMII_USECON']
     panel['EMPIRE'], panel['DALLAS'] = reg['empire'], reg['dallas']
     panel['MICHIGAN'] = reg['michigan'].diff()
     panel = panel.loc['1967-02-28':]
@@ -60,6 +61,6 @@ def build(con, asof, last_price_month, ref_vintage='latest', ism='public'):
         prices_T0=comp(qp, T), prices_Tm=comp(qp, T - pd.offsets.QuarterEnd(1)),
         monthly_prices=prices, cons_growth=cons_G, cons_levels=cons_L, util_travel={},
         inv_raw=inv, inv_deflators=inv_defl, cipi_paths=pd.DataFrame(), iva_paths=pd.DataFrame(), farm_other={},
-        flags={'drop_terms': []},
+        flags={'drop_terms': [], 'ism_actual': ism == 'seeded'},
         source=f'public:{asof}', provenance={f: f'public:{asof}' for f in FIELD_REGISTRY})
     return inp, panel, q['actual'], qp.loc[:T]

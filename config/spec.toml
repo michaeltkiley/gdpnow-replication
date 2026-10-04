@@ -54,6 +54,7 @@ lambda = 0.07                          # WP appendix; fixed
 lags = 6                               # WP Table A8a note
 sample_start = "1983-01"               # WP Table A8a note
 iva_max_turnover_months = 5         # WP fn 34
+ism_in_inventory_models = "actual_only"   # 'always' | 'actual_only': with only regional-survey stand-ins for ISM, drop NAPMII/NAPMC from the inventory BVAR and blocks
 
 # Sample starts and priors of the two trade BVARs are NOT documented by the Atkeson authors. They were chosen by
 # comparing August 2026 implied outcomes with the single published vintage (a calibration risk, flagged in DESIGN.md):

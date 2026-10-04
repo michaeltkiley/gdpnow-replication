@@ -111,7 +111,7 @@ SALES_DEFLATORS = {'DTSMD_USNA': 'DTSMD1_USNA', 'DTSMN_USNA': 'DTSMN1_USNA', 'DT
                    'DTSR_USNA': 'DTSRX1_USNA', 'DTSRI1_USNA': 'DTSRAD1_USNA'}
 
 
-def core_panel(raw):
+def core_panel(raw, use_ism=True):
     """Core-quantity variables (WP Table A8a): log differences x1200 except ISM levels."""
     g = lambda s: 1200 * np.log(s / s.shift(1))
     raw = raw.copy()
@@ -124,7 +124,7 @@ def core_panel(raw):
         'IPMND': g(raw['IPMND_IP']), 'LANDURA': g(raw['LANDURA_USECON']), 'RealNMSNG': g(raw['NMSNG_USECON'] / raw['DTSMN_USNA']),
         'IPMFG': g(raw['IPMFG_IP']), 'LAWTRDA': g(raw['LAWTRDA_USECON']), 'RealNWSH': g(raw['NWSH_USECON'] / raw['DTSWM_USNA']),
         'IP51': g(raw['IP51_IP']), 'LARTRDA': g(raw['LARTRDA_USECON']), 'RealNRSXM': g(raw['NRSXM_USECON'] / raw['DTSR_USNA']),
-        'IAU': g(raw['IAU_IP']), 'Autos': g(autos)}), autos
+        'IAU': g(raw['IAU_IP']), 'Autos': g(autos)}).drop(columns=[] if use_ism else ['NAPMII', 'NAPMC']), autos
 
 
 BLOCK_CORE = {'dur': ['IPMDG', 'LADURGA', 'RealNMSDG', 'NAPMII', 'NAPMC'],
@@ -133,10 +133,10 @@ BLOCK_CORE = {'dur': ['IPMDG', 'LADURGA', 'RealNMSDG', 'NAPMII', 'NAPMC'],
               'mv': ['IAU', 'Autos'], 'nonmerch': ['IPMFG', 'LAWTRDA', 'RealNMSDG', 'RealNMSNG', 'RealNWSH', 'RealNRSXM']}
 
 
-def core_forecast(raw, T1, lam, lags):
+def core_forecast(raw, T1, lam, lags, use_ism=True):
     """Core BVAR (6 lags, from 1983, documented lambda) with conditional forecasts through T1 given every
     core value already released."""
-    core, autos = core_panel(raw)
+    core, autos = core_panel(raw, use_ism)
     core = core.loc[CORE_START:T1]
     complete = core.dropna().index.max()
     hist = core.loc[:complete].dropna()
@@ -215,20 +215,24 @@ def estimate(inp, monthly_prices):
     lam, lags = SPEC['bvar_inventory_core']['lambda'], SPEC['bvar_inventory_core']['lags']
     prices = raw.join(monthly_prices[[c for c in monthly_prices.columns if c not in raw]], how='outer')
     iva_paths, cipi_paths, diag = {}, {}, {}
-    core, autos = core_forecast(prices, T1, lam, lags)
+    # ISM indexes are licensed; when only regional-survey stand-ins exist (public run) the spec can leave them out
+    # of the core BVAR and the block equations (spec.toml: ism_in_inventory_models = 'actual_only').
+    use_ism = inp.flags.get('ism_actual', True) or SPEC['bvar_inventory_core']['ism_in_inventory_models'] == 'always'
+    block_core = {k: [c for c in v if use_ism or c not in ('NAPMII', 'NAPMC')] for k, v in BLOCK_CORE.items()}
+    core, autos = core_forecast(prices, T1, lam, lags, use_ism)
     for name, d in CENSUS.items():
         iva, info = iva_model(prices, d, prices, T1)
         diag[f'iva_{name}'] = info
         iva_paths[d.get('iva_out', d['iva'])] = iva
-        cipi_paths[d['cipi']] = census_cipi(prices, d, iva, core, BLOCK_CORE[name], T1, lags)
+        cipi_paths[d['cipi']] = census_cipi(prices, d, iva, core, block_core[name], T1, lags)
     # Autos are extended with their core-forecast growth where unreleased.
     auto_lvl = autos.copy()
     for t in pd.date_range(auto_lvl.dropna().index.max() + pd.offsets.MonthEnd(1), T1, freq='ME'):
         auto_lvl[t] = auto_lvl[t - pd.offsets.MonthEnd(1)] * np.exp(core.loc[t, 'Autos'] / 1200)
-    cipi_paths[REAL['mv']['cipi']] = real_cipi(prices, REAL['mv'], auto_lvl, core, BLOCK_CORE['mv'], T1, lags)
+    cipi_paths[REAL['mv']['cipi']] = real_cipi(prices, REAL['mv'], auto_lvl, core, block_core['mv'], T1, lags)
     stock = inp.nipa['SNWWZ_USNA'].shift(1).resample('ME').bfill()   # lagged quarterly real stock, monthly
     stock = stock.reindex(pd.date_range(stock.index.min(), T1, freq='ME')).ffill()
-    cipi_paths[REAL['nonmerch']['cipi']] = real_cipi(prices, REAL['nonmerch'], stock, core, BLOCK_CORE['nonmerch'], T1, lags)
+    cipi_paths[REAL['nonmerch']['cipi']] = real_cipi(prices, REAL['nonmerch'], stock, core, block_core['nonmerch'], T1, lags)
     defl = deflator_forecasts(inp.nipa, prices, monthly_prices, T, T1)
     inv_def = inp.inv_deflators.copy()
     for k, v in defl.items():

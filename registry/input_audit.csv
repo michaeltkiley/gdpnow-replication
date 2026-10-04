@@ -51,16 +51,16 @@ InventoryRaw,VNWLMIM_USNA,raw,1997-01-31,2026-06-30,1997-01-31,2026-06-30,162.0,
 MonthlyLevels,ASCPU@USNA,raw,1967-01-31,2026-08-31,1967-01-31,2026-08-31,164.0,1.0,0.0,0.0,0.0,0.0,EXACT
 MonthlyLevels,ASTOT@USECON,raw,1959-01-31,2026-08-31,1959-01-31,2026-08-31,164.0,1.0,0.0,0.0,0.0,0.0,EXACT
 MonthlyLevels,BusShareTrucks,constructed,1976-01-31,2026-08-31,1987-01-31,2026-08-31,164.0,1.0,0.002,0.0,-11.0,0.0,EXACT
-MonthlyLevels,CoreCapGoodsExports,constructed,1959-01-31,2026-08-31,1959-01-31,2026-08-31,164.0,0.9865,0.026,0.0025,0.0,0.0,FAIR
-MonthlyLevels,CoreCapGoodsImports,constructed,1959-01-31,2026-08-31,1959-01-31,2026-08-31,164.0,0.999,0.048,0.0041,0.0,0.0,EXACT
+MonthlyLevels,CoreCapGoodsExports,constructed,1959-01-31,2026-08-31,1959-01-31,2026-08-31,164.0,0.9867,0.003,0.0002,0.0,0.0,FAIR
+MonthlyLevels,CoreCapGoodsImports,constructed,1959-01-31,2026-08-31,1959-01-31,2026-08-31,164.0,0.9998,0.023,0.002,0.0,0.0,EXACT
 MonthlyLevels,CoreCapGoodsShipments,constructed,1968-01-31,2026-08-31,1968-01-31,2026-08-31,164.0,1.0,0.002,0.0,0.0,0.0,EXACT
 MonthlyLevels,LAFGDA@LABOR,raw,1959-01-31,2026-07-31,1959-01-31,2026-07-31,163.0,0.9919,0.04,0.0045,0.0,0.0,GOOD
 MonthlyLevels,LAFGOVA@USECON,raw,1947-01-31,2026-08-31,1959-01-31,2026-08-31,164.0,1.0,0.0,0.0,-12.0,0.0,EXACT
 MonthlyLevels,SplicedComputersShipments,constructed,1965-12-31,2026-08-31,1965-12-31,2026-08-31,164.0,1.0,0.003,0.0003,0.0,0.0,EXACT
-MonthlyLevels,SplicedExportsComputersAndRelated,constructed,1965-12-31,2026-08-31,1965-12-31,2026-08-31,164.0,0.9961,0.02,0.0148,0.0,0.0,GOOD
-MonthlyLevels,SplicedGoodsExports,constructed,1959-01-31,2026-08-31,1959-01-31,2026-08-31,164.0,0.9998,0.025,0.0023,0.0,0.0,EXACT
-MonthlyLevels,SplicedGoodsImports,constructed,1959-01-31,2026-08-31,1959-01-31,2026-08-31,164.0,0.9987,0.057,0.0052,0.0,0.0,GOOD
-MonthlyLevels,SplicedImportsComputersAndRelated,constructed,1965-12-31,2026-08-31,1965-12-31,2026-08-31,164.0,0.9995,0.024,0.0072,0.0,0.0,EXACT
+MonthlyLevels,SplicedExportsComputersAndRelated,constructed,1965-12-31,2026-08-31,1965-12-31,2026-08-31,164.0,0.9973,0.002,0.0008,0.0,0.0,GOOD
+MonthlyLevels,SplicedGoodsExports,constructed,1959-01-31,2026-08-31,1959-01-31,2026-08-31,164.0,0.9998,0.024,0.0022,0.0,0.0,EXACT
+MonthlyLevels,SplicedGoodsImports,constructed,1959-01-31,2026-08-31,1959-01-31,2026-08-31,164.0,0.9986,0.059,0.0054,0.0,0.0,GOOD
+MonthlyLevels,SplicedImportsComputersAndRelated,constructed,1965-12-31,2026-08-31,1965-12-31,2026-08-31,164.0,1.0,0.004,0.0011,0.0,0.0,EXACT
 MonthlyLevels,SplicedServiceExports,constructed,1960-03-31,2026-07-31,1960-03-31,2026-07-31,163.0,1.0,0.006,0.0003,0.0,0.0,EXACT
 MonthlyLevels,SplicedServiceImports,constructed,1960-03-31,2026-07-31,1960-03-31,2026-07-31,163.0,0.9998,0.036,0.0016,0.0,0.0,EXACT
 MonthlyLevels,TLTSAR@USECON,raw,1976-01-31,2026-08-31,1976-01-31,2026-08-31,164.0,1.0,0.0,0.0,0.0,0.0,EXACT
@@ -140,8 +140,8 @@ TransformedMonthlySeries,BusShareTrucks,constructed,1976-02-29,2026-08-31,1987-0
 TransformedMonthlySeries,CPGF@USECON,constructed(transform of raw),1965-04-30,2026-08-31,1967-02-28,2026-08-31,164.0,1.0,0.033,0.1495,-1.8,0.0,EXACT
 TransformedMonthlySeries,CPGS@USECON,constructed(transform of raw),1965-04-30,2026-08-31,1967-02-28,2026-08-31,164.0,0.9996,0.052,0.3428,-1.8,0.0,GOOD
 TransformedMonthlySeries,CPVD@USECON,constructed(transform of raw),1965-04-30,2026-08-31,1967-02-28,2026-08-31,164.0,0.9993,0.057,0.1195,-1.8,0.0,GOOD
-TransformedMonthlySeries,CoreCapGoodsExports,constructed,1959-02-28,2026-08-31,1967-02-28,2026-08-31,164.0,0.985,0.015,0.2603,-8.0,0.0,FAIR
-TransformedMonthlySeries,CoreCapGoodsImports,constructed,1959-02-28,2026-08-31,1967-02-28,2026-08-31,164.0,0.9995,0.038,0.1112,-8.0,0.0,EXACT
+TransformedMonthlySeries,CoreCapGoodsExports,constructed,1959-02-28,2026-08-31,1967-02-28,2026-08-31,164.0,0.9851,0.002,0.022,-8.0,0.0,FAIR
+TransformedMonthlySeries,CoreCapGoodsImports,constructed,1959-02-28,2026-08-31,1967-02-28,2026-08-31,164.0,0.9999,0.018,0.0521,-8.0,0.0,EXACT
 TransformedMonthlySeries,CoreCapGoodsShipments,constructed,1968-02-29,2026-08-31,1968-02-29,2026-08-31,164.0,1.0,0.002,0.0102,0.0,0.0,EXACT
 TransformedMonthlySeries,IP@IP,constructed(transform of raw),1947-02-28,2026-08-31,1967-02-28,2026-08-31,164.0,1.0,0.0,0.0,-20.0,0.0,EXACT
 TransformedMonthlySeries,IPB31@IP,constructed(transform of raw),1972-02-29,2026-08-31,1972-02-29,2026-08-31,164.0,1.0,0.0,0.0,0.0,0.0,EXACT
@@ -150,17 +150,17 @@ TransformedMonthlySeries,LAFGOVA@USECON,constructed(transform of raw),1947-02-28
 TransformedMonthlySeries,LAPBSVA@USECON,constructed(transform of raw),1947-02-28,2026-08-31,1967-02-28,2026-08-31,164.0,1.0,0.0,0.0,-20.0,0.0,EXACT
 TransformedMonthlySeries,LAPTSVA@USECON,constructed(transform of raw),1983-02-28,2026-08-31,1983-02-28,2026-08-31,164.0,1.0,0.0,0.0,0.0,0.0,EXACT
 TransformedMonthlySeries,LPD61DA@LABOR,constructed(transform of raw),1990-02-28,2026-07-31,1990-02-28,2026-07-31,163.0,0.9999,0.033,0.3957,0.0,0.0,EXACT
-TransformedMonthlySeries,MobileHomeVal,constructed,1959-02-28,2026-07-31,1980-02-29,2026-07-31,163.0,0.9651,0.143,2.4265,-21.0,0.0,FAIR
-TransformedMonthlySeries,NetExportsGoodsMonthlyContrib,constructed,1992-02-29,2026-08-31,1959-02-28,2026-08-31,164.0,0.9992,0.838,0.0791,33.0,0.0,GOOD+SHORT
+TransformedMonthlySeries,MobileHomeVal,constructed,1959-02-28,2026-07-31,1980-02-29,2026-07-31,163.0,0.9748,0.095,0.2063,-21.0,0.0,FAIR
+TransformedMonthlySeries,NetExportsGoodsMonthlyContrib,constructed,1992-02-29,2026-08-31,1959-02-28,2026-08-31,164.0,0.9992,0.838,0.0828,33.0,0.0,GOOD+SHORT
 TransformedMonthlySeries,NetSvcExportsMonthlyContrib,constructed,1992-02-29,2026-07-31,1960-04-30,2026-07-31,163.0,0.9998,0.689,0.1875,31.8,0.0,GOOD+SHORT
-TransformedMonthlySeries,NondefenseAircraftNetShipments,constructed,1968-02-29,2026-08-31,1968-02-29,2026-08-31,164.0,0.9939,0.041,0.4416,0.0,0.0,GOOD
+TransformedMonthlySeries,NondefenseAircraftNetShipments,constructed,1968-02-29,2026-08-31,1968-02-29,2026-08-31,164.0,0.9942,0.006,0.4423,0.0,0.0,GOOD
 TransformedMonthlySeries,RetSalesResEquip,constructed,1967-02-28,2026-08-31,1967-02-28,2026-08-31,162.0,0.9984,0.072,0.1621,0.0,0.0,GOOD
 TransformedMonthlySeries,SplicedBuildingMaterials,constructed,1967-02-28,2026-08-31,1967-02-28,2026-08-31,164.0,1.0,0.0,0.0,0.0,0.0,EXACT
 TransformedMonthlySeries,SplicedComputersShipments,constructed,1966-01-31,2026-08-31,1967-02-28,2026-08-31,164.0,1.0,0.0,0.0052,-1.1,0.0,EXACT
-TransformedMonthlySeries,SplicedExportsComputersAndRelated,constructed,1966-01-31,2026-08-31,1967-02-28,2026-08-31,164.0,0.9966,0.012,0.2385,-1.1,0.0,GOOD
-TransformedMonthlySeries,SplicedGoodsExports,constructed,1959-02-28,2026-08-31,1967-02-28,2026-08-31,164.0,0.9999,0.018,0.3311,-8.0,0.0,EXACT
-TransformedMonthlySeries,SplicedGoodsImports,constructed,1959-02-28,2026-08-31,1967-02-28,2026-08-31,164.0,0.9993,0.035,0.1646,-8.0,0.0,EXACT
-TransformedMonthlySeries,SplicedImportsComputersAndRelated,constructed,1966-01-31,2026-08-31,1967-02-28,2026-08-31,164.0,0.9998,0.015,0.2198,-1.1,0.0,EXACT
+TransformedMonthlySeries,SplicedExportsComputersAndRelated,constructed,1966-01-31,2026-08-31,1967-02-28,2026-08-31,164.0,0.9971,0.001,0.0151,-1.1,0.0,GOOD
+TransformedMonthlySeries,SplicedGoodsExports,constructed,1959-02-28,2026-08-31,1967-02-28,2026-08-31,164.0,0.9999,0.017,0.3244,-8.0,0.0,EXACT
+TransformedMonthlySeries,SplicedGoodsImports,constructed,1959-02-28,2026-08-31,1967-02-28,2026-08-31,164.0,0.9993,0.036,0.1698,-8.0,0.0,EXACT
+TransformedMonthlySeries,SplicedImportsComputersAndRelated,constructed,1966-01-31,2026-08-31,1967-02-28,2026-08-31,164.0,1.0,0.003,0.0391,-1.1,0.0,EXACT
 TransformedMonthlySeries,SplicedNewHousingConstruction,constructed,1964-02-29,2026-08-31,1967-02-28,2026-08-31,164.0,1.0,0.0,0.0,-3.0,0.0,EXACT
 TransformedMonthlySeries,SplicedServiceExports,constructed,1960-04-30,2026-07-31,1967-02-28,2026-07-31,163.0,1.0,0.002,0.016,-6.8,0.0,EXACT
 TransformedMonthlySeries,SplicedServiceImports,constructed,1960-04-30,2026-07-31,1967-02-28,2026-07-31,163.0,0.9999,0.017,0.1883,-6.8,0.0,EXACT
