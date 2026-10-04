@@ -515,8 +515,11 @@ def build_inventory(cx, prices, regional):
     dur_ti, dur_vs = adv('MDM', 'TI'), adv('MDM', 'VS')
     raw = {
         'NMIDG_USECON': advance_overlay(f('AMDMTI'), dur_ti), 'NMSDG_USECON': advance_overlay(f('AMDMVS'), dur_vs),
-        # The advance report covers durable goods only: nondurable stocks/shipments end with the full M3 report.
-        'NMING_USECON': f('AMNMTI'), 'NMSNG_USECON': f('AMNMVS'),
+        # Nondurable manufacturers' stocks/shipments: FRED ends with the previous full M3 report, but Census's M3
+        # time series (eits/m3, category MNM) already carries the latest month (the advance-based estimate; the
+        # workbook's August values, 364,034 / 324,931, equal this series to within 0.03%).
+        'NMING_USECON': advance_overlay(f('AMNMTI'), asof_cut(cx.census('x', 'm3', 'MNM', 'TI'), cx.asof)),
+        'NMSNG_USECON': advance_overlay(f('AMNMVS'), asof_cut(cx.census('x', 'm3', 'MNM', 'VS'), cx.asof)),
         'NWIH_USECON': advance_overlay(f('WHLSLRIMSA'), asof_cut(cx.census('x', 'mwtsadv', '42', 'IM'), cx.asof)),
         'NWSH_USECON': f('WHLSLRSMSA'),
         # Retail ex-autos inventories: Census API (FRED's mirror of this series is stale since 2023)
