@@ -189,6 +189,6 @@ def export_prefix(con, path):
     d = d[d.prefix_months > 0].reset_index().rename(columns={'name': 'series'})
     for c in ('filled_from', 'public_data_start'):
         d[c] = d[c].dt.strftime('%Y-%m')
-    d = d.sort_values('public_data_start')[['series', 'filled_from', 'public_data_start', 'prefix_months']]
+    d = d.sort_values(['public_data_start', 'series'])[['series', 'filled_from', 'public_data_start', 'prefix_months']]
     d.to_csv(path, index=False)
     return d
