@@ -2189,5 +2189,195 @@
     "LTRUCKSA"
    ]
   }
- ]
+ ],
+ "layer2": {
+  "releases": [
+   {
+    "release": "Supplemental Estimates, Motor Vehicles",
+    "series": 7,
+    "effect": -0.24039322603461866,
+    "data_effect": -0.24083786568989607,
+    "reestimation_effect": 0.00044463965527739933,
+    "components": {
+     "CTG": -0.11789441591709804,
+     "CS": -0.04694724013857532,
+     "FNE": -0.06364155028271712,
+     "FNP": -0.0035629058575993855,
+     "FNS": -0.011899667010735249,
+     "FR": -0.027921784094927918,
+     "GF": 0.002966601346221731,
+     "GS": -0.0044765232562335305,
+     "XM": -0.0629961639911798,
+     "XS": -0.014299707436029818,
+     "MM": 0.09776553433232471,
+     "MS": 0.006254194636812406,
+     "V": 0.006260401635119983
+    },
+    "drivers": [
+     {
+      "component": "MM",
+      "what": "Monthly model",
+      "pp": 0.09491509973854509
+     },
+     {
+      "component": "CTG",
+      "what": "core_retail",
+      "pp": -0.07114502778514897
+     },
+     {
+      "component": "XM",
+      "what": "Monthly model",
+      "pp": -0.06515229514047588
+     },
+     {
+      "component": "FNE",
+      "what": "Monthly-indicator model",
+      "pp": -0.06157937764265133
+     },
+     {
+      "component": "FNE",
+      "what": "MonthlyRealBusTruckSales (indicator data)",
+      "pp": -0.03852866312946618,
+      "via": "TIZ_USNAqtr"
+     },
+     {
+      "component": "CS",
+      "what": "other_services",
+      "pp": -0.03274717327324824
+     },
+     {
+      "component": "CTG",
+      "what": "new_mv",
+      "pp": -0.029483735928261572
+     },
+     {
+      "component": "FR",
+      "what": "Monthly-indicator model",
+      "pp": -0.02806879825779797
+     }
+    ]
+   },
+   {
+    "release": "Employment Situation",
+    "series": 33,
+    "effect": 0.1585010390626751,
+    "data_effect": 0.15694601867802435,
+    "reestimation_effect": 0.0015550203846507388,
+    "components": {
+     "CTG": 0.07019920976478078,
+     "CS": 0.026648404373221357,
+     "FNE": 0.028153460123236718,
+     "FNP": -0.007962871573621522,
+     "FNS": 0.006782301836094212,
+     "FR": 0.025473450246522367,
+     "GF": 0.006253542574993276,
+     "GS": 0.0030410132653885535,
+     "XM": 0.036373272631198716,
+     "XS": 0.008431878925062308,
+     "MM": -0.05637175054793131,
+     "MS": -0.00370881491117743,
+     "V": 0.015187942354996764
+    },
+    "drivers": [
+     {
+      "component": "MM",
+      "what": "Monthly model",
+      "pp": -0.05453382783218046
+     },
+     {
+      "component": "CTG",
+      "what": "core_retail",
+      "pp": 0.040330834897769924
+     },
+     {
+      "component": "XM",
+      "what": "Monthly model",
+      "pp": 0.03763791744862695
+     },
+     {
+      "component": "FNE",
+      "what": "Monthly-indicator model",
+      "pp": 0.027040565803767635
+     },
+     {
+      "component": "FR",
+      "what": "Monthly-indicator model",
+      "pp": 0.025547167446359372
+     },
+     {
+      "component": "CTG",
+      "what": "new_mv",
+      "pp": 0.019909482540661216
+     },
+     {
+      "component": "CS",
+      "what": "other_services",
+      "pp": 0.018489670330167445
+     },
+     {
+      "component": "FNE",
+      "what": "MonthlyRealBusTruckSales (indicator data)",
+      "pp": 0.0171064900906756,
+      "via": "TIZ_USNAqtr"
+     }
+    ]
+   },
+   {
+    "release": "Manufacturer's Shipments, Inventories, and Orders (M3) Survey",
+    "series": 8,
+    "effect": 0.008001610792196523,
+    "data_effect": 0.007993605301249032,
+    "reestimation_effect": 8.005490947490429e-06,
+    "components": {
+     "CTG": 8.109840522552147e-05,
+     "CS": 6.0240235673081344e-05,
+     "FNE": -0.0016813770141962392,
+     "FNP": 1.1786978962979866e-05,
+     "FNS": 7.393105943803713e-06,
+     "FR": 2.1095633335715958e-05,
+     "GF": 9.200995230163045e-06,
+     "GS": 4.5151523609954225e-06,
+     "XM": -7.028913894524536e-05,
+     "XS": 1.1212025260776137e-05,
+     "MM": -1.659897482420014e-05,
+     "MS": -1.9618735633761264e-06,
+     "V": 0.00956529526182237
+    },
+    "drivers": [
+     {
+      "component": "V",
+      "what": "Monthly inventory model",
+      "pp": 0.009565295261822366
+     },
+     {
+      "component": "FNE",
+      "what": "NetCoreCapGoodsShipments (indicator data)",
+      "pp": -0.0018763965519654644,
+      "via": "HerzonCoreEQty"
+     },
+     {
+      "component": "FNE",
+      "what": "Monthly-indicator model",
+      "pp": -0.0016765845018491953
+     },
+     {
+      "component": "FNE",
+      "what": "NondefenseAircraftNetShipments (indicator data)",
+      "pp": -0.0002694187954783712,
+      "via": "FNETPZ_USNAqtr"
+     },
+     {
+      "component": "FNE",
+      "what": "NetComputersShipments (indicator data)",
+      "pp": 0.0001636475112556347,
+      "via": "FNENPZ_USNAqtr"
+     }
+    ]
+   }
+  ],
+  "total": 0.08125734901558435,
+  "unarchived_inputs": 0.0,
+  "interaction": 0.15514792519533138,
+  "skipped": []
+ }
 }

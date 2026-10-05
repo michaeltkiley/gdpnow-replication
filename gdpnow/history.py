@@ -15,6 +15,7 @@ Design (decision 2026-10-03):
     proxy values only where no live value exists, and they are replaced automatically when live data arrive.
     If a source later stops serving old months, the stored live growth keeps them.
 """
+import os
 import numpy as np
 import pandas as pd
 
@@ -35,6 +36,8 @@ def _load(con, name):
 
 
 def _save(con, name, g, source, asof):
+    if os.environ.get('GDPNOW_OVERRIDE'):       # release-effect runs read mixed vintages: never write the shared store
+        return
     df = pd.DataFrame({'name': name, 'date': g.index, 'growth': g.to_numpy(), 'source': source, 'as_of': str(asof)})
     con.register('_h', df)
     con.execute(f'CREATE TABLE IF NOT EXISTS {TABLE} AS SELECT * FROM _h LIMIT 0')
@@ -53,7 +56,7 @@ def _overlap_corr(g1, g2, min_overlap):
     return float(j.a.corr(j.b)), len(j), (j.index.min(), j.index.max())
 
 
-def _record_check(con, name, layer, corr, n, window, accepted, asof, note=''):
+def _record_check_unguarded(con, name, layer, corr, n, window, accepted, asof, note=''):
     df = pd.DataFrame([{'name': name, 'layer': layer, 'corr': corr, 'n_overlap': n,
                         'window_start': window[0] if window else None, 'window_end': window[1] if window else None,
                         'accepted': accepted, 'as_of': str(asof), 'note': note}])
@@ -97,7 +100,8 @@ def splice(con, name, live, proxies=(), asof='', kind='log', reference=None, ref
         c = float(old_live[ov].corr(g_live[ov]))
         mad = float((old_live[ov] - g_live[ov]).abs().median())
         if not (c >= 0.98 and mad <= 0.005):
-            con.execute(f"DELETE FROM {TABLE} WHERE name = ? AND source = 'live'", [name])
+            if not os.environ.get('GDPNOW_OVERRIDE'):
+                con.execute(f"DELETE FROM {TABLE} WHERE name = ? AND source = 'live'", [name])
             _record_check(con, name, 'store_reset', c, len(ov), None, False, asof,
                           f'stored live growth disagreed with current live (corr {c:.3f}, median abs diff {mad:.4f}): redefinition, rows dropped')
             g_store, src = g_store[src != 'live'], src[src != 'live']
@@ -192,3 +196,8 @@ def export_prefix(con, path):
     d = d.sort_values(['public_data_start', 'series'])[['series', 'filled_from', 'public_data_start', 'prefix_months']]
     d.to_csv(path, index=False)
     return d
+
+
+def _record_check(*a, **k):
+    if not os.environ.get('GDPNOW_OVERRIDE'):
+        _record_check_unguarded(*a, **k)

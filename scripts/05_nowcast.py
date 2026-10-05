@@ -20,12 +20,13 @@ def main():
     ap.add_argument('--level', required=True, choices=['L1', 'L2', 'L3'])
     ap.add_argument('--vintage', help='workbook vintage (default: latest loaded)')
     ap.add_argument('--asof', help='L3 only: as-of date of the public data bundle')
+    ap.add_argument('--tag', default='', help='L3 only: suffix for run id and bundle file (release-effect runs)')
     ap.add_argument('--force', action='store_true')
     a = ap.parse_args()
 
     con = store.connect()
     vintage = a.vintage or store.latest_vintage(con)
-    run_id = f'{a.level}_{a.asof.replace("-", "")}' if a.level == 'L3' else f'{a.level}_{vintage}'
+    run_id = f'{a.level}_{a.asof.replace("-", "")}{a.tag}' if a.level == 'L3' else f'{a.level}_{vintage}'
     if store.table_exists(con, 'runs') and not a.force:
         if con.execute('SELECT count(*) FROM runs WHERE run_id = ?', [run_id]).fetchone()[0]:
             print(f'run {run_id} already exists; use --force to recompute')
@@ -34,7 +35,7 @@ def main():
     if a.level == 'L3':     # public bundle + our stage-04 estimates; the workbook is never read
         import pickle
         from gdpnow.config import DATA
-        base = pickle.load(open(DATA / f'{a.asof.replace("-", "")}_public_inputs.pkl', 'rb'))['bundle'][0]
+        base = pickle.load(open(DATA / f'{a.asof.replace("-", "")}{a.tag}_public_inputs.pkl', 'rb'))['bundle'][0]
         inp = params.overlay(con, run_id, base)
     else:
         inp = inputs.from_workbook(con, vintage)

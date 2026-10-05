@@ -26,9 +26,10 @@ def main():
                     help='last month with published CPI/PPI/trade prices as of --asof')
     ap.add_argument('--ism', default='public', choices=['public', 'seeded'],
                     help='ISM indexes: regional-survey stand-ins (core, strict public) or workbook-seeded history (sensitivity)')
+    ap.add_argument('--tag', default='', help='suffix for the output file (release-effect runs; see scripts/11_release_effects.py)')
     ap.add_argument('--force', action='store_true')
     a = ap.parse_args()
-    out = DATA / f'{a.asof.replace("-", "")}_public_inputs.pkl'
+    out = DATA / f'{a.asof.replace("-", "")}{a.tag}_public_inputs.pkl'
     if out.exists() and not a.force:
         print(f'{out.name} exists; use --force to rebuild')
         return
@@ -37,8 +38,9 @@ def main():
     bundle = inputs_public.build(con, a.asof, last, ism=a.ism)
     with open(out, 'wb') as f:
         pickle.dump({'bundle': bundle, 'asof': a.asof, 'last_price_month': str(last.date())}, f)
-    from gdpnow import history
-    history.export_prefix(con, 'registry/workbook_history_prefix.csv')
+    if not a.tag:
+        from gdpnow import history
+        history.export_prefix(con, 'registry/workbook_history_prefix.csv')
     inp = bundle[0]
     print(f'built {out.name}: T={inp.T.date()} T1={inp.T1.date()} monthly series={inp.growth.shape[1]} '
           f'factor panel={bundle[1].shape}')

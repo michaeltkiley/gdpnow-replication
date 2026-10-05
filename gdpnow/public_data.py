@@ -32,9 +32,52 @@ def _get(url, tries=4):
             time.sleep(2 * (k + 1))
 
 
+_OVR = {}
+
+
+def _override():
+    """Mixed-vintage runs (scripts/11_release_effects.py): env GDPNOW_OVERRIDE names a JSON file
+    {new, prev, release: [[source, series], ...]}: the listed series are read as of `new`, every other series
+    as of `prev` (if archived then, else `new`)."""
+    if 'cfg' not in _OVR:
+        f = os.environ.get('GDPNOW_OVERRIDE')
+        _OVR['cfg'] = json.load(open(f)) if f else None
+        if _OVR['cfg']:
+            _OVR['rel'] = {tuple(x) for x in _OVR['cfg']['release']}
+            _OVR['prev'] = None
+    return _OVR['cfg']
+
+
+def _prev_keys(con):
+    if _OVR['prev'] is None:
+        r = con.execute('SELECT DISTINCT source, series FROM raw_pulls WHERE as_of = ?', [_OVR['cfg']['prev']]).fetchall()
+        _OVR['prev'] = set(r)
+    return _OVR['prev']
+
+
+def _as_of_for(con, source, series, asof):
+    """The archive date to read (source, series) from."""
+    c = _override()
+    if not c:
+        return str(asof)
+    if (source, series) in _OVR['rel']:
+        return c['new']
+    return c['prev'] if (source, series) in _prev_keys(con) else c['new']
+
+
+def _as_of_for_table(con, key, asof):
+    c = _override()
+    if not c:
+        return str(asof)
+    if any(sr == 'bea' and se.startswith(key + '|') for sr, se in _OVR['rel']):
+        return c['new']
+    return c['prev'] if any(sr == 'bea' and se.startswith(key + '|') for sr, se in _prev_keys(con)) else c['new']
+
+
 def _archived(con, source, series, asof):
     if not store.table_exists(con, 'raw_pulls'):
         return None
+    asof = _as_of_for(con, source, series, asof)
     df = store.query(con, 'SELECT date, value FROM raw_pulls WHERE source = ? AND series = ? AND as_of = ?',
                      (source, series, str(asof)))
     if df.empty:
@@ -91,7 +134,7 @@ def bea_table(con, dataset, table, frequency, asof, refresh=False):
     key = f'{dataset}:{table}:{frequency}'
     if not refresh and store.table_exists(con, 'raw_pulls'):
         df = store.query(con, "SELECT series, date, value FROM raw_pulls WHERE source = 'bea' AND series LIKE ? AND as_of = ?",
-                         (key + '|%', str(asof)))
+                         (key + '|%', _as_of_for_table(con, key, asof)))
         if not df.empty:
             w = df.pivot(index='date', columns='series', values='value')
             w.index = pd.to_datetime(w.index)

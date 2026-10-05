@@ -20,8 +20,9 @@ from gdpnow.config import DATA
 def run_l3(a, con, vintage, wb):
     """L3: estimate everything from the public bundle (stage 02); the workbook is used only for diagnostics."""
     import pickle
-    run_id = f'L3_{a.asof.replace("-", "")}'
-    path = DATA / f'{a.asof.replace("-", "")}_public_inputs.pkl'
+    stem = a.asof.replace("-", "") + a.tag
+    run_id = f'L3_{stem}'
+    path = DATA / f'{stem}_public_inputs.pkl'
     d = pickle.load(open(path, 'rb'))
     inp, panel, act, qprices = d['bundle']
     last = pd.Timestamp(d['last_price_month'])
@@ -47,8 +48,8 @@ def run_l3(a, con, vintage, wb):
     for k, v in diag.get('blend_sample', {}).items():
         rows.append(('blend_sample', k, v.get('start'), None, v.get('n')))
     pd.DataFrame(rows, columns=['block', 'item', 'term', 'workbook', 'ours']).to_csv(
-        DATA / f'{a.asof.replace("-", "")}_diagnostics_{run_id}.csv', index=False)
-    est_pkl = DATA / f'{a.asof.replace("-", "")}_estimated_{run_id}.pkl'
+        DATA / f'{stem}_diagnostics_{run_id}.csv', index=False)
+    est_pkl = DATA / f'{stem}_estimated_{run_id}.pkl'
     pickle.dump({'est': est, 'diag_blend_hist': diag.get('inventory_model_history')}, open(est_pkl, 'wb'))
     print(f'estimates stored for {run_id}')
 
@@ -60,6 +61,7 @@ def main():
     ap.add_argument('--vintage')
     ap.add_argument('--last-price-month', default='2026-08', help='last actual month of monthly prices')
     ap.add_argument('--mgdp-last-month', default='2026-07', help='last actual month of monthly nominal GDP')
+    ap.add_argument('--tag', default='', help='suffix for run id and files (release-effect runs)')
     ap.add_argument('--force', action='store_true')
     a = ap.parse_args()
     con = store.connect()
