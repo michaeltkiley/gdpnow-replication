@@ -188,9 +188,16 @@ class Ctx:
         return t[[c for c in t.columns if c.split('|')[0] == str(line)][0]]
 
     def census(self, *a, **k):
+        """Census API series, archived per as-of date like the other pulls (a re-run of a day reuses its archive)."""
         key = ('c',) + a + tuple(sorted(k.items()))
         if key not in self.cache:
-            self.cache[key] = census(*a, **k)
+            name = '|'.join(str(x) for x in a[1:]) + '|' + '|'.join(f'{kk}={vv}' for kk, vv in sorted(k.items()))
+            src = f'census_eits:{a[1]}'
+            s = P._archived(self.con, src, name, self.asof)
+            if s is None:
+                s = census(*a, **k)
+                P._archive(self.con, src, name, self.asof, s)
+            self.cache[key] = s
         return self.cache[key]
 
 

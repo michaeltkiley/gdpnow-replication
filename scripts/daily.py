@@ -96,6 +96,7 @@ def main():
         sh('05_nowcast.py', '--level', 'L3', '--asof', asof, *fl)
         sh('05_nowcast.py', '--level', 'L1', '--vintage', vint, *fl)
         sh('09_record.py', '--asof', asof, '--vintage', vint, *fl)
+        sh('10_decompose.py', '--asof', asof, *fl)
         housekeeping(asof)
         problems = sanity(asof, a.max_jump)
     except Exception as e:                       # includes failed stages (CalledProcessError)

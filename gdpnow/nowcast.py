@@ -27,6 +27,10 @@ def run(inp):
     for k, v in zip(['food_services', 'electricity_gas', 'travel_out', 'travel_in', 'other_services'], out['services_q']):
         rows.append(('CONS', f'q:{k}', float(v)))
     rows += [('CONS', 'goods', growth['CTG']), ('CONS', 'services', growth['CS'])]
+    for k, w in zip(['core_retail', 'new_mv', 'used_mv', 'gasoline'], out['goods_shares']):
+        rows.append(('CONS', f'wt:{k}', float(w)))
+    for k, w in zip(['food_services', 'electricity_gas', 'travel_out', 'travel_in', 'other_services'], out['services_shares']):
+        rows.append(('CONS', f'wt:{k}', float(w)))
     for kind, (x, mm) in (('goods', ('XM', 'MM')), ('services', ('XS', 'MS'))):
         (growth[x], growth[mm]), out = C.trade(kind, inp, mon)
         keep(f'TRADE_{kind}', out)
