@@ -1,0 +1,6 @@
+duckdb>=1.5
+numpy>=2.4
+pandas>=2.3
+scipy>=1.16
+statsmodels>=0.14
+openpyxl>=3.1
