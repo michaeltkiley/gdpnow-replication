@@ -12,7 +12,7 @@ runs from **public data** and re-estimates every model parameter on each run. Fi
 
 **Read [IMPLEMENTATION.md](IMPLEMENTATION.md)** for how the implementation works, how to run it, and a complete
 list of its differences from the GDPNow approach (data that is not public, series built differently, model
-components that differ). Component-level results are there and in the generated report `docs/index.html`.
+components that differ). Component-level results are there and in the generated report `docs/report.html`.
 
 ## Quick start
 

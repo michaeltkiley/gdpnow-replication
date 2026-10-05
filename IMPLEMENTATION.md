@@ -70,7 +70,7 @@ python scripts/02_build_public.py --asof YYYY-MM-DD --last-price-month YYYY-MM  
 python scripts/04_estimate.py --level L3 --asof YYYY-MM-DD                        # estimate all parameters
 python scripts/05_nowcast.py --level L3 --asof YYYY-MM-DD                         # nowcast + contributions
 python scripts/06_verify.py --run L3_YYYYMMDD                                    # compare with published values
-python scripts/07_site.py                                                         # HTML report -> docs/index.html
+python scripts/07_site.py                                                         # HTML report -> docs/report.html
 ```
 
 * Each stage skips work that is already done; `--force` redoes it. A full L3 run takes about ten minutes.
@@ -281,7 +281,8 @@ missing months are filled by the conditional forecast, with published values imp
 | `config/` | `spec.toml` (documented constants), `bridges.toml`, `transforms.toml`, `public_series.toml` |
 | `registry/` | `parameters.csv` (every non-data quantity), `inputs_used.csv`, `input_audit.csv` and `input_audit_all.csv` (public series vs workbook, per series), `workbook_history_prefix.csv` (DD4), `match_search.csv` |
 | `tools/` | `audit_inputs.py` (compare every public series with the workbook), `search_matches.py` (search all Census/BEA series for a match to a workbook series), workbook-audit utilities |
-| `docs/index.html` | generated report |
+| `docs/report.html` | generated replication report |
+| `docs/index.html` | live dashboard (static; reads `docs/data/`) |
 | `DESIGN.md` | chronological development notes (background; superseded by this guide where they differ) |
 
 The input audit (`python tools/audit_inputs.py --all`) classifies each workbook series as exact, good, fair,

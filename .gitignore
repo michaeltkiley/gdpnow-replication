@@ -1,6 +1,5 @@
 .env
 *.xlsx
-data/
+/data/
 *.duckdb
 __pycache__/
-tools/x13/
