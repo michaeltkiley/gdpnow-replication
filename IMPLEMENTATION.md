@@ -147,10 +147,11 @@ the workbook (production use after the first run) the stored history is used. If
 redefined, the store detects that its stored growth no longer agrees with the live source, drops the stored live
 rows and logs a `store_reset`.
 
-**DD5. Data vintages.** FRED series are retrieved as known on the as-of date (ALFRED). BEA tables, Census
-economic-indicator series, BEA IDS-0182, the BEA trade time series, BLS and Treasury data are **current vintage on
-the download date** (archived with the retrieval date). GDPNow uses the vintages its workbook held on its update
-date, so revisions published after that date can differ (for example Census book values for the prior month).
+**DD5. Data vintages.** The ~20 series still read from FRED are retrieved as known on the as-of date (ALFRED). Everything
+read from primary-source files (BLS flat files, Census program zips, BEA bulk files, trade and vehicle workbooks, the Fed's G.17
+files, BEA IDS-0182, Treasury) is **current vintage on the download date**, archived with the retrieval date (the archive keeps
+seven days; a durable vintage archive is planned). GDPNow uses the vintages its workbook held on its update date, so revisions
+published after that date can differ (for example Census book values for the prior month).
 
 **DD6. Prior-vintage travel data.** GDPNow's workbook keeps the previous vintage of the monthly travel-services
 trade series to estimate revisions to the latest month of travel PCE. The previous vintage of that BEA file is not
@@ -260,24 +261,38 @@ missing months are filled by the conditional forecast, with published values imp
 
 | Source | Used for | Access |
 |---|---|---|
-| FRED / ALFRED | ~90 monthly and quarterly series (CPI/PPI, labor, production, retail sales, housing, regional surveys, Treasury) as known on the as-of date | API, `FRED_API_KEY` |
-| BEA NIPA and underlying detail | quarterly national accounts (Tables 1.1.x, 3.x, 4.2.x, 5.x, 7.x), monthly PCE (2.4.x U), underlying detail for structures/equipment/inventories (U5.4, U5.5, U5.7.5B/6B, U001B/BC, U002BUI, U7.2.5S) | API, `BEA_API_KEY` |
-| BEA IDS-0182 | goods trade by end use, Census and BOP basis, SA, nonmonetary gold | public zip download |
-| BEA trade-release time series | monthly travel services exports/imports | public xlsx |
-| Census economic-indicator time series (`eits`) | M3 (nondurable/total manufacturing), advance durable goods (advm3), retail and wholesale inventories (mrts/mrtsadv/mwtsadv), advance goods trade totals (ftdadv) | API, `CENSUS_API_KEY` |
-| Census Advance Economic Indicators report | advance-month goods trade by end-use category | public PDF |
+| BLS flat files (`download.bls.gov/pub/time.series/`, 17 files) | employment, hours, earnings, CPI, PPI, import/export prices, ECI (68 series that FRED mirrors, plus BLS-only series) | public download; `BLS_CONTACT` secret supplies the User-Agent contact string (`gdpnow/bls_flat.py`, `config/bls_series.toml`) |
+| Census program zips (`census.gov/econ_getzippedfile/?programCode=`) | M3 and advance durable goods, retail and wholesale trade and inventories, advance goods trade, new residential construction and sales, construction spending, manufactured housing, ~40 series that FRED mirrors | public download (`gdpnow/census_bulk.py`, `config/census_series.toml`) |
+| Census Advance Economic Indicators table | advance-month goods trade by end-use category | public xlsx `census.gov/econ/indicators/tab1adv.xlsx` (`gdpnow/trade_bvar.py`) |
 | Census construction tables, price file | owner-split and private construction spending; house-price deflator | public xlsx |
-| BLS API | residential specialty-trade employment, federal government employment, CPI major appliances | API (no key) |
+| BEA bulk files (`apps.bea.gov/national/Release/TXT/`) | all 33 NIPA and underlying-detail tables (quarterly and monthly) and the PCE, income and wage series FRED mirrors | public download (`gdpnow/bea_bulk.py`, `config/bea_series.toml`, `config/bea_windows.toml`) |
+| BEA trade-release time series | monthly goods and services trade balances, travel services | public xlsx (`gdpnow/bea_trade.py`) |
+| BEA Motor vehicles workbook (`apps.bea.gov/national/xls/gap_hist.xlsx`) | light-vehicle sales (domestic, foreign, heavy trucks) | public xlsx (`gdpnow/bea_vehicles.py`) |
+| BEA IDS-0182 | goods trade by end use, Census and BOP basis, SA, nonmonetary gold | public zip download |
+| Federal Reserve G.17 files (`federalreserve.gov/releases/g17/Current/ipdisk/`) | industrial production, capacity utilization, motor vehicle assemblies (`ip_sa.txt`, `utl_sa.txt`, `auto_sa.txt`) | public text files (`gdpnow/fed_g17.py`, `config/g17_series.toml`) |
 | Treasury FiscalData | Monthly Treasury Statement (defense outlays) | API (no key) |
+| FRED / ALFRED | what has no clean public file: regional Fed surveys (Dallas, Philadelphia, New York), Cleveland Fed median and trimmed-mean CPI, CFNAI, jobless claims, WTI oil, UMich sentiment, the Treasury statement balance, NAR existing-home sales and prices (licensed: FRED serves 13 months only) | API, `FRED_API_KEY` |
 | Census X-13ARIMA-SEATS | seasonal adjustment | binary in `tools/x13/` |
+
+Every file source has the same contract: one download per file per run, each series archived in `raw_pulls`, values checked
+against FRED's over their full history before they replaced it (`tools/explore_apis.py`), and **no fallback**: a failed
+download or a missing series fails the run (the workflow emails the failure).
+
+**Daily change check (`gdpnow/probe.py`).** Before building, the daily run repeats the cheap signal of every request logged by the
+last production build and skips the build when none changed (and the code, config, month and last run are as before). The signal
+is chosen per source: BLS, BEA, Fed and file downloads whose server sends Last-Modified and an ETag are checked by a header-only
+request (Content-Length is ignored: BLS sends it intermittently); Census program zips by their size and last-updated stamp on
+`census.gov/econ_datasets/` (one request; the zips' own Last-Modified is just the current time); Census spreadsheets, whose CDN
+sends no ETag and a Last-Modified that differs between its servers, by a digest of the content; FRED by a digest of the
+response. A probe replays about 60 small requests in a few seconds.
 
 ## 7. Repository map
 
 | Path | Contents |
 |---|---|
-| `gdpnow/` | library: data builders (`public_*.py`, `ids0182.py`, `history.py`), estimation (`factor.py`, `faar.py`, `bridge.py`, `blend.py`, `bvar.py`, `estimate.py`, `inventory.py`, `trade_bvar.py`), assembly (`components.py`, `nowcast.py`, `aggregate.py`) |
+| `gdpnow/` | library: data builders (`public_*.py`, `ids0182.py`, `history.py`), source readers (`bls_flat.py`, `census_bulk.py`, `bea_bulk.py`, `bea_trade.py`, `bea_vehicles.py`, `fed_g17.py`), change check (`probe.py`), estimation (`factor.py`, `faar.py`, `bridge.py`, `blend.py`, `bvar.py`, `estimate.py`, `inventory.py`, `trade_bvar.py`), assembly (`components.py`, `nowcast.py`, `aggregate.py`) |
 | `scripts/` | pipeline stages 01, 02, 04, 05, 06, 07 |
-| `config/` | `spec.toml` (documented constants), `bridges.toml`, `transforms.toml`, `public_series.toml` |
+| `config/` | `spec.toml` (documented constants), `bridges.toml`, `transforms.toml`, `public_series.toml`, and the per-source series maps `bls_series.toml`, `census_series.toml`, `bea_series.toml`, `bea_windows.toml`, `g17_series.toml` |
 | `registry/` | `parameters.csv` (every non-data quantity), `inputs_used.csv`, `input_audit.csv` and `input_audit_all.csv` (public series vs workbook, per series), `workbook_history_prefix.csv` (DD4), `match_search.csv` |
 | `tools/` | `audit_inputs.py` (compare every public series with the workbook), `search_matches.py` (search all Census/BEA series for a match to a workbook series), workbook-audit utilities |
 | `docs/report.html` | generated replication report |

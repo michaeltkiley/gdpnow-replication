@@ -2055,6 +2055,277 @@ def g17_33():
             out('G33', 'file', u, 'ERR', repr(e)[:150])
 
 
+def groupA_35():
+    """The five FRED series that sit in sources already integrated: TCU (G.17 utl_sa.txt), CUSR0000SAH and CUSR0000SAN1D (BLS cu files),
+    RSFSDP (Census MARTS), MRTSIM4400AUSS (Census MRTS): each compared with FRED's full history against every candidate series in the source."""
+    import io
+    import re
+    import pandas as pd
+    from gdpnow import bls_flat as BF, census_bulk as CB
+
+    def fred_series(fid):
+        st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+        return pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(t)['observations'] if o['value'] != '.'}).sort_index()
+
+    def best(fid, f, cands, tol):
+        hits = []
+        for key, b in cands.items():
+            both = f.index.intersection(b.index)
+            if len(both) < 12:
+                continue
+            dif = (f[both] - b[both]).abs()
+            hits.append((float(dif.max()), key, len(both), str(b.index.min())[:7], str(b.index.max())[:7], int(f.index.difference(b.index).size), int(b.index.difference(f.index).size)))
+        hits.sort(key=lambda h: h[0])
+        out('GA35', fid, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], 'tol', tol, '| best', hits[:3])
+
+    # TCU: G.17 utilization file
+    base = 'https://www.federalreserve.gov/releases/g17/Current/ipdisk/'
+    raw = urllib.request.urlopen(urllib.request.Request(base + 'utl_sa.txt', headers={'User-Agent': 'Mozilla/5.0'}), timeout=120).read().decode('latin-1')
+    acc = {}
+    for line in raw.splitlines():
+        m = re.match(r'^"([^":]+)"\s+(\d{4})\s+(.*)$', line)
+        if m:
+            for i, v in enumerate(m.group(3).split()[:12]):
+                try:
+                    acc.setdefault(m.group(1), {})[pd.Timestamp(int(m.group(2)), i + 1, 1)] = float(v)
+                except ValueError:
+                    pass
+    best('TCU', fred_series('TCU'), {c: pd.Series(d).sort_index() for c, d in acc.items()}, 0)
+    # Census: every (category, data type, adjusted) of a program, US
+    for fid, prog in (('RSFSDP', 'MARTS'), ('MRTSIM4400AUSS', 'MRTS')):
+        fr = CB._frame(prog)
+        fr = fr[fr.geo_code == 'US']
+        cands = {}
+        for (cat, dt, adj), g in fr.groupby(['cat_code', 'dt_code', 'is_adj']):
+            s_ = pd.Series(g.val.to_numpy(), index=g.date.dt.to_period('M').dt.to_timestamp().to_numpy()).sort_index()
+            cands[(cat, dt, int(adj))] = s_[~s_.index.duplicated()]
+        best(fid, fred_series(fid), cands, 0)
+    # BLS CPI: scan the cu data files for the two ids
+    d = urllib.request.urlopen(urllib.request.Request('https://download.bls.gov/pub/time.series/cu/', headers=BF.headers()), timeout=120).read().decode('latin-1')
+    files = sorted(set(re.findall(r'cu\.data\.[^"<>\s]+', d)))
+    out('GA35', 'cu files', files)
+    want = {'CUSR0000SAH': fred_series('CUSR0000SAH'), 'CUSR0000SAN1D': fred_series('CUSR0000SAN1D')}
+    for fn in files:
+        try:
+            txt = urllib.request.urlopen(urllib.request.Request('https://download.bls.gov/pub/time.series/cu/' + fn, headers=BF.headers()), timeout=300).read().decode('latin-1')
+        except Exception as e:
+            out('GA35', fn, 'ERR', repr(e)[:80])
+            continue
+        for bid, f in want.items():
+            rows = {}
+            for line in txt.splitlines():
+                if line.startswith(bid):
+                    p_ = line.split('\t')
+                    if len(p_) >= 4 and p_[2].strip().startswith('M') and p_[2].strip() != 'M13':
+                        rows[pd.Timestamp(int(p_[1]), int(p_[2].strip()[1:]), 1)] = float(p_[3])
+            if rows:
+                b = pd.Series(rows).sort_index()
+                both = f.index.intersection(b.index)
+                out('GA35', bid, 'in', fn, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], '| file', len(b), str(b.index.min())[:7], str(b.index.max())[:7], '| common', len(both), 'max abs', float((f[both] - b[both]).abs().max()), 'onlyFRED', int(f.index.difference(b.index).size), 'onlyFile', int(b.index.difference(f.index).size))
+
+
+def groupA_36():
+    """TCU and RSFSDP through the pipeline's own readers vs FRED (full history); MRTSIM4400AUSS: the months where Census MRTS (4400A, IM, adjusted)
+    and FRED differ, with both values."""
+    import tempfile
+    import duckdb
+    import pandas as pd
+    from gdpnow import census_bulk as CB, fed_g17 as G
+    con = duckdb.connect(tempfile.mkdtemp() + '/a.duckdb')
+
+    def fred_series(fid):
+        st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+        return pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(t)['observations'] if o['value'] != '.'}).sort_index()
+    for fid, rd in (('TCU', G.series), ('RSFSDP', CB.series)):
+        f = fred_series(fid)
+        b = rd(con, fid, '2026-10-06')
+        idx = f.index.union(b.index)
+        fa, ba = f.reindex(idx), b.reindex(idx)
+        both = fa.notna() & ba.notna()
+        out('GA36', fid, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], '| reader', len(b), str(b.index.min())[:7], str(b.index.max())[:7],
+            '| common', int(both.sum()), 'max abs', float((fa[both] - ba[both]).abs().max()), '| only FRED', int((fa.notna() & ba.isna()).sum()), 'only reader', int((fa.isna() & ba.notna()).sum()))
+    f = fred_series('MRTSIM4400AUSS')
+    fr = CB._frame('MRTS')
+    g = fr[(fr.geo_code == 'US') & (fr.cat_code == '4400A') & (fr.dt_code == 'IM') & (fr.is_adj == 1)]
+    b = pd.Series(g.val.to_numpy(), index=g.date.dt.to_period('M').dt.to_timestamp().to_numpy()).sort_index()
+    b = b[~b.index.duplicated()]
+    both = f.index.intersection(b.index)
+    dif = (f[both] - b[both])
+    bad = dif[dif.abs() > 0.5]
+    out('GA36', 'MRTSIM4400AUSS', 'common', len(both), 'differing months', len(bad), 'first', str(bad.index.min())[:7] if len(bad) else None, 'last', str(bad.index.max())[:7] if len(bad) else None)
+    for d_ in list(bad.index[:6]) + list(bad.index[-6:]):
+        out('GA36', 'MRTSIM', str(d_)[:7], 'FRED', f[d_], 'Census', b[d_], 'diff', float(dif[d_]))
+    out('GA36', 'MRTSIM last 4', [(str(i)[:7], f[i], b.get(i)) for i in f.index[-4:]])
+
+
+def groupA_37():
+    """What the production build still requests, from the newest fetch_log in the restored state: counts per kind and host, the exact FRED series ids,
+    and every non-FRED URL host/path stem (the loose-ends inventory)."""
+    import re
+    import urllib.parse
+    import collections
+    import duckdb
+    con = duckdb.connect('data/gdpnow.duckdb', read_only=True)
+    asof = con.execute('SELECT max(as_of) FROM fetch_log').fetchone()[0]
+    rows = con.execute('SELECT kind, url FROM fetch_log WHERE as_of = ?', [asof]).fetchall()
+    out('GA37', 'fetch_log as_of', str(asof), 'requests', len(rows))
+    byk = collections.Counter((k, urllib.parse.urlparse(u).netloc if u.startswith('http') else '-') for k, u in rows)
+    out('GA37', 'kind/host', sorted(byk.items(), key=lambda kv: -kv[1]))
+    fred = sorted(set(re.findall(r'series_id=([A-Za-z0-9_]+)', ' '.join(u for k, u in rows if 'stlouisfed' in u and 'observations' in u))))
+    out('GA37', 'FRED observation series', len(fred), fred)
+    other = collections.Counter()
+    for k, u in rows:
+        if 'stlouisfed' in u:
+            continue
+        pu = urllib.parse.urlparse(u)
+        other[(k, pu.netloc, pu.path[:80])] += 1
+    for key, n in sorted(other.items()):
+        out('GA37', 'other', key, n)
+
+
+def groupA_38():
+    """MRTSIM4400AUSS vs Census: differing months by year (count, mean and max difference) for MRTS 4400A IM adjusted and for the same category in
+    the advance-inventories program (MRTSADV), and the FRED release/observation dates for the series."""
+    import pandas as pd
+    from gdpnow import census_bulk as CB
+    st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id=MRTSIM4400AUSS&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+    f = pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(t)['observations'] if o['value'] != '.'}).sort_index()
+    st, n, t2, _, _ = call(f'https://api.stlouisfed.org/fred/series?series_id=MRTSIM4400AUSS&api_key={FRED_KEY}&file_type=json', timeout=60)
+    sr = json.loads(t2)['seriess'][0]
+    out('GA38', 'FRED', sr['title'], '| updated', sr['last_updated'], '| notes', (sr.get('notes') or '')[:300].replace('\n', ' '))
+    for prog in ('MRTS', 'MRTSADV'):
+        fr = CB._frame(prog)
+        out('GA38', prog, 'cats with IM adj US', sorted(set(fr[(fr.dt_code == 'IM') & (fr.is_adj == 1) & (fr.geo_code == 'US')].cat_code))[:30])
+        g = fr[(fr.geo_code == 'US') & (fr.cat_code == '4400A') & (fr.dt_code == 'IM') & (fr.is_adj == 1)]
+        if g.empty:
+            continue
+        b = pd.Series(g.val.to_numpy(), index=g.date.dt.to_period('M').dt.to_timestamp().to_numpy()).sort_index()
+        b = b[~b.index.duplicated()]
+        both = f.index.intersection(b.index)
+        dif = f[both] - b[both]
+        by = dif.groupby(dif.index.year).agg(lambda x: (int((x.abs() > 0.5).sum()), int(len(x)), round(float(x.mean()), 1), round(float(x.abs().max()), 1)))
+        out('GA38', prog, '4400A IM adj: by year (differing, months, mean diff, max abs)', dict(by))
+        out('GA38', prog, 'last 8', [(str(i)[:7], f.get(i), b.get(i)) for i in b.index[-8:]])
+
+
+def groupA_39():
+    """RSFSXMV and RSGASS (requested from FRED by public_monthly): compared with every MARTS (category, data type, adjusted) series, US, full history."""
+    import pandas as pd
+    from gdpnow import census_bulk as CB
+
+    def fred_series(fid):
+        st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+        return pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(t)['observations'] if o['value'] != '.'}).sort_index()
+    fr = CB._frame('MARTS')
+    fr = fr[fr.geo_code == 'US']
+    cands = {}
+    for (cat, dt, adj), g in fr.groupby(['cat_code', 'dt_code', 'is_adj']):
+        s_ = pd.Series(g.val.to_numpy(), index=g.date.dt.to_period('M').dt.to_timestamp().to_numpy()).sort_index()
+        cands[(cat, dt, int(adj))] = s_[~s_.index.duplicated()]
+    for fid in ('RSFSXMV', 'RSGASS'):
+        f = fred_series(fid)
+        hits = []
+        for key, b in cands.items():
+            both = f.index.intersection(b.index)
+            if len(both) < 12:
+                continue
+            hits.append((float((f[both] - b[both]).abs().max()), key, len(both), str(b.index.min())[:7], str(b.index.max())[:7], int(f.index.difference(b.index).size), int(b.index.difference(f.index).size)))
+        hits.sort(key=lambda h: h[0])
+        out('GA39', fid, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], '| best', hits[:3])
+    out('GA39', 'MARTS cats (adj SM US)', sorted({k[0] for k in cands if k[1] == 'SM' and k[2] == 1}))
+
+
+def groupA_40():
+    """End-to-end test of the reworked probe without running the build: record one request of every kind the build makes (Census zips via the
+    download page, BLS/BEA/Fed headers, files via get_bytes headers, FRED, Treasury, BEA trade workbook), save the log, then run probe.run on it.
+    Expect 'changed' empty and no large downloads in the probe. Prints the kind of each logged request and the probe's timing."""
+    import tempfile
+    import time
+    import duckdb
+    from gdpnow import (bea_bulk as BB, bls_flat as BF, census_bulk as CB, fed_g17 as G, probe, public_data as P, store)
+    asof = '2026-10-07'
+    con = duckdb.connect(tempfile.mkdtemp() + '/p.duckdb')
+    P.REFRESH = True
+    P.begin_recording(asof)
+    t0 = time.time()
+    progs = sorted({v[0] for v in CB.FRED.values()} | set(CB._CFG['eits'].values()))
+    for prog in progs:
+        CB._frame(prog)
+    out('GA40', 'census programs recorded', progs, 'page rows', len(CB.page_rows()))
+    for f in ('ip_sa.txt', 'utl_sa.txt', 'auto_sa.txt'):
+        P.record_head(G.BASE + f, G.head(f))
+    for f in ('NipaDataM.txt', 'NipaDataQ.txt', 'SeriesRegister.txt'):
+        P.record_head(BB.BASE + f, BB.head(f))
+    for f in ('ce/ce.data.0.AllCESSeries', 'cu/cu.data.1.AllItems'):
+        P.record_head(f, BF.head(f))
+    for u in ('https://apps.bea.gov/international/zip/IDS0182.zip', 'https://apps.bea.gov/national/xls/gap_hist.xlsx',
+              'https://www.census.gov/construction/c30/xlsx/fedsatime.xlsx', 'https://www.census.gov/construction/nrs/xls/price_uc_cust.xlsx',
+              'https://www.census.gov/econ/indicators/tab1adv.xlsx'):
+        P.get_bytes(u, timeout=300)
+    P.bea_trade_xlsx()
+    for sid in ('UMCSENT', 'WTISPLC'):
+        P.fred(con, sid, asof, refresh=True)
+    out('GA40', 'recording seconds', round(time.time() - t0))
+    n = P.save_recording(con)
+    rows = con.execute('SELECT kind, url FROM fetch_log WHERE as_of = ?', [asof]).fetchall()
+    import collections
+    out('GA40', 'logged', n, dict(collections.Counter(k for k, u in rows)))
+    out('GA40', 'GET_BYTES (content digest, no Last-Modified)', [u for k, u in rows if k == 'GET_BYTES'])
+    t1 = time.time()
+    res = probe.run(con, asof)
+    out('GA40', 'probe', res, 'wall seconds', round(time.time() - t1))
+
+
+def groupA_41():
+    """Header stability: repeated HEAD requests on the two files the probe test flagged as changed seconds after recording
+    (BLS CES file, Census advance trade table) and on a stable one, printing every header that could differ."""
+    import time
+    from gdpnow import bls_flat as BF, public_data as P
+    targets = [('BLS ce', 'https://download.bls.gov/pub/time.series/ce/ce.data.0.AllCESSeries', BF.headers()),
+               ('AEI tab1adv', 'https://www.census.gov/econ/indicators/tab1adv.xlsx', P.UA),
+               ('c30 fedsatime', 'https://www.census.gov/construction/c30/xlsx/fedsatime.xlsx', P.UA)]
+    for name, url, hdr in targets:
+        for k in range(6):
+            req = urllib.request.Request(url, method='HEAD', headers=hdr)
+            with urllib.request.urlopen(req, timeout=60) as r:
+                h = r.headers
+                out('GA41', name, k, {x: h.get(x) for x in ('Last-Modified', 'ETag', 'Content-Length', 'Content-Encoding', 'Age', 'Date', 'X-Cache', 'Server')})
+            time.sleep(1.5)
+
+
+def groupA_42():
+    """Stability of every header-based change signal the probe uses: 8 sequential and 8 parallel (3 workers) header requests per file with the
+    modules' own head functions; prints the distinct (Last-Modified, ETag, length) tuples where there is more than one, and the count of stable ones."""
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from gdpnow import bea_bulk as BB, bls_flat as BF, fed_g17 as G, public_data as P
+    files = {}
+    for f in ('ce/ce.data.0.AllCESSeries', 'cu/cu.data.1.AllItems', 'wp/wp.data.21.Aggregates', 'ln/ln.data.1.AllData'):
+        files['BLS ' + f] = (lambda f=f: BF.head(f))
+    for f in ('NipaDataM.txt', 'NipaDataQ.txt', 'SeriesRegister.txt'):
+        files['BEA ' + f] = (lambda f=f: BB.head(f))
+    for f in ('ip_sa.txt', 'utl_sa.txt', 'auto_sa.txt'):
+        files['Fed ' + f] = (lambda f=f: G.head(f))
+    for u in ('https://apps.bea.gov/international/zip/IDS0182.zip', 'https://apps.bea.gov/international/zip/IDS0182-Hist.zip',
+              'https://apps.bea.gov/national/xls/gap_hist.xlsx'):
+        files['BEA file ' + u.rsplit('/', 1)[1]] = (lambda u=u: P.head(u))
+    stable = 0
+    for name, fn in files.items():
+        seq = []
+        for k in range(8):
+            seq.append(tuple(fn()))
+            time.sleep(0.4)
+        with ThreadPoolExecutor(3) as ex:
+            par = list(ex.map(lambda _: tuple(fn()), range(8)))
+        distinct = set(seq) | set(par)
+        if len(distinct) == 1:
+            stable += 1
+            out('GA42', 'stable', name, list(distinct)[0])
+        else:
+            out('GA42', 'UNSTABLE', name, 'seq distinct', len(set(seq)), 'parallel distinct', len(set(par)), sorted(distinct, key=str))
+    out('GA42', 'stable files', stable, 'of', len(files))
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -2062,7 +2333,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40), ('groupA_41', groupA_41), ('groupA_42', groupA_42)):
         if name in which:
             try:
                 fn()
