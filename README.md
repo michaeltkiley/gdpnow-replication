@@ -24,7 +24,7 @@ python scripts/05_nowcast.py --level L3 --asof 2026-10-01
 python scripts/06_verify.py --run L3_20261001 && python scripts/07_site.py
 ```
 
-Needs Python (pandas, numpy, scipy, statsmodels, duckdb, openpyxl), `pdftotext`, the Census X-13ARIMA-SEATS
+Needs Python (pandas, numpy, scipy, statsmodels, duckdb, openpyxl), the Census X-13ARIMA-SEATS
 binary in `tools/x13/`, and free FRED, BEA and Census API keys in `.env` (not committed). Stages skip finished
 work; `--force` redoes them.
 

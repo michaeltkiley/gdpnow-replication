@@ -23,7 +23,7 @@ BEA = 'https://apps.bea.gov/api/data'
 
 
 # ------------------------------------------------------------------------------------- fetch layer
-# Every request that feeds the public inputs goes through _get / get_bytes / bea_trade_xlsx / bls_flat. In a
+# Every request that feeds the public inputs goes through _get / get_bytes / bea_trade_xlsx / bls_flat / census_bulk. In a
 # production run (recording on) each is logged with a digest of its response in table `fetch_log`; the daily probe
 # (gdpnow/probe.py) replays the logged requests and compares digests, so "did any raw input change?" is answered
 # without running the build.
@@ -166,6 +166,9 @@ def replay(kind, url, body):
     if kind == 'BLS_HEAD':
         from . import bls_flat
         return head_digest(*bls_flat.head(url.split('/pub/time.series/', 1)[1]))
+    if kind == 'CENSUS_ZIP':
+        from . import census_bulk
+        return census_bulk.digest(url.split('programCode=', 1)[1])
     if kind == 'BEA_TRADE':
         saved, _REC['asof'] = _REC['asof'], None          # replay is not recorded
         try:
@@ -253,10 +256,12 @@ def _archive(con, source, series, asof, s):
 
 def fred(con, series_id, asof, refresh=False):
     """Observations of a FRED series as known on `asof` (ALFRED real-time period). Series listed in
-    config/bls_series.toml come from BLS's flat files instead (gdpnow/bls_flat.py)."""
-    from . import bls_flat
+    config/bls_series.toml come from BLS's flat files (gdpnow/bls_flat.py), those in config/census_series.toml from Census's bulk files (gdpnow/census_bulk.py)."""
+    from . import bls_flat, census_bulk
     if bls_flat.covers(series_id):
         return bls_flat.series(con, series_id, asof)
+    if census_bulk.covers(series_id):
+        return census_bulk.series(con, series_id, asof)
     if not refresh:
         s = _archived(con, 'fred', series_id, asof)
         if s is not None:

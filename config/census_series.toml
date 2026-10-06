@@ -1,0 +1,21 @@
+# Census series read from the Census Bureau's bulk program files (https://www.census.gov/econ_datasets/, one zip per
+# program: https://www.census.gov/econ_getzippedfile/?programCode=<CODE>). gdpnow/census_bulk.py reads them.
+
+# Economic Indicator Time Series (EITS) program ids used in the code (Census API dataset names) -> program code of the zip.
+[eits]
+advm3 = "M3ADV"
+m3 = "M3"
+mwtsadv = "MWTSADV"
+mrts = "MRTS"
+mrtsadv = "MRTSADV"
+ftdadv = "FTDADV"
+
+# FRED series that Census itself publishes -> [program, category code, data type code, is_adj (1 = seasonally adjusted), geography].
+# Values equal FRED's on every shared month (checked in exploration round 15).
+[fred]
+HOUST = ["RESCONST", "ASTARTS", "TOTAL", 1, "US"]
+HOUST1F = ["RESCONST", "ASTARTS", "SINGLE", 1, "US"]
+HSN1F = ["RESSALES", "ASOLD", "TOTAL", 1, "US"]
+ASPNHSUS = ["RESSALES", "SOLD", "AVERAG", 0, "US"]
+TLPBLCONS = ["VIP", "AXXXX", "P", 1, "US"]
+PNRESCONS = ["VIP", "ANRXX", "V", 1, "US"]

@@ -78,8 +78,7 @@ python scripts/07_site.py                                                       
   history prefix (DD4) is stored in the DuckDB growth store; later runs and as-of dates reuse the stored history.
 * `--last-price-month` is the last month with published CPI/PPI/trade prices at the as-of date.
 * `02_build_public.py --ism seeded` is an optional variant that supplies ISM history from the workbook (DD1).
-* Requirements: Python 3 with pandas, numpy, scipy, statsmodels, duckdb, openpyxl; `pdftotext` (poppler) to read
-  the Census advance-trade report; the Census X-13ARIMA-SEATS binary at `tools/x13/x13as/x13as_ascii`
+* Requirements: Python 3 with pandas, numpy, scipy, statsmodels, duckdb, openpyxl; the Census X-13ARIMA-SEATS binary at `tools/x13/x13as/x13as_ascii`
   (statsmodels calls it); free API keys for FRED, BEA and Census in `.env` (`FRED_API_KEY`, `BEA_API_KEY`,
   `CENSUS_API_KEY`).
 * Everything lands in `data/` (DuckDB file and dated flat files); nothing in `data/` or `.env` is committed.
@@ -200,7 +199,7 @@ housing) from the Census private-construction table; the Census house-price defl
 
 **SD7. Trade detail.** Goods trade by end use, BOP-basis nonmonetary gold, and BEA's own seasonal adjustment
 come from BEA IDS-0182 (current vintage); the advance-report month comes from the Census Advance Economic
-Indicators PDF (`advance_report{yymm}.pdf`, read with `pdftotext`); monthly travel services trade from BEA's
+Indicators report's Excel Table 1 (`tab1adv.xlsx`); monthly travel services trade from BEA's
 trade-release time-series file. Core capital-goods exports follow the Mods composition and have growth
 correlation 0.99 with the workbook's series (core imports match exactly); the remaining difference is not
 identified.
