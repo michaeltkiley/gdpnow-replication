@@ -147,7 +147,7 @@ the workbook (production use after the first run) the stored history is used. If
 redefined, the store detects that its stored growth no longer agrees with the live source, drops the stored live
 rows and logs a `store_reset`.
 
-**DD5. Data vintages.** The ~19 series still read from FRED are retrieved as known on the as-of date (ALFRED). Everything
+**DD5. Data vintages.** The ~20 series still read from FRED are retrieved as known on the as-of date (ALFRED). Everything
 read from primary-source files (BLS flat files, Census program zips, BEA bulk files, trade and vehicle workbooks, the Fed's G.17
 files, BEA IDS-0182, Treasury) is **current vintage on the download date**, archived with the retrieval date (the archive keeps
 seven days; a durable vintage archive is planned). GDPNow uses the vintages its workbook held on its update date, so revisions
