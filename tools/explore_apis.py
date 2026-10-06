@@ -1237,6 +1237,40 @@ def census16():
             out('C16 PDFTXT', i, line[:170])
     except Exception as e:
         out('C16 PDF ERR', str(e)[:100])
+    # --- additions: construction files vs VIP, IDS-0182 cross-check of the AEI values
+    for fn in ('fedsatime', 'slsatime', 'privsatime', 'tvssatime'):
+        out('C16 HEAD c30', fn, *_head(f'https://www.census.gov/construction/c30/xlsx/{fn}.xlsx'))
+    out('C16 HEAD price_uc', *_head('https://www.census.gov/construction/nrs/xls/price_uc_cust.xlsx'))
+    try:
+        d, upd, cats, dts = _census_parse('VIP')
+        out('C16 VIP categories', [(r.cat_code, r.cat_desc) for r in cats.itertuples()][:45])
+        out('C16 VIP data types', [(r.dt_code, r.dt_desc, r.dt_unit) for r in dts.itertuples()])
+    except Exception as e:
+        out('C16 VIP ERR', str(e)[:120])
+    try:
+        import zipfile
+        import pandas as pd
+        zb = urllib.request.urlopen(urllib.request.Request('https://apps.bea.gov/international/zip/IDS0182.zip', headers=ua), timeout=300).read()
+        z = zipfile.ZipFile(io.BytesIO(zb))
+        out('C16 IDS members', z.namelist())
+        for member in z.namelist():
+            low = member.lower()
+            if not low.endswith('.xlsx') or not ('exports' in low or 'imports' in low):
+                continue
+            wb = openpyxl.load_workbook(io.BytesIO(z.read(member)), read_only=True, data_only=True)
+            for ws in wb.worksheets:
+                if 'census' not in ws.title.lower() or 'sa' not in ws.title.lower().replace('nsa', ''):
+                    continue
+                rows = [r for r in ws.iter_rows(min_row=3, values_only=True) if r[0] is not None and isinstance(r[1], (int, float))]
+                last = {}
+                for r in rows:
+                    if str(r[0]).strip() in ('0', '1', '2', '3', '4', '5', '6'):
+                        for i in range(12):
+                            if isinstance(r[2 + i], (int, float)):
+                                last.setdefault(str(r[0]).strip(), []).append((int(r[1]), i + 1, r[2 + i]))
+                out('C16 IDS', member, ws.title, {k: v[-3:] for k, v in last.items()})
+    except Exception as e:
+        out('C16 IDS ERR', str(e)[:160])
     for flow in ('exports', 'imports'):
         for tm in ('2026-08', '2026-07'):
             q = f'get=E_COMMODITY,E_COMMODITY_LDESC,ALL_VAL_MO&time={tm}&COMM_LVL=EU1&key={CENSUS_KEY}' if flow == 'exports' else \
