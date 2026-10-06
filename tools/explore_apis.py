@@ -619,6 +619,63 @@ def blsmap(inv):
             '| only FRED', len(only_f), only_f[:2], '| only BLS', len(only_b), only_b[:2])
 
 
+# ---------------------------------------------------------------- round 7: where does each mapped BLS series' full history live?
+BLS_MAP = {'AWHMAN': 'CES3000000007', 'AWHNONAG': 'CES0500000007', 'CE16OV': 'LNS12000000', 'CES0800000001': 'CES0800000001', 'CES1021000001': 'CES1021000001', 'CES2023610001': 'CES2023610001', 'CES6054000001': 'CES6054000001', 'CES6054150001': 'CES6054150001', 'CES9091000001': 'CES9091000001', 'CES9092000001': 'CES9092000001', 'CES9093000001': 'CES9093000001', 'CLF16OV': 'LNS11000000', 'CNP16OV': 'LNU00000000', 'CPIAUCSL': 'CUSR0000SA0', 'CPIHOSSL': 'CUSR0000SAH', 'CPILFESL': 'CUSR0000SA0L1E', 'CUSR0000SAD': 'CUSR0000SAD', 'CUSR0000SAN': 'CUSR0000SAN', 'CUSR0000SASLE': 'CUSR0000SASLE', 'CUSR0000SETA01': 'CUSR0000SETA01', 'DMANEMP': 'CES3100000001', 'ECICONCOM': 'CIS2012300000000I', 'IQ': 'EIUIQ', 'IR': 'EIUIR', 'IR0': 'EIUIR0', 'IR10': 'EIUIR10', 'IR1DUR': 'EIUIR1DUR', 'IR1NONDUR': 'EIUIR1NONDUR', 'IR213COM': 'EIUIR213COM', 'IR2EXCOM': 'EIUIR2EXCOM', 'IR3': 'EIUIR3', 'IR4': 'EIUIR4', 'IREXPET': 'EIUIREXPET', 'LNS12035019': 'LNS12035019', 'LNS13023653': 'LNS13023653', 'LNS14000061': 'LNS14000061', 'MANEMP': 'CES3000000001', 'NDMANEMP': 'CES3200000001', 'PAYEMS': 'CES0000000001', 'PCU336411336411': 'PCU336411336411', 'PCU5312105312101': 'PCU5312105312101', 'PCUOMFGOMFG': 'PCUOMFG--OMFG--', 'PPIIDC': 'WPU03THRU15', 'UEMPMED': 'LNS13008276', 'UNEMPLOY': 'LNS13000000', 'USCONS': 'CES2000000001', 'USEHS': 'CES6500000001', 'USFIRE': 'CES5500000001', 'USGOOD': 'CES0600000001', 'USLAH': 'CES7000000001', 'USPBS': 'CES6000000001', 'USPRIV': 'CES0500000001', 'USSERV': 'CES8000000001', 'USTRADE': 'CES4200000001', 'USWTRADE': 'CES4142000001', 'WPSFD41312': 'WPSFD41312', 'WPSFD49207': 'WPSFD49207', 'WPSID61': 'WPSID61', 'WPSID61112': 'WPSID61112', 'WPSID61113': 'WPSID61113', 'WPSID6152': 'WPSID6152', 'WPSID69115': 'WPSID69115', 'WPU101706': 'WPU101706', 'WPUIP2321001': 'WPUIP2321001'}
+BLS_AMBIGUOUS = {'AWOTMAN': ['CES3000000009', 'CES3100000009'], 'PCU236211236211': ['PCU236211236211', 'PCU236211236211P'], 'PCU236221236221': ['PCU236221236221', 'PCU236221236221P'], 'PCU236223236223': ['PCU236223236223', 'PCU236223236223P']}
+
+
+def bls7():
+    import re
+    import os as _os
+    ua = {'User-Agent': f'gdpnow-replication/1.0 ({BLS_CONTACT})'}
+    k = f'&api_key={FRED_KEY}&file_type=json'
+    base = 'https://download.bls.gov/pub/time.series/'
+    targets = {}
+    for fid, b in BLS_MAP.items():
+        targets.setdefault(b, []).append(fid)
+    for fid, cands in BLS_AMBIGUOUS.items():
+        for b in cands:
+            targets.setdefault(b, []).append(fid)
+    # FRED history span per series
+    span = {}
+    for fid in sorted({f for fs in targets.values() for f in fs}):
+        st, n, t, _, s = call('https://api.stlouisfed.org/fred/series?series_id=' + fid + k)
+        try:
+            d = json.loads(t)['seriess'][0]
+            span[fid] = (d['observation_start'][:7], d['observation_end'][:7], d.get('frequency_short'))
+        except Exception:
+            span[fid] = None
+        time.sleep(0.5)
+    _os.makedirs('data/bls7', exist_ok=True)
+    found = {}                                   # bls id -> list of (file, n, first, last)
+    for sv in ('cu', 'wp', 'pc', 'ei', 'ci'):
+        st, n, t, hdr, s = call(base + sv + '/', headers=ua, maxb=400000)
+        files = [nm for nm in re.findall(r'<A HREF="[^"]+/([^/"]+)">', t) if '.data.' in nm]
+        out('BLS7', sv, 'data files', len(files))
+        for fn in files:
+            dest = 'data/bls7/' + fn
+            req = urllib.request.Request(base + sv + '/' + fn, headers=ua)
+            with urllib.request.urlopen(req, timeout=900) as r, open(dest, 'wb') as fh:
+                while True:
+                    chunk = r.read(1 << 22)
+                    if not chunk:
+                        break
+                    fh.write(chunk)
+            for sid, rows in _bls_stream(dest):
+                if sid in targets:
+                    ym = sorted((y, m) for y, m, v in rows)
+                    found.setdefault(sid, []).append((fn, len(ym), '%04d-%02d' % ym[0], '%04d-%02d' % ym[-1]))
+            _os.remove(dest)
+            time.sleep(0.3)
+    # report
+    for b, fids in sorted(targets.items()):
+        fl = found.get(b, [])
+        best = sorted(fl, key=lambda x: (x[2], -x[1]))[:3]
+        out('FULLHIST', b, 'for FRED', fids, 'FRED span', span.get(fids[0]), '| files holding it:', [(f, n_, a, z) for f, n_, a, z in best])
+    miss = [b for b in targets if b not in found and not b.startswith(('CES', 'LN', 'CIS')) or (b.startswith('CIS') and b not in found)]
+    out('BLS ids not found in cu/wp/pc/ei/ci data files (expected for CES/LN which are in ce/ln):', sorted(miss))
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -626,7 +683,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv))):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7)):
         if name in which:
             try:
                 fn()
