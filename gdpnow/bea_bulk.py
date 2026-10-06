@@ -92,19 +92,21 @@ def table(table_id, frequency):
     lines = register().get(table_id)
     if not lines:
         raise RuntimeError(f'BEA table {table_id} is not in {REGISTER}')
-    code_line = {code: (ln, label) for ln, (code, label) in lines.items()}
+    code_lines = {}               # a series can sit on several lines of one table (some tables repeat a line)
+    for ln, (code, label) in lines.items():
+        code_lines.setdefault(code, []).append((ln, label))
     recs = []
     for row in csv.reader(io.StringIO(_text(FILES[frequency]))):
-        if len(row) != 3 or row[0] not in code_line:
+        if len(row) != 3 or row[0] not in code_lines:
             continue
         try:
             v = float(row[2].replace(',', ''))
         except ValueError:
             continue
-        ln, label = code_line[row[0]]
         per = row[1]
         date = (pd.Period(per.replace('M', '-'), 'M') if 'M' in per else pd.Period(per, 'Q')).end_time.normalize()
-        recs.append((f'{ln}|{label}', date, v))
+        for ln, label in code_lines[row[0]]:
+            recs.append((f'{ln}|{label}', date, v))
     if not recs:
         raise RuntimeError(f'BEA table {table_id} ({frequency}): no data in {FILES[frequency]}')
     return pd.DataFrame(recs, columns=['series', 'date', 'value'])
