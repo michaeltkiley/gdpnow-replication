@@ -1659,6 +1659,78 @@ def bop23():
                 out('B23 monthly start', name, i, [str(c)[:20] if c is not None else None for c in rows[i][:12]])
 
 
+def nipa24():
+    """public_nipa.build twice, on the BEA API tables (the old path) and on the bulk tables: every output series compared."""
+    import datetime as dt
+    import tempfile
+    import duckdb
+    import numpy as np
+    import pandas as pd
+    from gdpnow import public_data as PD, public_nipa as PN
+    base = 'https://apps.bea.gov/api/data'
+    cache = {}
+
+    def api_wide(ds, tb, fr):
+        if (tb, fr) in cache:
+            return cache[(tb, fr)]
+        chunks = ['ALL'] if ds == 'NIPA' else [','.join(str(y) for y in range(y0, min(y0 + 4, dt.date.today().year + 1))) for y0 in range(1959, dt.date.today().year + 1, 4)]
+        recs = []
+        for years in chunks:
+            q = dict(UserID=BEA_KEY, method='GetData', DataSetName=ds, TableName=tb, Frequency=fr, Year=years, ResultFormat='JSON')
+            for attempt in range(4):
+                st, n, t, _, _ = call(base + '?' + urllib.parse.urlencode(q), timeout=300)
+                if st == 200:
+                    break
+                time.sleep(20 * (attempt + 1))
+            time.sleep(0.8)
+            try:
+                res = json.loads(t)['BEAAPI'].get('Results')
+            except Exception:
+                continue
+            if not res or 'Data' not in res:
+                continue
+            for r in res['Data']:
+                tp = r['TimePeriod']
+                d = (pd.Period(tp.replace('M', '-'), 'M') if 'M' in tp else pd.Period(tp, 'Q')).end_time.normalize()
+                try:
+                    v = float(r['DataValue'].replace(',', ''))
+                except ValueError:
+                    continue
+                recs.append((f"{r['LineNumber']}|{r['LineDescription']}", d, v))
+        df = pd.DataFrame(recs, columns=['series', 'date', 'value']).drop_duplicates(['series', 'date'])
+        cache[(tb, fr)] = df.pivot(index='date', columns='series', values='value').sort_index()
+        return cache[(tb, fr)]
+    orig = PD.bea_table
+    PD.bea_table = lambda con, dataset, table, frequency, asof, refresh=False: api_wide(dataset, table, frequency)
+    res_api = PN.build(None, '2026-10-06')
+    PD.bea_table = orig
+    con = duckdb.connect(tempfile.mkdtemp() + '/b.duckdb')
+    res_bulk = PN.build(con, '2026-10-06')
+    out('N24 built', {k: v.shape for k, v in res_api.items()}, {k: v.shape for k, v in res_bulk.items()})
+    for name in res_api:
+        a, b = res_api[name], res_bulk[name]
+        cols_a, cols_b = set(a.columns), set(b.columns)
+        if cols_a != cols_b:
+            out('N24 columns differ', name, sorted(cols_a ^ cols_b)[:10])
+        n_diff = 0
+        for c in sorted(cols_a & cols_b):
+            x, y = a[c], b[c]
+            idx = x.index.union(y.index)
+            x, y = x.reindex(idx), y.reindex(idx)
+            both = x.notna() & y.notna()
+            miss = (x.notna() != y.notna()).sum()
+            diff = (x[both] - y[both]).abs()
+            scale = max(1.0, float(x[both].abs().max())) if both.any() else 1.0
+            bad = diff[diff > 1e-9 * scale]
+            if len(bad) or miss:
+                n_diff += 1
+                out('N24 DIFF', name, c, 'values differ', len(bad), 'max abs diff', float(diff.max()) if both.any() else None,
+                    'first date', str(bad.index.min())[:10] if len(bad) else None, 'last date', str(bad.index.max())[:10] if len(bad) else None,
+                    'only-one-side non-null', int(miss), 'API range', str(x.dropna().index.min())[:10], str(x.dropna().index.max())[:10],
+                    'bulk range', str(y.dropna().index.min())[:10], str(y.dropna().index.max())[:10])
+        out('N24 frame', name, 'columns compared', len(cols_a & cols_b), 'columns with differences', n_diff)
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1666,7 +1738,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24)):
         if name in which:
             try:
                 fn()
