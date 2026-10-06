@@ -1447,6 +1447,23 @@ def bea19():
             out('B19 FRED', sid, 'ERR', st)
 
 
+def tr20():
+    """BEA TablesRegister.txt: header and the rows of the 33 tables we use (do they carry first/last periods?)."""
+    import csv
+    import io
+    st, n, t, hdr, _ = call('https://apps.bea.gov/national/Release/TXT/TablesRegister.txt', headers={'User-Agent': 'Mozilla/5.0'}, timeout=120)
+    lines = t.splitlines()
+    out('TR20 lines', len(lines), 'bytes', n)
+    for i, l in enumerate(lines[:4]):
+        out('TR20 head', i, l[:400])
+    want = {'T10103', 'T10105', 'T10106', 'T20804', 'T20805', 'T30903', 'T30905', 'T31003', 'T31005', 'T31006', 'T31103', 'T31105', 'T40205B',
+            'T50303', 'T50305', 'T50805B', 'T50806B', 'T50809A', 'T50809B', 'T70203B', 'T70205B', 'U001B', 'U001BC', 'U002BUI', 'U20404', 'U20405',
+            'U50404', 'U50405', 'U50504', 'U50505', 'U50705BM3', 'U50706BM', 'U70205S'}
+    for row in csv.reader(io.StringIO(t)):
+        if row and row[0] in want:
+            out('TR20 row', [x[:60] for x in row])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1454,7 +1471,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20)):
         if name in which:
             try:
                 fn()
