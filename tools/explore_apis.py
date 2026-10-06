@@ -1464,6 +1464,111 @@ def tr20():
             out('TR20 row', [x[:60] for x in row])
 
 
+def match21():
+    """Value-match FRED series that Census and BEA publish against the files we already download: Census program zips (all cells, all
+    geographies), BEA NipaDataM.txt (every monthly series; scale factors allowed) and the BEA trade workbook (rows and columns)."""
+    import csv
+    import io
+    import numpy as np
+    import pandas as pd
+    import openpyxl
+    from gdpnow import public_data as PD
+    ua = {'User-Agent': 'Mozilla/5.0'}
+
+    def fred_series(fid, start='2023-06-01'):
+        st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start={start}', timeout=120)
+        j = json.loads(t)
+        return {pd.Timestamp(o['date']) + pd.offsets.MonthEnd(0): float(o['value']) for o in j['observations'] if o['value'] != '.'}
+
+    def ratio_match(f, s, min_common=20):
+        common = [d for d in f if d in s and f[d] != 0 and s[d] != 0]
+        if len(common) < min_common:
+            return None
+        r = np.array([s[d] / f[d] for d in common])
+        med = float(np.median(r))
+        dev = np.abs(r / med - 1)
+        return (int((dev < 1e-6).sum()), float(dev.max()), med, len(common))
+
+    census_ids = ['HOUSTMW', 'HOUSTNE', 'HOUSTS', 'HOUSTW', 'PERMIT', 'MSACSR', 'HOSMEDUSM052N', 'HNFSEPUSSA', 'RETAILIRSA', 'MNFCTRIRSA',
+                  'MRTSIM4400AUSS', 'SHTSAUS', 'SPTNSAUS']
+    frames = {}
+    for code in ('RESCONST', 'RESSALES', 'MTIS', 'MRTS', 'MARTS', 'MWTS', 'M3', 'VIP', 'HV', 'MHS2'):
+        try:
+            frames[code] = _census_parse(code)[0]
+        except Exception as e:
+            out('M21 zip', code, 'ERR', str(e)[:100])
+    for fid in census_ids:
+        f = fred_series(fid)
+        best = []
+        for code, d in frames.items():
+            for (c_, t_, a_, g_), g in d[d.date >= '2023-06-30'].groupby(['cat_code', 'dt_code', 'is_adj', 'geo_code']):
+                m = ratio_match(f, g.set_index('date').val.to_dict(), 12)
+                if m:
+                    best.append((-m[0], m[1], code, c_, t_, int(a_), g_, round(m[2], 6), m[3]))
+        best.sort()
+        out('M21 CENSUS', fid, 'FRED obs', len(f), 'last', max(f) if f else None, 'best (-n_exact, maxdev, program, cat, dt, adj, geo, scale, n)', best[:3])
+    # BEA NipaDataM: every monthly series, scale factors allowed
+    base = 'https://apps.bea.gov/national/Release/TXT/'
+    st, n, t, _, _ = call(base + 'SeriesRegister.txt', headers=ua, timeout=300)
+    label = {r[0]: (r[1], r[2]) for r in csv.reader(io.StringIO(t)) if len(r) >= 6 and not r[0].startswith('%')}
+    st, n, t, _, _ = call(base + 'NipaDataM.txt', headers=ua, timeout=600)
+    recent = {}
+    for row in csv.reader(io.StringIO(t)):
+        if len(row) == 3 and row[1] >= '2023M06':
+            try:
+                v = float(row[2].replace(',', ''))
+            except ValueError:
+                continue
+            recent.setdefault(row[0], {})[pd.Period(row[1].replace('M', '-'), 'M').end_time.normalize()] = v
+    out('M21 NipaDataM series with recent data', len(recent))
+    bea_ids = ['A576RC1', 'B202RC1', 'DSPIC96', 'PCEC96', 'PCEDGC96', 'PCENDC96', 'PCESC96', 'W875RX1', 'DAUTOSAAR', 'FAUTOSAAR', 'DLTRUCKSSAAR',
+               'FLTRUCKSSAAR', 'HTRUCKSSAAR', 'LAUTOSA', 'LTRUCKSA']
+    for fid in bea_ids:
+        f = fred_series(fid)
+        best = []
+        for code, s in recent.items():
+            m = ratio_match(f, s, 20)
+            if m:
+                best.append((-m[0], m[1], code, label.get(code, ('', ''))[0][:40], label.get(code, ('', ''))[1], round(m[2], 6), m[3]))
+        best.sort()
+        out('M21 BEA', fid, 'FRED obs', len(f), 'last', max(f) if f else None, 'best (-n_exact, maxdev, code, label, metric, scale, n)', best[:3])
+    # BEA trade workbook: any row or column holding the last 24 months of a FRED series (scale allowed, either order)
+    raw = PD.bea_trade_xlsx()
+    wb = openpyxl.load_workbook(io.BytesIO(raw), data_only=True)
+    out('M21 workbook sheets', [(ws.title, ws.max_row, ws.max_column) for ws in wb.worksheets][:12])
+    seqs = []
+    for ws in wb.worksheets:
+        rows = [list(r) for r in ws.iter_rows(values_only=True)]
+        for i, r in enumerate(rows):
+            nums = [v for v in r if isinstance(v, (int, float))]
+            if len(nums) >= 24:
+                seqs.append((ws.title, 'row', i + 1, ' / '.join(str(x)[:30] for x in r[:3] if isinstance(x, str)), nums))
+        for j in range(ws.max_column):
+            col = [rows[i][j] if j < len(rows[i]) else None for i in range(len(rows))]
+            nums = [v for v in col if isinstance(v, (int, float))]
+            if len(nums) >= 24:
+                seqs.append((ws.title, 'col', j + 1, ' / '.join(str(x)[:30] for x in col[:6] if isinstance(x, str)), nums))
+    out('M21 workbook candidate sequences', len(seqs))
+    for fid in ('BOPGEXP', 'BOPGIMP', 'BOPSEXP', 'BOPSIMP'):
+        f = fred_series(fid, '2022-01-01')
+        fv = np.array([f[d] for d in sorted(f)][-24:])
+        hits = []
+        for title, kind, idx, lab, nums in seqs:
+            x = np.array(nums, dtype=float)
+            for rev in (False, True):
+                xx = x[::-1] if rev else x
+                for k in range(len(xx) - 24 + 1):
+                    w = xx[k:k + 24]
+                    if np.all(w != 0) and np.all(fv != 0):
+                        r = w / fv
+                        med = np.median(r)
+                        dev = float(np.max(np.abs(r / med - 1)))
+                        if dev < 1e-3:
+                            hits.append((round(dev, 8), title, kind, idx, lab, rev, k, round(float(med), 6)))
+        hits.sort()
+        out('M21 BOP', fid, 'FRED last', max(f), f[max(f)], 'hits', hits[:3])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1471,7 +1576,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21)):
         if name in which:
             try:
                 fn()
