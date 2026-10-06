@@ -3,7 +3,8 @@
 It is current to the month after the sales (BEA's monthly NIPA file lags one more month). Sheets Table 1 to 5 (domestic autos, foreign
 autos, domestic light trucks, foreign light trucks, heavy trucks) hold one row per month: month name, year, NSA thousands, seasonal
 factor, SA thousands, SAAR millions. Columns are found by header label ('annual rates'); rows are those with a month name and a year.
-Rows after the last observation carry only factors and no SAAR, so they drop out. Light-vehicle totals are domestic + foreign.
+Rows after the last observation carry only factors and no SAAR, so they drop out. Light-vehicle totals are domestic + foreign, from 1976 like FRED's. Matches FRED's seven series on every month (exploration round 28;
+the largest difference is FRED's 3-decimal rounding).
 """
 import calendar
 from pathlib import Path
@@ -15,6 +16,7 @@ from . import public_data as P
 URL = 'https://apps.bea.gov/national/xls/gap_hist.xlsx'
 SHEET = {'DAUTOSAAR': 'Table 1', 'FAUTOSAAR': 'Table 2', 'DLTRUCKSSAAR': 'Table 3', 'FLTRUCKSSAAR': 'Table 4', 'HTRUCKSSAAR': 'Table 5'}
 SUM = {'LAUTOSA': ('DAUTOSAAR', 'FAUTOSAAR'), 'LTRUCKSA': ('DLTRUCKSSAAR', 'FLTRUCKSSAAR')}     # FRED id -> parts (a missing part is 0)
+TOTALS_FROM = '1976-01-01'      # FRED's light-vehicle totals (and BEA's Table 6) start here; the component sheets reach back to 1967
 _CACHE = {}
 _MONTHS = {m: i for i, m in enumerate(calendar.month_name) if m}
 
@@ -53,7 +55,7 @@ def parse(path):
     out = {fid: _sheet(path, sh) for fid, sh in SHEET.items()}
     for fid, parts in SUM.items():
         a, b = (out[p] for p in parts)
-        out[fid] = a.add(b, fill_value=0.0)
+        out[fid] = a.add(b, fill_value=0.0).loc[TOTALS_FROM:]
     return out
 
 
