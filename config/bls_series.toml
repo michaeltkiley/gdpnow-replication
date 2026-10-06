@@ -1,0 +1,94 @@
+# BLS series read from BLS's flat files (https://download.bls.gov/pub/time.series/) instead of FRED / the BLS API.
+# Each entry: FRED id = [BLS series id, flat file holding the series' FULL history]. Derived and checked in
+# tools/explore_apis.py (rounds 6-8): the values equal FRED's on every shared date (max abs difference 0.0), and the
+# file starts in the same month as FRED's series. The ".Current" files start in the mid-1990s and are not used
+# where older history exists. A series missing here (or any failure to fetch its file) falls back to FRED.
+
+[series]
+# Current Employment Statistics (national)
+PAYEMS = ["CES0000000001", "ce/ce.data.0.AllCESSeries"]
+USPRIV = ["CES0500000001", "ce/ce.data.0.AllCESSeries"]
+AWHNONAG = ["CES0500000007", "ce/ce.data.0.AllCESSeries"]
+USGOOD = ["CES0600000001", "ce/ce.data.0.AllCESSeries"]
+CES0800000001 = ["CES0800000001", "ce/ce.data.0.AllCESSeries"]
+CES1021000001 = ["CES1021000001", "ce/ce.data.0.AllCESSeries"]
+USCONS = ["CES2000000001", "ce/ce.data.0.AllCESSeries"]
+CES2023610001 = ["CES2023610001", "ce/ce.data.0.AllCESSeries"]
+MANEMP = ["CES3000000001", "ce/ce.data.0.AllCESSeries"]
+AWHMAN = ["CES3000000007", "ce/ce.data.0.AllCESSeries"]
+AWOTMAN = ["CES3000000009", "ce/ce.data.0.AllCESSeries"]      # not CES3100000009: that one differs from FRED by up to 0.5
+DMANEMP = ["CES3100000001", "ce/ce.data.0.AllCESSeries"]
+NDMANEMP = ["CES3200000001", "ce/ce.data.0.AllCESSeries"]
+USWTRADE = ["CES4142000001", "ce/ce.data.0.AllCESSeries"]
+USTRADE = ["CES4200000001", "ce/ce.data.0.AllCESSeries"]
+USFIRE = ["CES5500000001", "ce/ce.data.0.AllCESSeries"]
+USPBS = ["CES6000000001", "ce/ce.data.0.AllCESSeries"]
+CES6054000001 = ["CES6054000001", "ce/ce.data.0.AllCESSeries"]
+CES6054150001 = ["CES6054150001", "ce/ce.data.0.AllCESSeries"]
+USEHS = ["CES6500000001", "ce/ce.data.0.AllCESSeries"]
+USLAH = ["CES7000000001", "ce/ce.data.0.AllCESSeries"]
+USSERV = ["CES8000000001", "ce/ce.data.0.AllCESSeries"]
+CES9091000001 = ["CES9091000001", "ce/ce.data.0.AllCESSeries"]
+CES9092000001 = ["CES9092000001", "ce/ce.data.0.AllCESSeries"]
+CES9093000001 = ["CES9093000001", "ce/ce.data.0.AllCESSeries"]
+
+# Current Population Survey (labor force)
+CE16OV = ["LNS12000000", "ln/ln.data.1.AllData"]
+CLF16OV = ["LNS11000000", "ln/ln.data.1.AllData"]
+CNP16OV = ["LNU00000000", "ln/ln.data.1.AllData"]
+LNS12035019 = ["LNS12035019", "ln/ln.data.1.AllData"]
+LNS13023653 = ["LNS13023653", "ln/ln.data.1.AllData"]
+LNS14000061 = ["LNS14000061", "ln/ln.data.1.AllData"]
+UEMPMED = ["LNS13008276", "ln/ln.data.1.AllData"]
+UNEMPLOY = ["LNS13000000", "ln/ln.data.1.AllData"]
+
+# Consumer Price Index
+CPIAUCSL = ["CUSR0000SA0", "cu/cu.data.1.AllItems"]
+CPIHOSSL = ["CUSR0000SAH", "cu/cu.data.12.USHousing"]
+CUSR0000SETA01 = ["CUSR0000SETA01", "cu/cu.data.14.USTransportation"]
+CPILFESL = ["CUSR0000SA0L1E", "cu/cu.data.20.USCommoditiesServicesSpecial"]
+CUSR0000SAD = ["CUSR0000SAD", "cu/cu.data.20.USCommoditiesServicesSpecial"]
+CUSR0000SAN = ["CUSR0000SAN", "cu/cu.data.20.USCommoditiesServicesSpecial"]
+CUSR0000SASLE = ["CUSR0000SASLE", "cu/cu.data.20.USCommoditiesServicesSpecial"]
+
+# Import / export price indexes
+IQ = ["EIUIQ", "ei/ei.data.02.BEAExport"]
+IR = ["EIUIR", "ei/ei.data.01.BEAImport"]
+IR0 = ["EIUIR0", "ei/ei.data.01.BEAImport"]
+IR10 = ["EIUIR10", "ei/ei.data.01.BEAImport"]
+IR1DUR = ["EIUIR1DUR", "ei/ei.data.01.BEAImport"]
+IR1NONDUR = ["EIUIR1NONDUR", "ei/ei.data.01.BEAImport"]
+IR213COM = ["EIUIR213COM", "ei/ei.data.01.BEAImport"]
+IR2EXCOM = ["EIUIR2EXCOM", "ei/ei.data.01.BEAImport"]
+IR3 = ["EIUIR3", "ei/ei.data.01.BEAImport"]
+IR4 = ["EIUIR4", "ei/ei.data.01.BEAImport"]
+IREXPET = ["EIUIREXPET", "ei/ei.data.01.BEAImport"]
+
+# Employment Cost Index
+ECICONCOM = ["CIS2012300000000I", "ci/ci.data.1.AllData"]
+
+# Producer Price Index, industry
+PCU236211236211 = ["PCU236211236211", "pc/pc.data.75.Construction"]
+PCU236221236221 = ["PCU236221236221", "pc/pc.data.75.Construction"]
+PCU236223236223 = ["PCU236223236223", "pc/pc.data.75.Construction"]
+PCU336411336411 = ["PCU336411336411", "pc/pc.data.22.TransportationEquipment"]
+PCU5312105312101 = ["PCU5312105312101", "pc/pc.data.59.RealEstate"]
+PCUOMFGOMFG = ["PCUOMFG--OMFG--", "pc/pc.data.01.aggregates"]
+
+# Producer Price Index, commodity
+PPIIDC = ["WPU03THRU15", "wp/wp.data.21.Aggregates"]
+WPSFD41312 = ["WPSFD41312", "wp/wp.data.22.FD-ID"]
+WPSFD49207 = ["WPSFD49207", "wp/wp.data.22.FD-ID"]
+WPSID61 = ["WPSID61", "wp/wp.data.22.FD-ID"]
+WPSID61112 = ["WPSID61112", "wp/wp.data.22.FD-ID"]
+WPSID61113 = ["WPSID61113", "wp/wp.data.22.FD-ID"]
+WPSID6152 = ["WPSID6152", "wp/wp.data.22.FD-ID"]
+WPSID69115 = ["WPSID69115", "wp/wp.data.22.FD-ID"]
+WPU101706 = ["WPU101706", "wp/wp.data.11a.Metals10-103"]
+WPUIP2321001 = ["WPUIP2321001", "wp/wp.data.80i.ConstructnInputs"]
+
+# Series we use that FRED does not carry: BLS id = [flat file, first year kept]
+[direct]
+CUSR0000SEHK01 = ["cu/cu.data.12.USHousing", 1967]      # CPI major appliances (the series itself starts in 2006)
+CES9091911001 = ["ce/ce.data.0.AllCESSeries", 1985]
+CES2023611806 = ["ce/ce.data.0.AllCESSeries", 1985]
