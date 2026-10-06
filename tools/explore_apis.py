@@ -816,6 +816,105 @@ def bea10():
             out('BEA HEAD', fn, 'ERR', str(e)[:60])
 
 
+# ---------------------------------------------------------------- round 11: do the bulk NIPA files cover and match our 33 BEA tables?
+def bea11():
+    import csv
+    import io
+    ua = {'User-Agent': 'Mozilla/5.0'}
+    base = 'https://apps.bea.gov/national/Release/TXT/'
+    # (a) the open-data catalog
+    st, n, t, hdr, s = call('https://apps.bea.gov/Data.json', headers=ua, maxb=5000000)
+    try:
+        d = json.loads(t)
+        ds = d.get('dataset', d if isinstance(d, list) else [])
+        out('Data.json top keys', list(d)[:10] if isinstance(d, dict) else 'list', 'datasets', len(ds))
+        for x in ds[:60]:
+            ttl = x.get('title', '')
+            dist = [(y.get('title') or y.get('format') or '', y.get('downloadURL') or y.get('accessURL') or '') for y in x.get('distribution', [])]
+            if re.search(r'NIPA|national income|underlying|GDP|personal income', ttl, re.I):
+                out('Data.json', ttl[:80], dist[:4])
+        out('Data.json titles (first 40):', [x.get('title', '')[:50] for x in ds[:40]])
+    except Exception as e:
+        out('Data.json parse error', repr(e)[:100], short(t, 200))
+    # (b) register: (table, line) -> series code
+    st, n, t, hdr, s = call(base + 'SeriesRegister.txt', headers=ua, timeout=300)
+    reg = {}
+    for row in csv.reader(io.StringIO(t)):
+        if not row or row[0].startswith('%') or len(row) < 6:
+            continue
+        for tl in row[5].split('|'):
+            if ':' in tl:
+                tb, ln = tl.split(':', 1)
+                reg.setdefault(tb, {})[ln] = row[0]
+    out('register tables', len(reg))
+    tables = [('NIPA', 'T10103', 'Q'), ('NIPA', 'T10105', 'Q'), ('NIPA', 'T10106', 'Q'), ('NIPA', 'T20804', 'M'), ('NIPA', 'T20805', 'M'),
+              ('NIPA', 'T30903', 'Q'), ('NIPA', 'T30905', 'Q'), ('NIPA', 'T31003', 'Q'), ('NIPA', 'T31005', 'Q'), ('NIPA', 'T31006', 'Q'),
+              ('NIPA', 'T31103', 'Q'), ('NIPA', 'T31105', 'Q'), ('NIPA', 'T40205B', 'Q'), ('NIPA', 'T50303', 'Q'), ('NIPA', 'T50305', 'Q'),
+              ('NIPA', 'T50805B', 'Q'), ('NIPA', 'T50806B', 'Q'), ('NIPA', 'T50809A', 'Q'), ('NIPA', 'T50809B', 'Q'), ('NIPA', 'T70203B', 'Q'),
+              ('NIPA', 'T70205B', 'Q'), ('NIUnderlyingDetail', 'U001B', 'M'), ('NIUnderlyingDetail', 'U001BC', 'M'), ('NIUnderlyingDetail', 'U002BUI', 'M'),
+              ('NIUnderlyingDetail', 'U20404', 'M'), ('NIUnderlyingDetail', 'U20405', 'M'), ('NIUnderlyingDetail', 'U50404', 'Q'),
+              ('NIUnderlyingDetail', 'U50405', 'Q'), ('NIUnderlyingDetail', 'U50504', 'Q'), ('NIUnderlyingDetail', 'U50505', 'Q'),
+              ('NIUnderlyingDetail', 'U50705BM3', 'M'), ('NIUnderlyingDetail', 'U50706BM', 'M'), ('NIUnderlyingDetail', 'U70205S', 'M')]
+    need = {fr: set() for fr in 'QMA'}
+    for ds_, tb, fr in tables:
+        need[fr] |= set(reg.get(tb, {}).values())
+    # (c) bulk files: keep only the series codes we need
+    bulk = {}
+    for fr, fn in (('Q', 'NipaDataQ.txt'), ('M', 'NipaDataM.txt')):
+        t0 = time.time()
+        st, n, t, hdr, s = call(base + fn, headers=ua, timeout=600)
+        got = {}
+        for row in csv.reader(io.StringIO(t)):
+            if len(row) == 3 and row[0] in need[fr]:
+                try:
+                    got.setdefault(row[0], {})[row[1]] = float(row[2].replace(',', ''))
+                except ValueError:
+                    pass
+        bulk[fr] = got
+        out('bulk', fn, 'MB', round(n / 1e6, 1), 'secs', round(time.time() - t0, 1), 'needed codes', len(need[fr]), 'found', len(got), 'last-modified', hdr.get('Last-Modified'))
+    # (d) coverage per table
+    for ds_, tb, fr in tables:
+        codes = set(reg.get(tb, {}).values())
+        have = sum(1 for c in codes if c in bulk[fr])
+        out('COVER', tb, fr, 'register lines', len(reg.get(tb, {})), 'codes', len(codes), 'in bulk file', have)
+    # (e) value equality with the API for a few tables (API rows carry SeriesCode?)
+    apibase = 'https://apps.bea.gov/api/data?UserID=' + BEA_KEY + '&method=GetData&ResultFormat=JSON'
+    for ds_, tb, fr in (('NIPA', 'T10105', 'Q'), ('NIPA', 'T31003', 'Q'), ('NIUnderlyingDetail', 'U50505', 'Q'), ('NIUnderlyingDetail', 'U001B', 'M'), ('NIUnderlyingDetail', 'U50706BM', 'M')):
+        st, n, t, _, s = call(apibase + f'&DataSetName={ds_}&TableName={tb}&Frequency={fr}&Year=ALL', timeout=300)
+        try:
+            rows = json.loads(t)['BEAAPI']['Results']['Data']
+        except Exception:
+            out('EQUAL', tb, 'API error', short(t, 120))
+            continue
+        out('API row keys', tb, sorted(rows[0].keys()))
+        n_cmp = n_diff = n_api_only = n_bulk_only = 0
+        maxd = 0.0
+        api_codes = set()
+        seen = set()
+        for r in rows:
+            code = r.get('SeriesCode') or reg.get(tb, {}).get(r['LineNumber'])
+            api_codes.add(code)
+            try:
+                v = float(r['DataValue'].replace(',', ''))
+            except ValueError:
+                continue
+            seen.add((code, r['TimePeriod']))
+            b = bulk[fr].get(code, {}).get(r['TimePeriod'])
+            if b is None:
+                n_api_only += 1
+            else:
+                n_cmp += 1
+                d_ = abs(b - v)
+                if d_ > 1e-6 * max(1.0, abs(v)):
+                    n_diff += 1
+                maxd = max(maxd, d_)
+        for c in api_codes:
+            n_bulk_only += sum(1 for p_ in bulk[fr].get(c, {}) if (c, p_) not in seen)
+        out('EQUAL', tb, fr, 'API rows', len(rows), 'compared', n_cmp, 'differ', n_diff, 'max abs diff', maxd, 'only API', n_api_only, 'only bulk', n_bulk_only,
+            'API SeriesCode == register code:', sum(1 for r in rows if r.get('SeriesCode') and r['SeriesCode'] == reg.get(tb, {}).get(r['LineNumber'])), 'of', sum(1 for r in rows if r.get('SeriesCode')))
+        time.sleep(2)
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -823,7 +922,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11)):
         if name in which:
             try:
                 fn()
