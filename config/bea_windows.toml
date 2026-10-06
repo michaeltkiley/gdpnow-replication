@@ -1,0 +1,29 @@
+# The date window the BEA API served for tables whose bulk-file series carry more history. A bulk series is one series for all the
+# tables it appears on, so a table shows its series' whole history there, while the API (and GDPNow's workbook mechanism built on it: the
+# GDPNow-derived history prefix, docs/IMPLEMENTATION.md DD4) gives each table its own window. Restricting the bulk tables to the API windows
+# reproduces the configuration validated against GDPNow. Boundaries measured in exploration round 19 (API vs bulk, all 33 tables; every
+# value inside the window is identical). Periods: 'YYYYQn' for quarterly tables, 'YYYY-MM' for monthly ones.
+[T31006]
+first = "2007Q1"
+[T31103]
+first = "1972Q1"
+[T31105]
+first = "1972Q1"
+[T40205B]
+first = "1999Q1"
+[T50805B]
+first = "1996Q4"
+[T50806B]
+first = "1996Q4"
+[T50809A]
+last = "1997Q4"
+[T50809B]
+first = "1996Q4"
+[T70203B]
+first = "1967Q1"
+[T70205B]
+first = "1967Q1"
+[U50705BM3]
+first = "1997-01"
+[U50706BM]
+first = "1997-01"

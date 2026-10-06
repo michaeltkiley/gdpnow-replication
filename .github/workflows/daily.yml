@@ -37,7 +37,7 @@ jobs:
         with:
           path: data/gdpnow.duckdb
           key: state-${{ github.run_id }}
-          restore-keys: state-
+          restore-keys: state-37513307473      # TEMPORARY: state saved by the last good run (before the BEA bulk run wrote early history)
       - name: Daily run
         id: run
         continue-on-error: true

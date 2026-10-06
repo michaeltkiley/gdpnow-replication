@@ -6,7 +6,8 @@ https://apps.bea.gov/national/Release/TXT/ holds three files this module reads:
                          line description the API returns);
   * NipaDataQ.txt, NipaDataM.txt   `SeriesCode,Period,"Value"` for every series (quarterly: 1947Q1; monthly: 1967M01).
 All 33 tables the model uses are in them (values equal the API's; exploration round 11). A table is assembled from the register
-(its lines) and the bulk file of its frequency, returned as the API path did: columns 'line|description'. The three files are
+(its lines) and the bulk file of its frequency, returned as the API path did: columns 'line|description', within the date window the
+API served for the table (config/bea_windows.toml: a bulk series carries its whole history on every table it appears on). The three files are
 downloaded once per run. No fallback: a failed download fails the run.
 
 Change signal: a header-only request per file (Last-Modified, ETag, length; BEA sets them at release time), logged for the daily
@@ -14,17 +15,20 @@ probe. BEA answers any made-up file name with HTTP 200 and an HTML page (no Last
 """
 import csv
 import io
+import tomllib
 import urllib.request
 
 import pandas as pd
 
 from . import public_data as P
+from .config import CONFIG
 
 BASE = 'https://apps.bea.gov/national/Release/TXT/'
 FILES = {'Q': 'NipaDataQ.txt', 'M': 'NipaDataM.txt'}
 REGISTER = 'SeriesRegister.txt'
 _TEXT = {}
 _REG = {}
+WINDOWS = tomllib.load(open(CONFIG / 'bea_windows.toml', 'rb'))     # table -> {first, last}: the API's date window (see the file)
 _PRIORITY = {'Current Dollars': 0, 'Chained Dollars': 1}      # which metric's label names a concept
 
 
@@ -109,4 +113,10 @@ def table(table_id, frequency):
             recs.append((f'{ln}|{label}', date, v))
     if not recs:
         raise RuntimeError(f'BEA table {table_id} ({frequency}): no data in {FILES[frequency]}')
-    return pd.DataFrame(recs, columns=['series', 'date', 'value'])
+    df = pd.DataFrame(recs, columns=['series', 'date', 'value'])
+    w = WINDOWS.get(table_id, {})
+    if 'first' in w:
+        df = df[df.date >= pd.Period(w['first'], frequency).end_time.normalize()]
+    if 'last' in w:
+        df = df[df.date <= pd.Period(w['last'], frequency).end_time.normalize()]
+    return df
