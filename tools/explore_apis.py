@@ -2124,6 +2124,40 @@ def groupA_35():
                 out('GA35', bid, 'in', fn, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], '| file', len(b), str(b.index.min())[:7], str(b.index.max())[:7], '| common', len(both), 'max abs', float((f[both] - b[both]).abs().max()), 'onlyFRED', int(f.index.difference(b.index).size), 'onlyFile', int(b.index.difference(f.index).size))
 
 
+def groupA_36():
+    """TCU and RSFSDP through the pipeline's own readers vs FRED (full history); MRTSIM4400AUSS: the months where Census MRTS (4400A, IM, adjusted)
+    and FRED differ, with both values."""
+    import tempfile
+    import duckdb
+    import pandas as pd
+    from gdpnow import census_bulk as CB, fed_g17 as G
+    con = duckdb.connect(tempfile.mkdtemp() + '/a.duckdb')
+
+    def fred_series(fid):
+        st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+        return pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(t)['observations'] if o['value'] != '.'}).sort_index()
+    for fid, rd in (('TCU', G.series), ('RSFSDP', CB.series)):
+        f = fred_series(fid)
+        b = rd(con, fid, '2026-10-06')
+        idx = f.index.union(b.index)
+        fa, ba = f.reindex(idx), b.reindex(idx)
+        both = fa.notna() & ba.notna()
+        out('GA36', fid, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], '| reader', len(b), str(b.index.min())[:7], str(b.index.max())[:7],
+            '| common', int(both.sum()), 'max abs', float((fa[both] - ba[both]).abs().max()), '| only FRED', int((fa.notna() & ba.isna()).sum()), 'only reader', int((fa.isna() & ba.notna()).sum()))
+    f = fred_series('MRTSIM4400AUSS')
+    fr = CB._frame('MRTS')
+    g = fr[(fr.geo_code == 'US') & (fr.cat_code == '4400A') & (fr.dt_code == 'IM') & (fr.is_adj == 1)]
+    b = pd.Series(g.val.to_numpy(), index=g.date.dt.to_period('M').dt.to_timestamp().to_numpy()).sort_index()
+    b = b[~b.index.duplicated()]
+    both = f.index.intersection(b.index)
+    dif = (f[both] - b[both])
+    bad = dif[dif.abs() > 0.5]
+    out('GA36', 'MRTSIM4400AUSS', 'common', len(both), 'differing months', len(bad), 'first', str(bad.index.min())[:7] if len(bad) else None, 'last', str(bad.index.max())[:7] if len(bad) else None)
+    for d_ in list(bad.index[:6]) + list(bad.index[-6:]):
+        out('GA36', 'MRTSIM', str(d_)[:7], 'FRED', f[d_], 'Census', b[d_], 'diff', float(dif[d_]))
+    out('GA36', 'MRTSIM last 4', [(str(i)[:7], f[i], b.get(i)) for i in f.index[-4:]])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -2131,7 +2165,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36)):
         if name in which:
             try:
                 fn()
