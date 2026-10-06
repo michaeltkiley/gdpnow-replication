@@ -1366,6 +1366,87 @@ def nipa18():
             out('N18 pair', nom_t, q_t, 'ERR', repr(e)[:150])
 
 
+def bea19():
+    """Every BEA table the model uses: the API (the previous path) against the bulk files (the new path). Per table: lines and dates
+    only in one source, values that differ, descriptions that differ. Plus FRED's last_updated stamps for some series."""
+    import datetime as dt
+    import pandas as pd
+    from gdpnow import bea_bulk
+    tables = [('NIPA', 'T10103', 'Q'), ('NIPA', 'T10105', 'Q'), ('NIPA', 'T10106', 'Q'), ('NIPA', 'T20804', 'M'), ('NIPA', 'T20805', 'M'),
+              ('NIPA', 'T30903', 'Q'), ('NIPA', 'T30905', 'Q'), ('NIPA', 'T31003', 'Q'), ('NIPA', 'T31005', 'Q'), ('NIPA', 'T31006', 'Q'),
+              ('NIPA', 'T31103', 'Q'), ('NIPA', 'T31105', 'Q'), ('NIPA', 'T40205B', 'Q'), ('NIPA', 'T50303', 'Q'), ('NIPA', 'T50305', 'Q'),
+              ('NIPA', 'T50805B', 'Q'), ('NIPA', 'T50806B', 'Q'), ('NIPA', 'T50809A', 'Q'), ('NIPA', 'T50809B', 'Q'), ('NIPA', 'T70203B', 'Q'),
+              ('NIPA', 'T70205B', 'Q'), ('NIUnderlyingDetail', 'U001B', 'M'), ('NIUnderlyingDetail', 'U001BC', 'M'), ('NIUnderlyingDetail', 'U002BUI', 'M'),
+              ('NIUnderlyingDetail', 'U20404', 'M'), ('NIUnderlyingDetail', 'U20405', 'M'), ('NIUnderlyingDetail', 'U50404', 'Q'),
+              ('NIUnderlyingDetail', 'U50405', 'Q'), ('NIUnderlyingDetail', 'U50504', 'Q'), ('NIUnderlyingDetail', 'U50505', 'Q'),
+              ('NIUnderlyingDetail', 'U50705BM3', 'M'), ('NIUnderlyingDetail', 'U50706BM', 'M'), ('NIUnderlyingDetail', 'U70205S', 'M')]
+    base = 'https://apps.bea.gov/api/data'
+
+    def api_table(ds, tb, fr):
+        if ds == 'NIPA':
+            chunks = ['ALL']
+        else:
+            ys = list(range(1959, dt.date.today().year + 1))
+            chunks = [','.join(str(y) for y in ys[i:i + 4]) for i in range(0, len(ys), 4)]
+        recs = []
+        for years in chunks:
+            q = dict(UserID=BEA_KEY, method='GetData', DataSetName=ds, TableName=tb, Frequency=fr, Year=years, ResultFormat='JSON')
+            for attempt in range(4):
+                st, n, t, _, _ = call(base + '?' + urllib.parse.urlencode(q), timeout=300)
+                if st == 200:
+                    break
+                time.sleep(20 * (attempt + 1))
+            time.sleep(0.8)
+            try:
+                res = json.loads(t)['BEAAPI'].get('Results')
+            except Exception:
+                continue
+            if not res or 'Data' not in res:
+                continue
+            for r in res['Data']:
+                tp = r['TimePeriod']
+                d = (pd.Period(tp.replace('M', '-'), 'M') if 'M' in tp else pd.Period(tp, 'Q')).end_time.normalize()
+                try:
+                    v = float(r['DataValue'].replace(',', ''))
+                except ValueError:
+                    continue
+                recs.append((r['LineNumber'], r['LineDescription'], d, v))
+        return pd.DataFrame(recs, columns=['line', 'desc', 'date', 'value']).drop_duplicates(['line', 'date'])
+    for ds, tb, fr in tables:
+        try:
+            a = api_table(ds, tb, fr)
+            b = bea_bulk.table(tb, fr)
+            b[['line', 'desc']] = b.series.str.split('|', n=1, expand=True)
+            if ds != 'NIPA':
+                b = b[b.date >= '1959-01-01']
+            b = b.drop_duplicates(['line', 'date'])
+            m = a.merge(b, on=['line', 'date'], how='outer', suffixes=('_a', '_b'), indicator=True)
+            both = m[m._merge == 'both']
+            diff = both[(both.value_a - both.value_b).abs() > 1e-9 * both.value_a.abs().clip(lower=1)]
+            only_a, only_b = m[m._merge == 'left_only'], m[m._merge == 'right_only']
+            dd = both.drop_duplicates('line')
+            descdiff = dd[dd.desc_a != dd.desc_b]
+            out('B19', tb, fr, 'API rows', len(a), 'bulk rows', len(b), 'both', len(both), 'value differs', len(diff), 'only API', len(only_a), 'only bulk', len(only_b),
+                'desc differs', len(descdiff))
+            if len(diff):
+                out('B19 diff sample', tb, [(r.line, str(r.date)[:10], r.value_a, r.value_b) for r in diff.head(4).itertuples()])
+            if len(only_a):
+                out('B19 onlyAPI sample', tb, sorted({(r.line, str(r.date)[:7]) for r in only_a.itertuples()})[:6], 'lines', sorted(only_a.line.unique())[:8])
+            if len(only_b):
+                out('B19 onlyBulk sample', tb, 'lines', sorted(only_b.line.unique())[:8], 'dates', str(only_b.date.min())[:10], str(only_b.date.max())[:10])
+            if len(descdiff):
+                out('B19 desc sample', tb, [(r.line, r.desc_a, r.desc_b) for r in descdiff.head(3).itertuples()])
+        except Exception as e:
+            out('B19', tb, fr, 'ERR', repr(e)[:160])
+    for sid in ('BOPGEXP', 'BOPGIMP', 'BOPSEXP', 'BOPSIMP', 'HOUST', 'RSAFS', 'DGORDER', 'B202RC1', 'DAUTOSAAR', 'CPIAUCSL', 'PAYEMS'):
+        st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series?series_id={sid}&api_key={FRED_KEY}&file_type=json')
+        try:
+            s = json.loads(t)['seriess'][0]
+            out('B19 FRED', sid, 'last_updated', s['last_updated'], 'obs_end', s['observation_end'])
+        except Exception:
+            out('B19 FRED', sid, 'ERR', st)
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1373,7 +1454,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19)):
         if name in which:
             try:
                 fn()
