@@ -311,13 +311,80 @@ def heads(inv):
                 out('BEA conditional HEAD', hdrs, e.code)
 
 
+# ---------------------------------------------------------------- round 3
+def bls3():
+    base = 'https://download.bls.gov/pub/time.series/'
+    st, n, t, hdr, s = call(base, maxb=200000)
+    out('BLS flat-file root listing:', st, n, short(t, 300) if st != 200 else 'ok; surveys mentioned:', sorted(set(__import__('re').findall(r'time\.series/([a-z]{2})/', t)))[:60])
+    import re
+    for sv in ('ce', 'cu', 'ln', 'wp', 'pc', 'ei', 'ci', 'jt'):
+        st, n, t, hdr, s = call(base + sv + '/', maxb=400000)
+        rows = re.findall(r'(\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}\s+[AP]M)\s+(\d+|&lt;dir&gt;)\s*<A HREF="([^"]+)">([^<]+)</A>', t)
+        keep = [(d, sz, name) for d, sz, _, name in rows if '.data.' in name or name.endswith('.series') or 'AllData' in name]
+        out('BLS', sv, '| http', st, 'files', len(rows), [(d, round(int(sz) / 1e6, 1) if sz.isdigit() else sz, nm) for d, sz, nm in keep][:14] if rows else short(t, 200))
+    for u, hd in ((base + 'ce/ce.data.0.AllCESSeries', {'User-Agent': 'Mozilla/5.0'}),):
+        try:
+            req = urllib.request.Request(u, method='HEAD', headers=hd)
+            with urllib.request.urlopen(req, timeout=60) as r:
+                out('BLS HEAD', u[-60:], r.status, {k: v for k, v in dict(r.headers).items() if k.lower() in ('last-modified', 'etag', 'content-length')})
+        except Exception as e:
+            out('BLS HEAD', u[-60:], 'ERR', str(e)[:100])
+    # why did the v1 API stop answering? (run D failed with a response lacking 'series')
+    st, n, t, _, s = call('https://api.bls.gov/publicAPI/v1/timeseries/data/', data=json.dumps({'seriesid': ['CES9091911001'], 'startyear': '2017', 'endyear': '2026'}).encode(), headers={'Content-Type': 'application/json'})
+    out('BLS v1 single series now:', st, short(t, 400))
+
+
+def bea3():
+    base = 'https://apps.bea.gov/api/data?UserID=' + BEA_KEY + '&method=GetData&ResultFormat=JSON'
+    import hashlib
+    url = base + '&DataSetName=NIUnderlyingDetail&TableName=U50505&Frequency=Q&Year=1983,1984,1985,1986'
+    res = []
+    for i in range(3):
+        st, n, t, hdr, s = call(url)
+        d = json.loads(t)['BEAAPI']
+        rows = d['Results']['Data']
+        res.append((hashlib.sha256(t.encode()).hexdigest()[:10], rows, d))
+        time.sleep(1)
+    out('BEA same request x3, raw sha', [r[0] for r in res], 'rows', [len(r[1]) for r in res])
+    keys = [[(x['LineNumber'], x['TimePeriod']) for x in r[1]] for r in res]
+    vals = [{(x['LineNumber'], x['TimePeriod']): x['DataValue'] for x in r[1]} for r in res]
+    out('BEA row ORDER identical:', keys[0] == keys[1] == keys[2], '| same key set:', set(keys[0]) == set(keys[1]) == set(keys[2]), '| same values:', vals[0] == vals[1] == vals[2])
+    top = [{k: v for k, v in r[2].items() if k != 'Results'} for r in res]
+    out('BEA non-data parts differ:', json.dumps(top[0], sort_keys=True)[:200] != json.dumps(top[1], sort_keys=True)[:200], 'notes', short(json.dumps(res[0][2]['Results'].get('Notes', ''))[:300], 300))
+    # does the bulk NIPA file contain the underlying-detail (U) tables?
+    st, n, t, hdr, s = call('https://apps.bea.gov/national/Release/TXT/NipaDataQ.txt', timeout=300)
+    lines = t.splitlines()
+    codes = {}
+    for ln in lines[1:]:
+        c = ln.split(',')[0].strip('"')
+        codes[c[:1]] = codes.get(c[:1], 0) + 1
+    out('BEA NipaDataQ.txt bytes', n, 'lines', len(lines), 'header', lines[0][:100], 'first row', lines[1][:100], 'first-letter counts', dict(sorted(codes.items())[:12]))
+    # FRED-style change signal for BEA UD: does U20405 Year=latest carry the same history digest?
+    st, n, t, hdr, s = call(base + '&DataSetName=NIUnderlyingDetail&TableName=U20405&Frequency=M&Year=2026')
+    out('BEA UD monthly one year', 'MB', round(n / 1e6, 2), 'secs', s)
+
+
+def fred3():
+    k = f'&api_key={FRED_KEY}&file_type=json'
+    base = 'https://api.stlouisfed.org/fred/series/updates?filter_value=all&limit=1'
+    for label, extra in (('start_time only', '&start_time=202610061200'), ('start_time+end_time', '&start_time=202610061200&end_time=202610061800'),
+                         ('start_time with colon', '&start_time=2026-10-06 12:00'), ('no time', '')):
+        st, n, t, _, s = call(base + extra.replace(' ', '%20') + k)
+        try:
+            d = json.loads(t)
+            out('FRED series/updates', label, st, 'count', d.get('count'), 'first updated', d['seriess'][0].get('last_updated') if d.get('seriess') else None)
+        except Exception:
+            out('FRED series/updates', label, st, short(t, 160))
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w == 'heads' for w in which):
         which = ['inventory'] + which
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
-                     ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv))):
+                     ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3)):
         if name in which:
             try:
                 fn()
