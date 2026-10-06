@@ -29,7 +29,7 @@ BEA = 'https://apps.bea.gov/api/data'
 # without running the build.
 UA = {'User-Agent': 'Mozilla/5.0'}
 SECRETS = ('FRED_API_KEY', 'BEA_API_KEY', 'CENSUS_API_KEY')
-VOLATILE = {'realtime_start', 'realtime_end', 'responseTime', 'Request'}      # echoes of the request, not data
+VOLATILE = {'realtime_start', 'realtime_end', 'responseTime', 'Request', 'UTCProductionTime'}   # request echoes and response timestamps, not data
 _REC = {'asof': None, 'items': {}}
 
 
