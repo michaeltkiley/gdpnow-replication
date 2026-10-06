@@ -724,6 +724,49 @@ def bls8():
                 out('direct series in ce file', sid, 'n', len(b), '%04d-%02d' % ym[0], '%04d-%02d' % ym[-1])
 
 
+# ---------------------------------------------------------------- round 9: BEA bulk download paths
+def bea9():
+    import re
+    ua = {'User-Agent': 'Mozilla/5.0'}
+    # (a) discover download links on BEA's own pages
+    pages = ['https://www.bea.gov/data/gdp/gross-domestic-product', 'https://www.bea.gov/itable/national-gdp-and-personal-income',
+             'https://www.bea.gov/data/personal-consumption-expenditures-price-index', 'https://www.bea.gov/data/income-saving/personal-income',
+             'https://www.bea.gov/data/gdp/gdp-industry', 'https://www.bea.gov/resources/learning-center/what-to-know-nipas',
+             'https://apps.bea.gov/national/', 'https://apps.bea.gov/iTable/?reqid=19&step=2', 'https://www.bea.gov/data/special-topics/national-income-and-product-accounts-underlying-detail-tables']
+    links = {}
+    for u in pages:
+        st, n, t, hdr, s = call(u, headers=ua, maxb=2000000)
+        found = set(re.findall(r'href="([^"]+\.(?:txt|zip|xlsx?|csv)[^"]*)"', t, flags=re.I)) | set(re.findall(r'href="([^"]*(?:Release|national/)[^"]*)"', t))
+        out('BEA page', u, st, 'bytes', n, 'candidate links', len(found))
+        for l in found:
+            links[l] = u
+    interesting = sorted(l for l in links if re.search(r'nipa|underlying|Release|TXT|ZIP|Section|register|all_?xls', l, flags=re.I))
+    out('BEA download-like links:', interesting[:80])
+    # (b) registers next to the bulk NIPA files
+    base = 'https://apps.bea.gov/national/Release/TXT/'
+    for fn in ('SeriesRegister.txt', 'TablesRegister.txt', 'NipaDataA.txt', 'NipaDataQ.txt', 'NipaDataM.txt', 'NIPAFiles.zip', 'UnderlyingDetail.zip',
+               'NipaUnderlyingDetail.txt', 'DataFilesDescription.txt', 'readme.txt'):
+        try:
+            req = urllib.request.Request(base + fn, method='HEAD', headers=ua)
+            with urllib.request.urlopen(req, timeout=60) as r:
+                out('BEA HEAD', fn, r.status, {k: v for k, v in dict(r.headers).items() if k.lower() in ('last-modified', 'content-length')})
+        except urllib.error.HTTPError as e:
+            out('BEA HEAD', fn, e.code)
+        except Exception as e:
+            out('BEA HEAD', fn, 'ERR', str(e)[:60])
+    for fn in ('SeriesRegister.txt', 'TablesRegister.txt'):
+        st, n, t, hdr, s = call(base + fn, headers=ua, timeout=300)
+        if st != 200:
+            continue
+        lines = t.splitlines()
+        out('BEA', fn, 'bytes', n, 'lines', len(lines), 'header', lines[0][:160], 'first rows', [l[:140] for l in lines[1:4]])
+        ours = ['T10105', 'T20804', 'T31003', 'T40205B', 'T50305', 'T70203B', 'U001B', 'U001BC', 'U002BUI', 'U20404', 'U20405', 'U50404', 'U50405', 'U50504', 'U50505', 'U50705BM3', 'U50706BM', 'U70205S']
+        hit = {o: sum(1 for l in lines if o in l) for o in ours}
+        out('BEA', fn, 'rows mentioning our tables:', hit)
+        ut = sorted({m for l in lines for m in re.findall(r'\bU\d[0-9A-Z]{3,9}\b', l)})[:40]
+        out('BEA', fn, 'U-style table ids present:', ut)
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -731,7 +774,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9)):
         if name in which:
             try:
                 fn()
