@@ -263,11 +263,15 @@ def _archive(con, source, series, asof, s):
 def fred(con, series_id, asof, refresh=False):
     """Observations of a FRED series as known on `asof` (ALFRED real-time period). Series listed in
     config/bls_series.toml come from BLS's flat files (gdpnow/bls_flat.py), those in config/census_series.toml from Census's bulk files (gdpnow/census_bulk.py); BEA tables come from BEA's bulk files (gdpnow/bea_bulk.py)."""
-    from . import bls_flat, census_bulk
+    from . import bea_bulk, bea_trade, bls_flat, census_bulk
     if bls_flat.covers(series_id):
         return bls_flat.series(con, series_id, asof)
     if census_bulk.covers(series_id):
         return census_bulk.series(con, series_id, asof)
+    if bea_bulk.covers(series_id):
+        return bea_bulk.series(con, series_id, asof)
+    if bea_trade.covers(series_id):
+        return bea_trade.series(con, series_id, asof)
     if not refresh:
         s = _archived(con, 'fred', series_id, asof)
         if s is not None:

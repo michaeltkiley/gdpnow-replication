@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.x13 import x13_arima_analysis
 
-from . import bls_flat as BF, census_bulk as CB, history as H, ids0182 as IDS, trade_bvar as TB, public_data as P
+from . import bea_trade as BT, bls_flat as BF, census_bulk as CB, history as H, ids0182 as IDS, trade_bvar as TB, public_data as P
 from .config import ROOT, load_toml
 
 X13 = str(ROOT / 'tools' / 'x13' / 'x13as' / 'x13as_ascii')
@@ -458,10 +458,7 @@ def bea_travel_monthly(cx):
     time-series file, Tables 2 and 3; the ITA API serves only quarterly data). Current vintage, cached in data/."""
     if 'travel' in cx.cache:
         return cx.cache['travel']
-    from pathlib import Path
-    path = Path('data') / f'{cx.asof.replace("-", "")}_bea_trade_time_series.xlsx'
-    if not path.exists() or P.REFRESH:
-        path.write_bytes(P.bea_trade_xlsx())
+    path = BT.xlsx(cx.asof)
     out = []
     for sheet in ('Table 2', 'Table 3'):                       # exports, imports of services by category
         d = pd.read_excel(path, sheet_name=sheet, header=None)
