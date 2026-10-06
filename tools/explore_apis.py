@@ -1763,6 +1763,99 @@ def hist25():
             out('H25', fid, kind, 'ERR', repr(e)[:150])
 
 
+def veh26():
+    """Where does BEA publish light-vehicle sales (FRED's DAUTOSAAR etc.)? FRED's own source links and notes, candidate BEA pages and the
+    file/links they carry, and how far NipaDataM's 7.2.5S series reach compared with FRED."""
+    import re
+    ids = ['DAUTOSAAR', 'FAUTOSAAR', 'DLTRUCKSSAAR', 'FLTRUCKSSAAR', 'HTRUCKSSAAR', 'LAUTOSA', 'LTRUCKSA']
+    for fid in ids:
+        try:
+            st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series?series_id={fid}&api_key={FRED_KEY}&file_type=json', timeout=60)
+            sr = json.loads(t)['seriess'][0]
+            out('V26', fid, sr['title'], '| last obs', sr['observation_end'], '| updated', sr['last_updated'], '| notes', (sr.get('notes') or '')[:400].replace('\n', ' '))
+            st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/release?series_id={fid}&api_key={FRED_KEY}&file_type=json', timeout=60)
+            r = json.loads(t)['releases'][0]
+            out('V26', fid, 'release', r['name'], r.get('link'))
+            st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&sort_order=desc&limit=3', timeout=60)
+            out('V26', fid, 'latest', [(o['date'], o['value']) for o in json.loads(t)['observations']])
+        except Exception as e:
+            out('V26', fid, 'ERR', repr(e)[:150])
+    pages = ['https://www.bea.gov/data/special-topics/supplemental-estimates', 'https://www.bea.gov/data/special-topics/light-vehicle-sales',
+             'https://www.bea.gov/data/consumer-spending/main', 'https://www.bea.gov/data/personal-consumption-expenditures-price-index',
+             'https://www.bea.gov/data/supplemental-estimates', 'https://www.bea.gov/news/schedule', 'https://www.bea.gov/data/gdp/gross-domestic-product',
+             'https://apps.bea.gov/national/Release/', 'https://apps.bea.gov/national/Release/XLS/Survey/', 'https://apps.bea.gov/national/Release/CSV/',
+             'https://apps.bea.gov/histdata/', 'https://apps.bea.gov/iTable/?reqid=19&step=2&isuri=1&categories=underlying']
+    for u in pages:
+        try:
+            st, n, t, _, _ = call(u, timeout=60)
+            links = sorted(set(re.findall(r'href="([^"]+)"', t)))
+            hit = [l for l in links if re.search(r'vehicle|auto|truck|supplemental|\.xlsx?|\.csv|\.txt', l, re.I)]
+            out('V26', u, st, n, 'links', len(links), 'matching', hit[:40])
+        except Exception as e:
+            out('V26', u, 'ERR', repr(e)[:150])
+    from gdpnow import bea_bulk as BB
+    rows = BB._rows('M')
+    reg = BB.register()
+    out('V26', 'NipaDataM files', {f: BB.head(f) for f in BB.FILES.values()})
+    for tb, ln_map in reg.items():
+        if 'U70205' in tb or 'T70205' in tb:
+            for ln, (code, desc) in sorted(ln_map.items(), key=lambda kv: int(kv[0]) if kv[0].isdigit() else 0):
+                ls = rows.get(code) or []
+                out('V26', 'bulk', tb, ln, code, desc[:70], ls[0][0] if ls else None, ls[-1][0] if ls else None, ls[-1][1] if ls else None)
+
+
+def veh27():
+    """BEA's Motor vehicles workbook (gap_hist.xlsx, linked from the GDP page, 'Supplemental Estimates, Motor Vehicles' in FRED): headers,
+    sheets, layout, and the last months of every row against FRED's seven series."""
+    import io
+    import openpyxl
+    u = 'https://apps.bea.gov/national/xls/gap_hist.xlsx'
+    out('V27', 'HEAD', _head(u))
+    st, n, t, _, _ = call(u, timeout=120)
+    req = urllib.request.Request(u, headers={'User-Agent': 'Mozilla/5.0'})
+    raw = urllib.request.urlopen(req, timeout=120).read()
+    out('V27', 'bytes', len(raw))
+    wb = openpyxl.load_workbook(io.BytesIO(raw), data_only=True)
+    for ws in wb.worksheets:
+        out('V27', 'sheet', ws.title, ws.max_row, ws.max_column)
+        for r in range(1, min(ws.max_row, 9) + 1):
+            v = [c for c in [ws.cell(r, k).value for k in range(1, min(ws.max_column, 10) + 1)] if c is not None]
+            if v:
+                out('V27', ws.title, r, str(v)[:260])
+        rows = [r for r in range(1, ws.max_row + 1) if ws.cell(r, 1).value is not None or ws.cell(r, 2).value is not None]
+        for r in rows[-4:]:
+            out('V27', ws.title, 'tail', r, str([ws.cell(r, k).value for k in range(1, min(ws.max_column, 10) + 1)])[:260])
+
+
+def veh28():
+    """The seven vehicle-sales series from BEA's Motor vehicles workbook vs FRED: full history, as hist25 does."""
+    import tempfile
+    import duckdb
+    import pandas as pd
+    from gdpnow import bea_vehicles as BV
+    con = duckdb.connect(tempfile.mkdtemp() + '/v.duckdb')
+    out('V28', 'HEAD', _head(BV.URL))
+    for fid in list(BV.SHEET) + list(BV.SUM):
+        try:
+            st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+            f = pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(t)['observations'] if o['value'] != '.'}).sort_index()
+            b = BV.series(con, fid, '2026-10-06')
+            idx = f.index.union(b.index)
+            fa, ba = f.reindex(idx), b.reindex(idx)
+            both = fa.notna() & ba.notna()
+            absd = (fa[both] - ba[both]).abs()
+            bad = absd[absd > 0.0006]
+            only_f, only_b = fa.notna() & ba.isna(), fa.isna() & ba.notna()
+            out('V28', fid, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], '| xlsx', len(b), str(b.index.min())[:7], str(b.index.max())[:7],
+                '| common', int(both.sum()), 'differ>0.0006', len(bad), 'max abs', float(absd.max()) if both.any() else None,
+                'first/last diff', str(bad.index.min())[:7] if len(bad) else None, str(bad.index.max())[:7] if len(bad) else None,
+                '| only FRED', int(only_f.sum()), str(fa[only_f].index.min())[:7] if only_f.any() else None, str(fa[only_f].index.max())[:7] if only_f.any() else None,
+                '| only xlsx', int(only_b.sum()), str(ba[only_b].index.min())[:7] if only_b.any() else None, str(ba[only_b].index.max())[:7] if only_b.any() else None,
+                '| last', float(b.iloc[-1]), 'FRED last', float(f.iloc[-1]))
+        except Exception as e:
+            out('V28', fid, 'ERR', repr(e)[:200])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1770,7 +1863,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28)):
         if name in which:
             try:
                 fn()
