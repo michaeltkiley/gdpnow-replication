@@ -1731,6 +1731,38 @@ def nipa24():
         out('N24 frame', name, 'columns compared', len(cols_a & cols_b), 'columns with differences', n_diff)
 
 
+def hist25():
+    """Every FRED series moved to a bulk file (Census zips, BEA monthly file, BEA trade workbook): full history compared with FRED's
+    (date ranges, differing values, months in only one source), using the pipeline's own readers."""
+    import tempfile
+    import duckdb
+    import numpy as np
+    import pandas as pd
+    from gdpnow import bea_bulk as BB, bea_trade as BT, census_bulk as CB
+    con = duckdb.connect(tempfile.mkdtemp() + '/h.duckdb')
+    asof = '2026-10-06'
+    ids = [(i, 'census') for i in CB.FRED] + [(i, 'bea') for i in BB.MAP] + [(i, 'trade') for i in BT.MAP]
+    for fid, kind in ids:
+        try:
+            st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+            f = pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(t)['observations'] if o['value'] != '.'}).sort_index()
+            b = CB.series(con, fid, asof) if kind == 'census' else BB.series(con, fid, asof) if kind == 'bea' else BT.series(con, fid, asof)
+            idx = f.index.union(b.index)
+            fa, ba = f.reindex(idx), b.reindex(idx)
+            both = fa.notna() & ba.notna()
+            rel = ((fa[both] - ba[both]).abs() / fa[both].abs().clip(lower=1e-9))
+            tol = 1e-3 if kind == 'bea' else 1e-9
+            bad = rel[rel > tol]
+            only_f, only_b = fa.notna() & ba.isna(), fa.isna() & ba.notna()
+            out('H25', fid, kind, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], '| bulk', len(b), str(b.index.min())[:7], str(b.index.max())[:7],
+                '| common', int(both.sum()), 'differ', len(bad), 'max rel', float(rel.max()) if both.any() else None,
+                'first diff', str(bad.index.min())[:7] if len(bad) else None, '| only FRED', int(only_f.sum()), str(fa[only_f].index.min())[:7] if only_f.any() else None,
+                str(fa[only_f].index.max())[:7] if only_f.any() else None, '| only bulk', int(only_b.sum()),
+                str(ba[only_b].index.min())[:7] if only_b.any() else None, str(ba[only_b].index.max())[:7] if only_b.any() else None)
+        except Exception as e:
+            out('H25', fid, kind, 'ERR', repr(e)[:150])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1738,7 +1770,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25)):
         if name in which:
             try:
                 fn()

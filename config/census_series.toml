@@ -43,3 +43,17 @@ RSXFS = ["MARTS", "44000", "SM", 1, "US"]
 WHLSLRIMSA = ["MWTS", "42", "IM", 1, "US"]
 WHLSLRIRSA = ["MWTS", "42", "IR", 1, "US"]
 WHLSLRSMSA = ["MWTS", "42", "SM", 1, "US"]
+
+# Housing by region and permits (RESCONST), months' supply and houses for sale (RESSALES), inventory-to-sales ratios (MTIS), manufactured
+# housing shipments and placements (MHS2). Exact on every shared month (exploration round 21).
+HOUSTMW = ["RESCONST", "ASTARTS", "TOTAL", 1, "MW"]
+HOUSTNE = ["RESCONST", "ASTARTS", "TOTAL", 1, "NO"]
+HOUSTS = ["RESCONST", "ASTARTS", "TOTAL", 1, "SO"]
+HOUSTW = ["RESCONST", "ASTARTS", "TOTAL", 1, "WE"]
+PERMIT = ["RESCONST", "APERMITS", "TOTAL", 1, "US"]
+MSACSR = ["RESSALES", "FORSALE", "MONSUP", 1, "US"]
+HNFSEPUSSA = ["RESSALES", "FORSALE", "TOTAL", 1, "US"]
+RETAILIRSA = ["MTIS", "RETAIL", "IR", 1, "US"]
+MNFCTRIRSA = ["MTIS", "MNFCTR", "IR", 1, "US"]
+SHTSAUS = ["MHS2", "T", "SH", 1, "US"]
+SPTNSAUS = ["MHS2", "T", "SP", 0, "US"]

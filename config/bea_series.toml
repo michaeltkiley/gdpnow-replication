@@ -1,0 +1,12 @@
+# FRED series that BEA publishes, read from BEA's monthly bulk file NipaDataM.txt (https://apps.bea.gov/national/Release/TXT/):
+# FRED id = [BEA series code, divisor]. FRED serves billions, the bulk file millions (divisor 1000); FRED rounds to 0.1 billion, the bulk file
+# does not, so values agree to FRED's rounding (up to 3e-5 relative; exploration round 21). Dates: first of the month, like FRED.
+[series]
+A576RC1 = ["A034RC", 1000]
+B202RC1 = ["B202RC", 1000]
+DSPIC96 = ["A067RX", 1000]
+PCEC96 = ["DPCERX", 1000]
+PCEDGC96 = ["DDURRX", 1000]
+PCENDC96 = ["DNDGRX", 1000]
+PCESC96 = ["DSERRX", 1000]
+W875RX1 = ["W875RX", 1000]

@@ -28,6 +28,10 @@ FILES = {'Q': 'NipaDataQ.txt', 'M': 'NipaDataM.txt'}
 REGISTER = 'SeriesRegister.txt'
 _TEXT = {}
 _REG = {}
+_SER = tomllib.load(open(CONFIG / 'bea_series.toml', 'rb'))['series']
+MAP = {fid: (v[0], float(v[1])) for fid, v in _SER.items()}         # FRED id -> (BEA series code, divisor)
+_INDEX = {}                                                         # frequency -> {series code: [(period, value string)]}
+_MONTHLY = {}                                                       # BEA code -> Series, filled when NipaDataM is read in this process
 WINDOWS = tomllib.load(open(CONFIG / 'bea_windows.toml', 'rb'))     # table -> {first, last}: the API's date window (see the file)
 _PRIORITY = {'Current Dollars': 0, 'Chained Dollars': 1}      # which metric's label names a concept
 
@@ -89,6 +93,17 @@ def register():
     return _REG
 
 
+def _rows(frequency):
+    """The bulk file of a frequency parsed once per process: {series code: [(period, value text)]}."""
+    if frequency not in _INDEX:
+        idx = {}
+        for row in csv.reader(io.StringIO(_text(FILES[frequency]))):
+            if len(row) == 3 and not row[0].startswith('%'):
+                idx.setdefault(row[0], []).append((row[1], row[2]))
+        _INDEX[frequency] = idx
+    return _INDEX[frequency]
+
+
 def table(table_id, frequency):
     """DataFrame(series 'line|label', date, value) for a table, like the API path built it. Dates are period ends."""
     if frequency not in FILES:
@@ -100,17 +115,16 @@ def table(table_id, frequency):
     for ln, (code, label) in lines.items():
         code_lines.setdefault(code, []).append((ln, label))
     recs = []
-    for row in csv.reader(io.StringIO(_text(FILES[frequency]))):
-        if len(row) != 3 or row[0] not in code_lines:
-            continue
-        try:
-            v = float(row[2].replace(',', ''))
-        except ValueError:
-            continue
-        per = row[1]
-        date = (pd.Period(per.replace('M', '-'), 'M') if 'M' in per else pd.Period(per, 'Q')).end_time.normalize()
-        for ln, label in code_lines[row[0]]:
-            recs.append((f'{ln}|{label}', date, v))
+    idx = _rows(frequency)
+    for code, lns in code_lines.items():
+        for per, txt in idx.get(code, ()):
+            try:
+                v = float(txt.replace(',', ''))
+            except ValueError:
+                continue
+            date = (pd.Period(per.replace('M', '-'), 'M') if 'M' in per else pd.Period(per, 'Q')).end_time.normalize()
+            for ln, label in lns:
+                recs.append((f'{ln}|{label}', date, v))
     if not recs:
         raise RuntimeError(f'BEA table {table_id} ({frequency}): no data in {FILES[frequency]}')
     df = pd.DataFrame(recs, columns=['series', 'date', 'value'])
@@ -120,3 +134,35 @@ def table(table_id, frequency):
     if 'last' in w:
         df = df[df.date <= pd.Period(w['last'], frequency).end_time.normalize()]
     return df
+
+
+def covers(fred_id):
+    return fred_id in MAP
+
+
+def series(con, fred_id, asof):
+    """The series FRED publishes as `fred_id`, from NipaDataM.txt (index: first day of each month, like FRED)."""
+    code, div = MAP[fred_id]
+    if code not in _MONTHLY and not P.REFRESH:
+        s = P._archived(con, 'bea_bulk', code, asof)
+        if s is not None:
+            _MONTHLY[code] = s
+    if code not in _MONTHLY:
+        wanted = {c for c, _ in MAP.values()}
+        got = {}
+        idx = _rows('M')
+        for c in wanted:
+            for per, txt in idx.get(c, ()):
+                try:
+                    v = float(txt.replace(',', ''))
+                except ValueError:
+                    continue
+                got.setdefault(c, {})[pd.Period(per.replace('M', '-'), 'M').to_timestamp()] = v
+        missing = wanted - set(got)
+        if missing:
+            raise RuntimeError(f'{FILES["M"]}: series not found: {sorted(missing)}')
+        for c, vals in got.items():
+            s = pd.Series(vals, dtype=float).sort_index()
+            _MONTHLY[c] = s
+            P._archive(con, 'bea_bulk', c, asof, s)
+    return _MONTHLY[code] / div
