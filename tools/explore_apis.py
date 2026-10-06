@@ -2208,6 +2208,33 @@ def groupA_38():
         out('GA38', prog, 'last 8', [(str(i)[:7], f.get(i), b.get(i)) for i in b.index[-8:]])
 
 
+def groupA_39():
+    """RSFSXMV and RSGASS (requested from FRED by public_monthly): compared with every MARTS (category, data type, adjusted) series, US, full history."""
+    import pandas as pd
+    from gdpnow import census_bulk as CB
+
+    def fred_series(fid):
+        st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+        return pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(t)['observations'] if o['value'] != '.'}).sort_index()
+    fr = CB._frame('MARTS')
+    fr = fr[fr.geo_code == 'US']
+    cands = {}
+    for (cat, dt, adj), g in fr.groupby(['cat_code', 'dt_code', 'is_adj']):
+        s_ = pd.Series(g.val.to_numpy(), index=g.date.dt.to_period('M').dt.to_timestamp().to_numpy()).sort_index()
+        cands[(cat, dt, int(adj))] = s_[~s_.index.duplicated()]
+    for fid in ('RSFSXMV', 'RSGASS'):
+        f = fred_series(fid)
+        hits = []
+        for key, b in cands.items():
+            both = f.index.intersection(b.index)
+            if len(both) < 12:
+                continue
+            hits.append((float((f[both] - b[both]).abs().max()), key, len(both), str(b.index.min())[:7], str(b.index.max())[:7], int(f.index.difference(b.index).size), int(b.index.difference(f.index).size)))
+        hits.sort(key=lambda h: h[0])
+        out('GA39', fid, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], '| best', hits[:3])
+    out('GA39', 'MARTS cats (adj SM US)', sorted({k[0] for k in cands if k[1] == 'SM' and k[2] == 1}))
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -2215,7 +2242,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39)):
         if name in which:
             try:
                 fn()
