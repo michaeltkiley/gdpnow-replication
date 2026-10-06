@@ -46,6 +46,7 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           BEA_API_KEY: ${{ secrets.BEA_API_KEY }}
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+          BLS_CONTACT: ${{ secrets.BLS_CONTACT }}
         run: |
           python scripts/daily.py ${{ inputs.asof && format('--asof {0}', inputs.asof) || '' }} ${{ inputs.force && '--force' || '' }}
       - name: Save state

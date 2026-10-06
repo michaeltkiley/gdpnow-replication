@@ -30,6 +30,10 @@ BEA_MONTHLY = {'U20404': 'Personal Income and Outlays (BEA)', 'U20405': 'Persona
                'U002BUI': 'Inventories and Sales (BEA monthly detail)', 'U50705BM1': 'Inventories and Sales (BEA monthly detail)',
                'U50705BM2': 'Inventories and Sales (BEA monthly detail)', 'U50705BM3': 'Inventories and Sales (BEA monthly detail)',
                'U50706BM': 'Inventories and Sales (BEA monthly detail)', 'U70205S': 'Light-Vehicle Sales (BEA)'}
+# BLS flat-file series (source 'bls_flat'): release names as FRED gives them, so the daily decomposition groups them alike
+BLS_RELEASE = {'ce': 'Employment Situation', 'ln': 'Employment Situation', 'cu': 'Consumer Price Index',
+               'pc': 'Producer Price Index', 'wp': 'Producer Price Index', 'ei': 'U.S. Import and Export Price Indexes',
+               'ci': 'Employment Cost Index'}
 FIXED = {'bls': 'Employment (BLS)', 'treasury': 'Monthly Treasury Statement', 'bea_ita': 'International Transactions (BEA)',
          'census_hist': 'Construction / housing price files (Census)'}
 
@@ -54,6 +58,8 @@ def label(con, source, series):
     """Release label for an archived pull (`source`, `series` as stored in raw_pulls)."""
     if source == 'fred':
         return _fred_release(con, series)
+    if source == 'bls_flat':
+        return BLS_RELEASE.get(series[:2].lower(), 'BLS')
     if source.startswith('census_eits:'):
         return CENSUS_DATASETS.get(source.split(':')[1], 'Census economic indicators')
     if source == 'bea':

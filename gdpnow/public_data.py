@@ -23,7 +23,7 @@ BEA = 'https://apps.bea.gov/api/data'
 
 
 # ------------------------------------------------------------------------------------- fetch layer
-# Every request that feeds the public inputs goes through _get / get_bytes / post_json / bea_trade_xlsx. In a
+# Every request that feeds the public inputs goes through _get / get_bytes / bea_trade_xlsx / bls_flat. In a
 # production run (recording on) each is logged with a digest of its response in table `fetch_log`; the daily probe
 # (gdpnow/probe.py) replays the logged requests and compares digests, so "did any raw input change?" is answered
 # without running the build.
@@ -136,15 +136,6 @@ def get_bytes(url, timeout=120):
     return raw
 
 
-def post_json(url, payload):
-    body = json.dumps(payload)
-    req = urllib.request.Request(url, data=body.encode(), headers={'Content-Type': 'application/json'})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        d = json.loads(r.read().decode())
-    _record('POST_JSON', url, body, digest_json(d))
-    return d
-
-
 def bea_trade_xlsx():
     """The BEA trade-release time-series workbook (its file name carries the release month, so the link is read off
     the release page each time)."""
@@ -157,16 +148,24 @@ def bea_trade_xlsx():
     return raw
 
 
+def head_digest(last_modified, etag, length):
+    return hashlib.sha256(f'{last_modified}|{etag}|{length}'.encode()).hexdigest()
+
+
+def record_head(file, head):
+    """Log a header-only check of a BLS flat file (Last-Modified, ETag, length) so the probe can repeat it."""
+    _record('BLS_HEAD', 'https://download.bls.gov/pub/time.series/' + file, None, head_digest(*head))
+
+
 def replay(kind, url, body):
     """Fetch a logged request again (no recording); returns the digest of the response."""
     if kind == 'GET_JSON':
         return digest_json(_get_core(url, tries=6, throttle=True))
-    if kind == 'POST_JSON':
-        req = urllib.request.Request(url, data=body.encode(), headers={'Content-Type': 'application/json'})
-        with urllib.request.urlopen(req, timeout=120) as r:
-            return digest_json(json.loads(r.read().decode()))
     if kind == 'GET_BYTES':
         return digest_bytes(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=300).read())
+    if kind == 'BLS_HEAD':
+        from . import bls_flat
+        return head_digest(*bls_flat.head(url.split('/pub/time.series/', 1)[1]))
     if kind == 'BEA_TRADE':
         saved, _REC['asof'] = _REC['asof'], None          # replay is not recorded
         try:
@@ -253,7 +252,11 @@ def _archive(con, source, series, asof, s):
 
 
 def fred(con, series_id, asof, refresh=False):
-    """Observations of a FRED series as known on `asof` (ALFRED real-time period)."""
+    """Observations of a FRED series as known on `asof` (ALFRED real-time period). Series listed in
+    config/bls_series.toml come from BLS's flat files instead (gdpnow/bls_flat.py)."""
+    from . import bls_flat
+    if bls_flat.covers(series_id):
+        return bls_flat.series(con, series_id, asof)
     if not refresh:
         s = _archived(con, 'fred', series_id, asof)
         if s is not None:
