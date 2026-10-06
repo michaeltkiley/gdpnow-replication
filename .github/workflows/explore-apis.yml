@@ -26,4 +26,5 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           BEA_API_KEY: ${{ secrets.BEA_API_KEY }}
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
-        run: python tools/explore_apis.py ${{ inputs.which || 'bea4 fred4' }}
+          BLS_CONTACT: ${{ secrets.BLS_CONTACT }}
+        run: python tools/explore_apis.py ${{ inputs.which || 'bls5' }}

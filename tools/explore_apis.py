@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 FRED_KEY, BEA_KEY, CENSUS_KEY = (os.environ.get(k, '') for k in ('FRED_API_KEY', 'BEA_API_KEY', 'CENSUS_API_KEY'))
+BLS_CONTACT = os.environ.get('BLS_CONTACT', '')       # secret: contact string BLS's download policy asks for in the User-Agent
 
 
 def out(*a):
@@ -462,6 +463,35 @@ def fred4():
         out('FRED window', label, '| total series updated', total, 'pages', pages, 'our series flagged', len(hit), sorted(hit.items())[:8])
 
 
+# ---------------------------------------------------------------- round 5: BLS flat files with an identifying User-Agent
+def bls5():
+    import re
+    if not BLS_CONTACT:
+        out('BLS flat files: no BLS_CONTACT secret set; skipped')
+        return
+    ua = {'User-Agent': f'gdpnow-replication/1.0 ({BLS_CONTACT})'}
+    base = 'https://download.bls.gov/pub/time.series/'
+    for sv in ('cu', 'ce', 'ln', 'wp', 'pc', 'ei', 'ci'):
+        st, n, t, hdr, s = call(base + sv + '/', headers=ua, maxb=400000)
+        t = t.replace(BLS_CONTACT, '***')
+        rows = re.findall(r'(\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}\s+[AP]M)\s+(\d+)\s+<A HREF="[^"]+">([^<]+)</A>', t)
+        keep = [(d, round(int(sz) / 1e6, 1), nm) for d, sz, nm in rows if '.data.' in nm]
+        out('BLS flat', sv, '| http', st, 'data files (date, MB, name):', keep[:16] if rows else short(t, 160))
+        time.sleep(0.5)
+    for u in ('cu/cu.data.1.AllItems', 'ce/ce.data.0.AllCESSeries', 'pc/pc.data.0.Current', 'ei/ei.data.0.Current', 'ln/ln.data.1.AllData'):
+        try:
+            req = urllib.request.Request(base + u, method='HEAD', headers=ua)
+            with urllib.request.urlopen(req, timeout=60) as r:
+                out('BLS HEAD', u, r.status, {k: v for k, v in dict(r.headers).items() if k.lower() in ('last-modified', 'etag', 'content-length')})
+        except Exception as e:
+            out('BLS HEAD', u, 'ERR', str(e)[:80])
+        time.sleep(0.5)
+    # compare a flat-file series with what the API returns, for a series we already use
+    st, n, t, _, s = call(base + 'ce/ce.data.0.AllCESSeries', headers=ua, timeout=600, maxb=None)
+    rows = [ln for ln in t.splitlines() if ln.startswith('CES9091911001') or ln.startswith('CES2023611806')]
+    out('BLS flat CES file: MB', round(n / 1e6, 1), 'secs', s, 'lines', len(t.splitlines()), 'our two series rows', len(rows), 'sample', rows[:2], 'header', t.splitlines()[0][:80])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4') for w in which):
@@ -469,7 +499,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5)):
         if name in which:
             try:
                 fn()
