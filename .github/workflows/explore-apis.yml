@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install duckdb
+      - run: pip install duckdb pandas
       - uses: actions/cache/restore@v4
         with:
           path: data/gdpnow.duckdb
@@ -26,4 +26,4 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           BEA_API_KEY: ${{ secrets.BEA_API_KEY }}
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
-        run: python tools/explore_apis.py ${{ inputs.which || 'fred2 bea2 census2 heads' }}
+        run: python tools/explore_apis.py ${{ inputs.which || 'bls3 bea3 fred3' }}
