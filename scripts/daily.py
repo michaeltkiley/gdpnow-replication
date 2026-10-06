@@ -2,12 +2,13 @@
 L1 integrity check -> record -> housekeeping -> sanity checks. Each step is an existing stage script, so a failed
 day can be re-run stage by stage.
 
-Change check: the public data is pulled afresh on every run and compared with the pulls behind the last recorded
-run. If no public input changed (and the code, config and library versions did not, and the last run was clean),
-estimation is skipped: the day's record repeats the last nowcast, flagged `unchanged`, and only the benchmark
-(GDPNow's published numbers) is refreshed. Otherwise the full pipeline runs, also when the same date was already
-recorded (a second run on a day with new releases replaces that day's record). --force skips the check and replays
-the archived pulls of the date, as before.
+Change check (the probe, gdpnow/probe.py): before building anything, every raw request logged by the last production
+build is replayed and its response compared with the logged digest. If no raw input changed (and the code, config and
+library versions did not, the last run was clean and the month is the same), the build and estimation are skipped:
+the day's record repeats the last nowcast, flagged `unchanged`, and only the benchmark (GDPNow's published numbers)
+is refreshed. Otherwise the public data is pulled afresh (rebuilding the request log) and the full pipeline runs,
+also when the same date was already recorded (a second run on a day with new releases replaces that day's record).
+--force skips the check and replays the archived pulls of the date, as before.
 
 Exit status: 0 = fine, 3 = results written but HELD by a sanity check (the page should not be updated), other =
 failure. docs/data/status.json is always rewritten with the outcome.
@@ -28,7 +29,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from gdpnow import public_data, releases, store
+from gdpnow import probe, public_data, store
 
 KEEP_RUNS = 5          # recent L3 runs whose estimates stay in the store (older ones are dropped)
 KEEP_PULL_DAYS = 7     # archived raw pulls kept for this many days
@@ -66,32 +67,6 @@ def previous_run(asof):
     return prev, (json.loads(f.read_text()).get('code_hash') if f.exists() else None)
 
 
-def snapshot_pulls(asof):
-    """Keep the archive of `asof` under the key `<asof>~prev`, because the refresh is about to replace it."""
-    con = store.connect()
-    try:
-        if not store.table_exists(con, 'raw_pulls'):
-            return None
-        key = f'{asof}~prev'
-        for t in ('raw_pulls', 'raw_files'):
-            if store.table_exists(con, t):
-                con.execute(f'DELETE FROM {t} WHERE as_of = ?', [key])
-                con.execute(f"INSERT INTO {t} SELECT * REPLACE (? AS as_of) FROM {t} WHERE as_of = ?", [key, asof])
-        return key
-    finally:
-        con.close()
-
-
-def drop_snapshots():
-    con = store.connect()
-    try:
-        for t in ('raw_pulls', 'raw_files'):
-            if store.table_exists(con, t):
-                con.execute(f"DELETE FROM {t} WHERE as_of LIKE '%~prev'")
-    finally:
-        con.close()
-
-
 def stamp(asof, **fields):
     f = ROOT / 'docs' / 'data' / 'runs' / f'{asof}.json'
     rec = json.loads(f.read_text())
@@ -123,6 +98,8 @@ def housekeeping(asof):
         cutoff = (pd.Timestamp(asof) - pd.Timedelta(days=KEEP_PULL_DAYS)).date().isoformat()
         if store.table_exists(con, 'raw_pulls'):
             con.execute('DELETE FROM raw_pulls WHERE as_of < ?', [cutoff])
+        if store.table_exists(con, 'fetch_log'):           # keep the newest request log (the probe's base) whatever its age
+            con.execute('DELETE FROM fetch_log WHERE as_of < ? AND as_of <> (SELECT max(as_of) FROM fetch_log)', [cutoff])
         print(f'housekeeping: dropped {len(old)} old runs, archived pulls older than {cutoff}')
     finally:
         con.close()
@@ -162,25 +139,28 @@ def main():
         check = not a.force
         prev = previous_run(asof) if check else None
         prev_ok = bool(prev) and status.exists() and bool(json.loads(status.read_text()).get('ok'))
-        base = (snapshot_pulls(asof) if prev and prev[0] == asof else prev[0] if prev else None) if check else None
-        lpm = last_price_month(asof, refresh=check)
-        print(f'last price month as of {asof}: {lpm}')
-        args02 = ['--asof', asof, '--last-price-month', lpm, '--ism', 'public'] + (['--force'] if check else fl)
-        sh('02_build_public.py', *args02, env={'GDPNOW_REFRESH': '1'} if check else None)
         chash = code_hash()
+        same_month = bool(prev) and prev[0][:7] == asof[:7]
         unchanged = False
         if check:
-            diff = None
-            con = store.connect()
-            try:
-                diff = releases.public_inputs_diff(con, base, asof) if base else None
-            finally:
-                con.close()
-            same_month = bool(prev) and prev[0][:7] == asof[:7]
-            unchanged = (diff is not None and not any(diff.values()) and prev_ok and prev[1] == chash and same_month)
-            print(f'change check vs {prev[0] if prev else None}: public inputs {diff}; code unchanged {bool(prev) and prev[1] == chash}; '
-                  f'last run ok {prev_ok}; same month {same_month} -> {"NO NEW DATA, skipping estimation" if unchanged else "estimating"}')
+            may_skip = prev_ok and prev[1] == chash and same_month
+            res = None
+            if may_skip:
+                con = store.connect()
+                try:
+                    res = probe.run(con, asof)
+                finally:
+                    con.close()
+            unchanged = bool(res) and not res['changed']
+            print(f'change check vs {prev[0] if prev else None}: probe {None if res is None else (res["n"], "requests, changed:", res["changed"][:10])}; '
+                  f'code unchanged {bool(prev) and prev[1] == chash}; last run ok {prev_ok}; same month {same_month} -> '
+                  f'{"NO NEW DATA, skipping build and estimation" if unchanged else "estimating"}')
             fl = ['--force']                 # a date already recorded today is replaced, not skipped
+        if not unchanged:
+            lpm = last_price_month(asof, refresh=check)
+            print(f'last price month as of {asof}: {lpm}')
+            sh('02_build_public.py', '--asof', asof, '--last-price-month', lpm, '--ism', 'public', *fl,
+               env={'GDPNOW_REFRESH': '1'} if check else None)
         if unchanged:
             sh('05_nowcast.py', '--level', 'L1', '--vintage', vint)
             sh('09_record.py', '--asof', asof, '--carry-from', prev[0], '--vintage', vint)
@@ -192,7 +172,6 @@ def main():
             sh('10_decompose.py', '--asof', asof, *fl)
             sh('11_release_effects.py', '--asof', asof, '--last-price-month', lpm, *fl)
             stamp(asof, code_hash=chash)
-        drop_snapshots()
         housekeeping(asof)
         problems = sanity(asof, a.max_jump)
     except Exception as e:                       # includes failed stages (CalledProcessError)

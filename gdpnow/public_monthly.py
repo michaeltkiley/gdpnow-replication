@@ -2,7 +2,6 @@
 Treasury). Each builder reproduces a workbook series by its documented recipe (WP Tables A2, A4, A8;
 Mods); tools/validate_public.py and stage 06 benchmark them against the workbook (benchmark only).
 """
-import json
 import os
 import urllib.parse
 
@@ -285,9 +284,8 @@ def census_house_price(cx, idx):
     monthly rate of the latest 12 months (Atkeson-Ohanian-style extrapolation)."""
     s = P._archived(cx.con, 'census_hist', 'price_uc', cx.asof)
     if s is None:
-        import io, urllib.request
-        req = urllib.request.Request('https://www.census.gov/construction/nrs/xls/price_uc_cust.xlsx', headers={'User-Agent': 'Mozilla/5.0'})
-        d = pd.read_excel(io.BytesIO(urllib.request.urlopen(req, timeout=120).read()), header=None, sheet_name='Vertical',
+        import io
+        d = pd.read_excel(io.BytesIO(P.get_bytes('https://www.census.gov/construction/nrs/xls/price_uc_cust.xlsx')), header=None, sheet_name='Vertical',
                           skiprows=6, usecols=[0, 3]).dropna()
         d.columns = ['d', 'v']
         d['d'] = pd.to_datetime(d.d, errors='coerce') + pd.offsets.MonthEnd(0)
@@ -483,17 +481,10 @@ def bea_travel_monthly(cx):
     time-series file, Tables 2 and 3; the ITA API serves only quarterly data). Current vintage, cached in data/."""
     if 'travel' in cx.cache:
         return cx.cache['travel']
-    import io, re, urllib.request
     from pathlib import Path
     path = Path('data') / f'{cx.asof.replace("-", "")}_bea_trade_time_series.xlsx'
     if not path.exists() or P.REFRESH:
-        hdr = {'User-Agent': 'Mozilla/5.0'}
-        page = urllib.request.urlopen(urllib.request.Request(
-            'https://www.bea.gov/data/intl-trade-investment/international-trade-goods-and-services', headers=hdr), timeout=120).read().decode()
-        link = re.search(r'href="([^"]*trad\d{4}-time-series\.xlsx)"', page).group(1)
-        raw = urllib.request.urlopen(urllib.request.Request('https://www.bea.gov' + link, headers=hdr), timeout=300).read()
-        path.write_bytes(raw)
-        P.note_file(cx.con, cx.asof, 'bea_trade_time_series', raw)
+        path.write_bytes(P.bea_trade_xlsx())
     out = []
     for sheet in ('Table 2', 'Table 3'):                       # exports, imports of services by category
         d = pd.read_excel(path, sheet_name=sheet, header=None)
@@ -587,12 +578,8 @@ def bls(cx, sid, start=1985):
     end = pd.Timestamp(cx.asof).year
     vals = {}
     for y0 in range(start, end + 1, 10):
-        body = json.dumps({'seriesid': [sid], 'startyear': str(y0), 'endyear': str(min(y0 + 9, end))}).encode()
-        import urllib.request
-        req = urllib.request.Request('https://api.bls.gov/publicAPI/v1/timeseries/data/', data=body,
-                                     headers={'Content-Type': 'application/json'})
-        with urllib.request.urlopen(req, timeout=120) as r:
-            d = json.loads(r.read().decode())
+        d = P.post_json('https://api.bls.gov/publicAPI/v1/timeseries/data/',
+                        {'seriesid': [sid], 'startyear': str(y0), 'endyear': str(min(y0 + 9, end))})
         for row in d['Results']['series'][0]['data']:
             if row['period'].startswith('M') and row['period'] != 'M13' and row['value'] not in ('-', ''):
                 vals[pd.Period(f"{row['year']}-{row['period'][1:]}", 'M').end_time.normalize()] = float(row['value'])
@@ -763,10 +750,8 @@ def census_construction(cx, table, column=1):
         return cx.cache[key]
     s = P._archived(cx.con, 'census_hist', f'construction_{table}_{column}', cx.asof)
     if s is None:
-        import io, urllib.request
-        req = urllib.request.Request(f'https://www.census.gov/construction/c30/xlsx/{table}.xlsx',
-                                     headers={'User-Agent': 'Mozilla/5.0'})
-        d = pd.read_excel(io.BytesIO(urllib.request.urlopen(req, timeout=120).read()), header=None, skiprows=4,
+        import io
+        d = pd.read_excel(io.BytesIO(P.get_bytes(f'https://www.census.gov/construction/c30/xlsx/{table}.xlsx')), header=None, skiprows=4,
                           usecols=[0, column])
         d.columns = ['d', 'v']
         d['d'] = pd.to_datetime(d.d.astype(str).str.replace(r'[pr]$', '', regex=True), format='%b-%y', errors='coerce') + pd.offsets.MonthEnd(0)

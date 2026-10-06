@@ -15,7 +15,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from gdpnow import inputs_public, store
+from gdpnow import inputs_public, public_data as P, store
 from gdpnow.config import DATA
 
 
@@ -34,10 +34,14 @@ def main():
         print(f'{out.name} exists; use --force to rebuild')
         return
     con = store.connect()
+    if P.REFRESH and not a.tag:
+        P.begin_recording(a.asof)         # production build: log every request for the daily probe
     last = pd.Timestamp(a.last_price_month) + pd.offsets.MonthEnd(0)
     bundle = inputs_public.build(con, a.asof, last, ism=a.ism)
     with open(out, 'wb') as f:
         pickle.dump({'bundle': bundle, 'asof': a.asof, 'last_price_month': str(last.date())}, f)
+    if P.REFRESH and not a.tag:
+        print(f'fetch log: {P.save_recording(con)} requests recorded for {a.asof}')
     if not a.tag:
         from gdpnow import history
         history.export_prefix(con, 'registry/workbook_history_prefix.csv')
