@@ -35,6 +35,8 @@ DGORDER = ["M3", "MDM", "NO", 1, "US"]
 # Advance monthly retail sales (MARTS)
 RSAFS = ["MARTS", "44X72", "SM", 1, "US"]
 RSFSDP = ["MARTS", "722", "SM", 1, "US"]
+RSFSXMV = ["MARTS", "44Y72", "SM", 1, "US"]
+RSGASS = ["MARTS", "447", "SM", 1, "US"]
 RSBMGESD = ["MARTS", "444", "SM", 1, "US"]
 RSEAS = ["MARTS", "443", "SM", 1, "US"]
 RSFHFS = ["MARTS", "442", "SM", 1, "US"]
