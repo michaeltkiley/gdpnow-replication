@@ -1198,56 +1198,51 @@ def census15():
 
 
 def census16():
-    """AEI (Advance Economic Indicators) report: where it lives, whether non-PDF versions exist, what the PDF holds, and whether the
-    Census international trade API (intltrade) carries end-use data for the advance month."""
+    """AEI tables as Excel at fixed 'current' URLs (tab1adv.xlsx, tab2adv.xlsx): HEAD, cell dump, and the historical-data page; plus the
+    PDF for comparison and the intltrade end-use API."""
+    import io
     import re
     import subprocess
     ua = {'User-Agent': 'Mozilla/5.0'}
-    page = 'https://www.census.gov/econ/indicators/index.html'
-    st, n, t, hdr, _ = call(page, headers=ua, maxb=3000000)
-    links = sorted(set(re.findall(r'href="([^"#]+)"', t)))
-    keep = [l for l in links if re.search(r'indicators|advance|\.pdf|\.xlsx?|\.csv|\.zip|\.json|ftd|foreign', l, flags=re.I)]
-    out('C16 AEI page', page, st, 'bytes', n, 'links', len(links), 'relevant', keep[:80])
-    pdfs = [l for l in keep if l.lower().endswith('.pdf')]
-    for l in pdfs[:3]:
-        u = l if l.startswith('http') else 'https://www.census.gov' + l
-        out('C16 HEAD', u, *_head(u))
+    root = 'https://www.census.gov/econ/indicators/'
+    for fn in ('tab1adv.xlsx', 'tab2adv.xlsx', 'tab1adv.pdf', 'advance_report.pdf', 'zzz_control_nonexistent.xlsx'):
+        out('C16 HEAD', root + fn, *_head(root + fn))
+    import openpyxl
+    for fn in ('tab1adv.xlsx', 'tab2adv.xlsx'):
         try:
-            req = urllib.request.Request(u, headers=ua)
-            blob = urllib.request.urlopen(req, timeout=120).read()
-            Path('/tmp/aei.pdf').write_bytes(blob)
-            txt = subprocess.run(['pdftotext', '-layout', '/tmp/aei.pdf', '-'], capture_output=True, text=True).stdout
-            out('C16 PDF', u, 'bytes', len(blob), 'text chars', len(txt))
-            for i, line in enumerate(txt.splitlines()[:140]):
-                if line.strip():
-                    out('C16 PDFTXT', i, line[:170])
+            blob = urllib.request.urlopen(urllib.request.Request(root + fn, headers=ua), timeout=120).read()
+            wb = openpyxl.load_workbook(io.BytesIO(blob), data_only=True)
+            out('C16 XLSX', fn, 'bytes', len(blob), 'sheets', [(ws.title, ws.max_row, ws.max_column) for ws in wb.worksheets], 'props', wb.properties.modified, wb.properties.created)
+            for ws in wb.worksheets[:2]:
+                for i, row in enumerate(ws.iter_rows(values_only=True)):
+                    if i > 70:
+                        break
+                    cells = [str(c)[:28] for c in row if c is not None]
+                    if cells:
+                        out('C16 CELLS', fn, ws.title, i + 1, cells[:14])
         except Exception as e:
-            out('C16 PDF', u, 'ERR', str(e)[:100])
-    # name variants of the file we use
-    for base_u in [u for u in [(l if l.startswith('http') else 'https://www.census.gov' + l) for l in pdfs[:1]]]:
-        stem = base_u.rsplit('.', 1)[0]
-        for ext in ('xlsx', 'xls', 'csv', 'zip', 'txt', 'json'):
-            out('C16 HEAD variant', stem + '.' + ext, *_head(stem + '.' + ext))
-        out('C16 HEAD control', stem + '_zzz_control.pdf', *_head(stem + '_zzz_control.pdf'))
-    # the international trade API
-    for u in ('https://api.census.gov/data/timeseries/intltrade.json', 'https://api.census.gov/data/timeseries/intltrade/exports/enduse.html',
-              'https://api.census.gov/data/timeseries/intltrade/imports/enduse.html', 'https://api.census.gov/data/timeseries/intltrade/exports/enduse/variables.json'):
-        st, n, t, hdr, _ = call(u, headers=ua, maxb=400000)
-        out('C16 intltrade', u, st, 'bytes', n, 'ctype', hdr.get('Content-Type'), '|', short(t, 260))
+            out('C16 XLSX', fn, 'ERR', str(e)[:120])
+    for pg in ('historical_data.html', 'release_schedule.html', 'index.html', 'methodology.html'):
+        st, n, t, hdr, _ = call(root + pg, headers=ua, maxb=3000000)
+        links = sorted(set(re.findall(r'href="([^"#]+)"', t)))
+        keep = [l for l in links if re.search(r'\.(pdf|xlsx?|csv|zip|txt|json|ics)|historical|tab\d|advance|\d{4}/', l, flags=re.I)]
+        out('C16 page', root + pg, st, 'bytes', n, 'links', len(links), 'relevant', keep[:60])
+    try:
+        blob = urllib.request.urlopen(urllib.request.Request(root + 'advance_report.pdf', headers=ua), timeout=120).read()
+        Path('/tmp/aei.pdf').write_bytes(blob)
+        txt = subprocess.run(['pdftotext', '-layout', '/tmp/aei.pdf', '-'], capture_output=True, text=True).stdout
+        lines = [l for l in txt.splitlines() if l.strip()]
+        out('C16 PDF', 'advance_report.pdf bytes', len(blob), 'lines', len(lines))
+        for i, line in enumerate(lines[:60]):
+            out('C16 PDFTXT', i, line[:170])
+    except Exception as e:
+        out('C16 PDF ERR', str(e)[:100])
     for flow in ('exports', 'imports'):
         for tm in ('2026-08', '2026-07'):
             q = f'get=E_COMMODITY,E_COMMODITY_LDESC,ALL_VAL_MO&time={tm}&COMM_LVL=EU1&key={CENSUS_KEY}' if flow == 'exports' else \
                 f'get=I_ENDUSE,I_ENDUSE_LDESC,GEN_VAL_MO&time={tm}&key={CENSUS_KEY}'
             st, n, t, _, _ = call(f'https://api.census.gov/data/timeseries/intltrade/{flow}/enduse?' + q, headers=ua, maxb=200000)
             out('C16 intltrade enduse', flow, tm, st, 'bytes', n, short(t, 240))
-    # EITS ftd program (full-month trade): which categories exist for end-use groups
-    st, n, t, _, _ = call('https://api.census.gov/data/timeseries/eits/ftd/variables.json', headers=ua, maxb=100000)
-    out('C16 eits ftd variables', st, n, short(t, 200))
-    st, n, t, _, _ = call(f'https://api.census.gov/data/timeseries/eits/ftd?get=category_code,data_type_code,cell_value&seasonally_adj=yes&time=2026-07&for=us:*&key={CENSUS_KEY}', headers=ua, maxb=400000)
-    out('C16 eits ftd Jul-2026 SA', st, n, short(t, 900))
-    st, n, t, _, _ = call(f'https://api.census.gov/data/timeseries/eits/ftdadv?get=category_code,data_type_code,cell_value&seasonally_adj=yes&time=2026-08&for=us:*&key={CENSUS_KEY}', headers=ua, maxb=400000)
-    out('C16 eits ftdadv Aug-2026 SA', st, n, short(t, 400))
-
 
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
