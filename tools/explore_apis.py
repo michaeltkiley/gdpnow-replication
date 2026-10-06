@@ -2158,6 +2158,31 @@ def groupA_36():
     out('GA36', 'MRTSIM last 4', [(str(i)[:7], f[i], b.get(i)) for i in f.index[-4:]])
 
 
+def groupA_37():
+    """What the production build still requests, from the newest fetch_log in the restored state: counts per kind and host, the exact FRED series ids,
+    and every non-FRED URL host/path stem (the loose-ends inventory)."""
+    import re
+    import urllib.parse
+    import collections
+    import duckdb
+    con = duckdb.connect('data/gdpnow.duckdb', read_only=True)
+    asof = con.execute('SELECT max(as_of) FROM fetch_log').fetchone()[0]
+    rows = con.execute('SELECT kind, url FROM fetch_log WHERE as_of = ?', [asof]).fetchall()
+    out('GA37', 'fetch_log as_of', str(asof), 'requests', len(rows))
+    byk = collections.Counter((k, urllib.parse.urlparse(u).netloc if u.startswith('http') else '-') for k, u in rows)
+    out('GA37', 'kind/host', sorted(byk.items(), key=lambda kv: -kv[1]))
+    fred = sorted(set(re.findall(r'series_id=([A-Za-z0-9_]+)', ' '.join(u for k, u in rows if 'stlouisfed' in u and 'observations' in u))))
+    out('GA37', 'FRED observation series', len(fred), fred)
+    other = collections.Counter()
+    for k, u in rows:
+        if 'stlouisfed' in u:
+            continue
+        pu = urllib.parse.urlparse(u)
+        other[(k, pu.netloc, pu.path[:80])] += 1
+    for key, n in sorted(other.items()):
+        out('GA37', 'other', key, n)
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -2165,7 +2190,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37)):
         if name in which:
             try:
                 fn()
