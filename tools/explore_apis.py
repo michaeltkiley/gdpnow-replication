@@ -1896,6 +1896,54 @@ def g17_29():
             out('G29', 'file', u, 'ERR', repr(e)[:120])
 
 
+def g17_30():
+    """Map each of the 16 FRED G.17 series to the G.17 file code whose full history equals it: parse ip_sa.txt and utl_sa.txt (rows
+    '"CODE" year v1..v12', header lines '"CODE: label"'), compare every code with the FRED history, report the best match (and ties)."""
+    import re
+    import pandas as pd
+    base = 'https://www.federalreserve.gov/releases/g17/ipdisk/'
+    codes = {}
+    labels = {}
+    for fname in ['ip_sa.txt', 'utl_sa.txt']:
+        req = urllib.request.Request(base + fname, headers={'User-Agent': 'Mozilla/5.0'})
+        raw = urllib.request.urlopen(req, timeout=120).read().decode('latin-1')
+        for line in raw.splitlines():
+            m = re.match(r'^"([^"]+?)(?::\s*(.*?))?"\s*(.*)$', line)
+            if not m:
+                continue
+            code, label, rest = m.group(1), m.group(2), m.group(3).split()
+            if label is not None and not rest:
+                labels[(fname, code)] = label
+                continue
+            if len(rest) < 2 or not rest[0].isdigit():
+                continue
+            yr = int(rest[0])
+            for i, v in enumerate(rest[1:13]):
+                try:
+                    codes.setdefault((fname, code), {})[pd.Timestamp(yr, i + 1, 1)] = float(v)
+                except ValueError:
+                    pass
+    out('G30', 'codes parsed', len(codes), 'labels', len(labels))
+    ids = ['INDPRO', 'IPMAT', 'IPCONGD', 'IPDCONGD', 'IPDMAN', 'IPFINAL', 'IPFPNSS', 'IPMANSICS', 'IPNCONGD', 'IPNMAN', 'IPUTIL', 'IPB54000S',
+           'IPBUSEQ', 'IPN213111S', 'CUMFNS', 'MVAAUTLTTS']
+    for fid in ids:
+        try:
+            st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+            f = pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(t)['observations'] if o['value'] != '.'}).sort_index()
+            hits = []
+            for key, d in codes.items():
+                b = pd.Series(d).sort_index()
+                common = f.index.intersection(b.index)
+                if len(common) < 12:
+                    continue
+                dif = (f[common] - b[common]).abs()
+                hits.append((float(dif.max()), key, len(common), str(b.index.min())[:7], str(b.index.max())[:7], int((f.index.difference(b.index)).size), int((b.index.difference(f.index)).size)))
+            hits.sort(key=lambda h: h[0])
+            out('G30', fid, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], '| best', [(round(h[0], 6), h[1][0], h[1][1], labels.get(h[1], '')[:40], h[2], h[3], h[4], 'onlyFRED', h[5], 'onlyFile', h[6]) for h in hits[:3]])
+        except Exception as e:
+            out('G30', fid, 'ERR', repr(e)[:150])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1903,7 +1951,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30)):
         if name in which:
             try:
                 fn()
