@@ -570,22 +570,32 @@ def regional_surveys(cx):
 
 
 # ----------------------------------------------------------------------------------- indicator panel
+BLS_URL = 'https://api.bls.gov/publicAPI/v1/timeseries/data/'
+BLS_START = {'CUSR0000SEHK01': 1967, 'CES9091911001': 1985, 'CES2023611806': 1985}     # every BLS series used, first year kept
+
+
 def bls(cx, sid, start=1985):
-    """BLS public API v1 (no key): monthly series, in 10-year request windows (cached in the archive)."""
+    """BLS public API v1 (no key): monthly series. All BLS series we use are requested together (the API takes many
+    series per request, 10 years per window), archived per series; the first call fetches them all."""
     s = P._archived(cx.con, 'bls', sid, cx.asof)
     if s is not None:
         return s
+    first = {**BLS_START, sid: BLS_START.get(sid, start)}
+    ids = sorted(first)
     end = pd.Timestamp(cx.asof).year
-    vals = {}
-    for y0 in range(start, end + 1, 10):
-        d = P.post_json('https://api.bls.gov/publicAPI/v1/timeseries/data/',
-                        {'seriesid': [sid], 'startyear': str(y0), 'endyear': str(min(y0 + 9, end))})
-        for row in d['Results']['series'][0]['data']:
-            if row['period'].startswith('M') and row['period'] != 'M13' and row['value'] not in ('-', ''):
-                vals[pd.Period(f"{row['year']}-{row['period'][1:]}", 'M').end_time.normalize()] = float(row['value'])
-    s = pd.Series(vals).sort_index()
-    P._archive(cx.con, 'bls', sid, cx.asof, s)
-    return s
+    vals = {i: {} for i in ids}
+    for y0 in range(min(first.values()), end + 1, 10):
+        d = P.post_json(BLS_URL, {'seriesid': ids, 'startyear': str(y0), 'endyear': str(min(y0 + 9, end))})
+        if d.get('status') != 'REQUEST_SUCCEEDED' or 'series' not in d.get('Results', {}):
+            raise RuntimeError(f"BLS API: {d.get('status')} {d.get('message')}")
+        for ser in d['Results']['series']:
+            for row in ser['data']:
+                if row['period'].startswith('M') and row['period'] != 'M13' and row['value'] not in ('-', '') \
+                        and int(row['year']) >= first[ser['seriesID']]:
+                    vals[ser['seriesID']][pd.Period(f"{row['year']}-{row['period'][1:]}", 'M').end_time.normalize()] = float(row['value'])
+    for i in ids:
+        P._archive(cx.con, 'bls', i, cx.asof, pd.Series(vals[i], dtype=float).sort_index())
+    return pd.Series(vals[sid], dtype=float).sort_index()
 
 
 def treasury_defense_outlays(cx):

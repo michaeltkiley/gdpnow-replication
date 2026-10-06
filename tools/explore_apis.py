@@ -377,14 +377,99 @@ def fred3():
             out('FRED series/updates', label, st, short(t, 160))
 
 
+# ---------------------------------------------------------------- round 4
+def _diff(a, b, path='', acc=None, limit=12):
+    acc = [] if acc is None else acc
+    if len(acc) >= limit:
+        return acc
+    if isinstance(a, dict) and isinstance(b, dict):
+        for k in sorted(set(a) | set(b)):
+            if k not in a or k not in b:
+                acc.append(f'{path}/{k}: only in {"first" if k in a else "second"}')
+            else:
+                _diff(a[k], b[k], f'{path}/{k}', acc, limit)
+    elif isinstance(a, list) and isinstance(b, list):
+        if len(a) != len(b):
+            acc.append(f'{path}: list length {len(a)} vs {len(b)}')
+        for i, (x, y) in enumerate(zip(a, b)):
+            _diff(x, y, f'{path}[{i}]', acc, limit)
+    elif a != b:
+        acc.append(f'{path}: {short(repr(a), 80)} vs {short(repr(b), 80)}')
+    return acc
+
+
+def bea4():
+    import hashlib
+    base = 'https://apps.bea.gov/api/data?UserID=' + BEA_KEY + '&method=GetData&ResultFormat=JSON'
+    for tb, years in (('U50505', '1983,1984,1985,1986'), ('U50504', '1975,1976,1977,1978')):
+        url = base + f'&DataSetName=NIUnderlyingDetail&TableName={tb}&Frequency=Q&Year={years}'
+        got = {}
+        for i in range(8):
+            st, n, t, hdr, s = call(url)
+            sha = hashlib.sha256(t.encode()).hexdigest()[:8]
+            got.setdefault(sha, json.loads(t))
+            time.sleep(0.8)
+        out('BEA', tb, 'distinct raw responses in 8 calls:', len(got), list(got))
+        if len(got) > 1:
+            ks = list(got)
+            for diff in _diff(got[ks[0]], got[ks[1]]):
+                out('BEA diff', tb, diff)
+    # bulk file: which first-letter groups exist (underlying detail codes?)
+    st, n, t, hdr, s = call('https://apps.bea.gov/national/Release/TXT/NipaDataQ.txt', timeout=300)
+    codes = {}
+    for ln in t.splitlines()[1:]:
+        c = ln.split(',')[0]
+        codes[c[:1]] = codes.get(c[:1], 0) + 1
+    out('BEA NipaDataQ first-letter groups (all):', dict(sorted(codes.items())))
+    out('BEA NipaDataQ sample codes by letter:', {k: sorted({ln.split(',')[0] for ln in t.splitlines()[1:3000000:5000] if ln.startswith(k)})[:3] for k in sorted(codes)[:30]})
+    st, n, t, hdr, s = call('https://apps.bea.gov/national/Release/TXT/', maxb=100000)
+    out('BEA Release/TXT listing', st, n, short(t, 300))
+
+
+def fred4():
+    k = f'&api_key={FRED_KEY}&file_type=json'
+    for label, extra in (('window yesterday 12:00 to now (CT)', '&start_time=202610051200&end_time=202610062359'),
+                         ('window today 00:00 to 23:59', '&start_time=202610060000&end_time=202610062359'),
+                         ('window last 6h only', '&start_time=202610060300&end_time=202610062359')):
+        n_ours, pages, off, total = 0, 0, 0, None
+        ours = set()
+        try:
+            import duckdb
+            con = duckdb.connect('data/gdpnow.duckdb', read_only=True)
+            for (u,) in con.execute("SELECT url FROM fetch_log WHERE as_of=(SELECT max(as_of) FROM fetch_log) AND url LIKE '%stlouisfed%'").fetchall():
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(u).query)
+                if 'series_id' in q:
+                    ours.add(q['series_id'][0])
+        except Exception as e:
+            out('fred4 inventory error', str(e)[:100])
+        hit = {}
+        while pages < 40:
+            st, n, t, _, s = call(f'https://api.stlouisfed.org/fred/series/updates?filter_value=all&limit=1000&offset={off}' + extra + k)
+            try:
+                d = json.loads(t)
+            except Exception:
+                out('FRED window', label, 'error', st, short(t, 150))
+                break
+            total = d.get('count')
+            for r in d.get('seriess', []):
+                if r['id'] in ours:
+                    hit[r['id']] = r.get('last_updated')
+            pages += 1
+            if len(d.get('seriess', [])) < 1000:
+                break
+            off += 1000
+            time.sleep(0.6)
+        out('FRED window', label, '| total series updated', total, 'pages', pages, 'our series flagged', len(hit), sorted(hit.items())[:8])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
-    if 'inventory' not in which and any(w.endswith('2') or w == 'heads' for w in which):
+    if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4') for w in which):
         which = ['inventory'] + which
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4)):
         if name in which:
             try:
                 fn()
