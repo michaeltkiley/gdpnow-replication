@@ -1,6 +1,6 @@
 # FRED series published from the Federal Reserve's G.17 release files (https://www.federalreserve.gov/releases/g17/ipdisk/).
 # FRED id = [file, G.17 series code]. Codes found by comparing the full FRED history with every code in the files (exploration round 30:
-# every one equals FRED on every month, differences 0.0). ip_sa.txt: index levels, seasonally adjusted; utl_sa.txt: capacity utilization.
+# every one equals FRED on every month, differences 0.0). ip_sa.txt: index levels, seasonally adjusted; utl_sa.txt: capacity utilization; auto_sa.txt: motor vehicle assemblies (Table 3), millions of units at an annual rate.
 [series]
 INDPRO = ["ip_sa.txt", "B50001"]
 IPMAT = ["ip_sa.txt", "B53000"]
@@ -17,3 +17,4 @@ IPB54000S = ["ip_sa.txt", "B54000"]
 IPBUSEQ = ["ip_sa.txt", "B52100"]
 IPN213111S = ["ip_sa.txt", "N213111"]
 CUMFNS = ["utl_sa.txt", "B00004"]
+MVAAUTLTTS = ["auto_sa.txt", "AUTLTT"]

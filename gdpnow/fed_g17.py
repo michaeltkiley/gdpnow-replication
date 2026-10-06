@@ -1,6 +1,6 @@
-"""Industrial production and capacity utilization series (FRED INDPRO, IPMAT, IPCONGD ... CUMFNS) from the Federal Reserve's G.17 release files
-instead of FRED. https://www.federalreserve.gov/releases/g17/ipdisk/ip_sa.txt (index levels, SA) and utl_sa.txt (capacity utilization, SA) hold
-every series: a header line `"CODE: label"` then one line per series and year, `"CODE"  YYYY  v1 .. v12` (a partial year has fewer values).
+"""Industrial production, capacity utilization and motor vehicle assembly series (FRED INDPRO, IPMAT, IPCONGD ... CUMFNS, MVAAUTLTTS) from the Federal Reserve's G.17 release files
+instead of FRED. https://www.federalreserve.gov/releases/g17/Current/ipdisk/ip_sa.txt (index levels, SA), utl_sa.txt (capacity utilization, SA) and auto_sa.txt
+(Table 3, motor vehicle assemblies) hold every series: a header line `"CODE: label"` then one line per series and year, `"CODE"  YYYY  v1 .. v12` (a partial year has fewer values).
 config/g17_series.toml maps each FRED id to its code; every mapped series equals FRED's on every month (exploration round 30).
 Each file is downloaded once per run. Change signal: a header-only request per file (Last-Modified, ETag, length), logged for the daily probe.
 No fallback: a failed download or a missing code fails the run.
@@ -14,7 +14,7 @@ import pandas as pd
 from . import public_data as P
 from .config import CONFIG
 
-BASE = 'https://www.federalreserve.gov/releases/g17/ipdisk/'
+BASE = 'https://www.federalreserve.gov/releases/g17/Current/ipdisk/'
 MAP = {fid: tuple(v) for fid, v in tomllib.load(open(CONFIG / 'g17_series.toml', 'rb'))['series'].items()}   # FRED id -> (file, code)
 _TEXT = {}
 _SERIES = {}                    # file -> {code: Series}
