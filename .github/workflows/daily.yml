@@ -27,6 +27,10 @@ jobs:
     timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The tip of the branch when this run starts, not the commit it was triggered at: a run queued behind another one must see
+          # that run's recorded result (the change check reads the last run's code hash from docs/data/runs) and push on top of it.
+          ref: ${{ github.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
