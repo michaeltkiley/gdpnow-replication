@@ -21,6 +21,12 @@ CENSUS_DATASETS = {
     'mwts': 'Monthly Wholesale Trade (Census)', 'ftdadv': 'Advance International Trade in Goods (Census)',
     'ftd': 'International Trade in Goods (Census)', 'vip': 'Construction Spending (Census)',
 }
+# Census bulk-file program codes (config/census_series.toml) -> release
+CENSUS_PROGRAMS = {'M3ADV': 'Advance Durable Goods (Census)', 'M3': "Manufacturers' Shipments, Inventories and Orders (Census)",
+                   'MRTS': 'Monthly Retail Trade (Census)', 'MRTSADV': 'Advance Retail Inventories (Census)',
+                   'MWTSADV': 'Advance Wholesale Inventories (Census)', 'FTDADV': 'Advance International Trade in Goods (Census)',
+                   'RESCONST': 'New Residential Construction (Census)', 'RESSALES': 'New Residential Sales (Census)',
+                   'VIP': 'Construction Spending (Census)'}
 # BEA table prefixes -> release (monthly consumption and inventory detail; everything quarterly is the GDP release)
 BEA_MONTHLY = {'U20404': 'Personal Income and Outlays (BEA)', 'U20405': 'Personal Income and Outlays (BEA)',
                'U20406': 'Personal Income and Outlays (BEA)', 'T20804': 'Personal Income and Outlays (BEA)',
@@ -60,6 +66,8 @@ def label(con, source, series):
         return _fred_release(con, series)
     if source == 'bls_flat':
         return BLS_RELEASE.get(series[:2].lower(), 'BLS')
+    if source == 'census_bulk':
+        return CENSUS_PROGRAMS.get(series.split('|')[0], 'Census economic indicators')
     if source.startswith('census_eits:'):
         return CENSUS_DATASETS.get(source.split(':')[1], 'Census economic indicators')
     if source == 'bea':

@@ -7,12 +7,11 @@ the Census Advance Economic Indicators (AEI) report, which gives total goods tra
   * Capital-goods-shares BVAR (Mods Oct-2017): shares of aircraft, computers and core in total capital goods
     exports and imports, conditional on month-t shipments and AEI total capital goods (11 variables).
 
-Public data: the six aggregates for month t come from the AEI PDF (pdftotext; cached in data/); the history,
+Public data: the six aggregates for month t come from the AEI report's Excel Table 1 (tab1adv.xlsx; cached in data/); the history,
 BOP-basis gold and capital-goods detail from BEA's IDS-0182 (gdpnow/ids0182.py), whose Census-basis SA series
 equal the AEI's published SA values.
 """
 import re
-import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -29,26 +28,41 @@ CATS = ['Foods, Feeds, & Beverages', 'Industrial Supplies', 'Capital Goods', 'Au
 CODES = ['0', '1', '2', '3', '4', '5']
 
 
+AEI_XLSX = 'https://www.census.gov/econ/indicators/tab1adv.xlsx'     # Table 1 of the current Advance Economic Indicators report
+_LABEL = {'Foods': CATS[0], 'Industrial': CATS[1], 'Capital': CATS[2], 'Automotive': CATS[3], 'Consumer': CATS[4], 'Other': CATS[5]}
+
+
 def aei_table(cx, month):
-    """Seasonally adjusted AEI Table 1 for `month` (month-end Timestamp): {(flow, category|'Total'): [t, t-1, t-2]}."""
-    ym = f'{month.year}{month.month:02d}'
-    path = Path('data') / f'{cx.asof.replace("-", "")}_aei_{ym[2:]}.pdf'
+    """Seasonally adjusted AEI Table 1 for `month` (month-end Timestamp): {(flow, category|'Total'): [t, t-1, t-2]}.
+    Read from the report's Excel table at its fixed 'current' URL (the file holds the latest advance month only; its
+    header must name `month`). Values in $ millions, in the order of the file's three monthly columns."""
+    import io
+    import openpyxl
+    path = Path('data') / f'{cx.asof.replace("-", "")}_aei_{month.year}{month.month:02d}.xlsx'
     if not path.exists() or P.refresh_once(('aei', path.name)):
-        path.write_bytes(P.get_bytes(f'https://www.census.gov/econ/indicators/{month.year}/advance_report{ym[2:]}.pdf'))
-    text = subprocess.run(['pdftotext', '-layout', str(path), '-'], capture_output=True, text=True, check=True).stdout
-    sa = text.split('Seasonally Adjusted', 1)[1].split('Not Seasonally Adjusted', 1)[0]
+        path.write_bytes(P.get_bytes(AEI_XLSX))
+    ws = openpyxl.load_workbook(io.BytesIO(path.read_bytes()), data_only=True).worksheets[0]
+    rows = [[c for c in r if c is not None and str(c).strip() != ''] for r in ws.iter_rows(values_only=True)]     # cells in column order
+    hi = next((i for i, r in enumerate(rows) if r and str(r[0]).strip() == month.strftime('%B')), None)
+    if hi is None or str(rows[hi + 1][0]).strip() != str(month.year):
+        raise ValueError(f'AEI Table 1 ({AEI_XLSX}) is not for {month:%B %Y}: header {rows[hi][:3] if hi is not None else None}')
+    sa = next(i for i, r in enumerate(rows) if r and str(r[0]).strip() == 'Seasonally Adjusted')
+    nsa = next(i for i, r in enumerate(rows) if r and str(r[0]).strip() == 'Not Seasonally Adjusted')
     out, flow = {}, None
-    for line in sa.splitlines():
-        s = line.strip()
-        label = re.sub(r'\s*\(\d\)', '', re.split(r'\s{2,}', s)[0]) if s else ''
-        nums = re.findall(r'-?\d[\d,]*(?:\.\d+)?', s[len(re.split(r'\s{2,}', s)[0]):])
+    for r in rows[sa + 1:nsa]:
+        if not r:
+            continue
+        label = re.sub(r'\s*\(\d\)', '', str(r[0]).strip())
+        vals = [float(v) for v in r[1:4] if isinstance(v, (int, float))]
+        if len(vals) != 3:
+            continue
         if label in ('Exports', 'Imports'):
             flow = label.lower()
-            out[(flow, 'Total')] = [float(n.replace(',', '')) for n in nums[:3]]
-        elif flow and label in CATS:
-            out[(flow, label)] = [float(n.replace(',', '')) for n in nums[:3]]
+            out[(flow, 'Total')] = vals
+        elif flow and label.split(',')[0].split()[0] in _LABEL:
+            out[(flow, _LABEL[label.split(',')[0].split()[0]])] = vals
     if len(out) != 14:
-        raise ValueError(f'AEI table not parsed ({len(out)} rows): {path}')
+        raise ValueError(f'AEI table not parsed ({len(out)} rows): {AEI_XLSX}')
     return out
 
 

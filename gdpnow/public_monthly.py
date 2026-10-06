@@ -2,14 +2,12 @@
 Treasury). Each builder reproduces a workbook series by its documented recipe (WP Tables A2, A4, A8;
 Mods); tools/validate_public.py and stage 06 benchmark them against the workbook (benchmark only).
 """
-import os
-import urllib.parse
 
 import numpy as np
 import pandas as pd
 from statsmodels.tsa.x13 import x13_arima_analysis
 
-from . import bls_flat as BF, history as H, ids0182 as IDS, trade_bvar as TB, public_data as P
+from . import bls_flat as BF, census_bulk as CB, history as H, ids0182 as IDS, trade_bvar as TB, public_data as P
 from .config import ROOT, load_toml
 
 X13 = str(ROOT / 'tools' / 'x13' / 'x13as' / 'x13as_ascii')
@@ -78,19 +76,6 @@ def atkeson_ohanian(q_price, months_index):
     months = [t for t in months_index if (t + pd.offsets.QuarterEnd(0) - pd.offsets.QuarterEnd(1)) in g.dropna().index]
     gm = pd.Series({t: g[t + pd.offsets.QuarterEnd(0) - pd.offsets.QuarterEnd(1)] for t in months}).sort_index()
     return np.exp(gm.cumsum()) * float(q[gm.index[0] + pd.offsets.QuarterEnd(0) - pd.offsets.QuarterEnd(1)])
-
-
-def census(series, dataset, category, data_type, seasonal='yes', time_from='1992'):
-    """Census EITS time series (current vintage). Returns monthly Series."""
-    q = dict(get='cell_value,time_slot_id', category_code=category, data_type_code=data_type,
-             seasonally_adj=seasonal, time=f'from {time_from}', key=os.environ.get('CENSUS_API_KEY', ''))
-    q['for'] = 'us:*'
-    url = f'https://api.census.gov/data/timeseries/eits/{dataset}?' + urllib.parse.urlencode(q)
-    rows = P._get(url)
-    hdr, data = rows[0], rows[1:]
-    i, j = hdr.index('cell_value'), hdr.index('time')
-    s = pd.Series({pd.Period(r[j], 'M').end_time.normalize(): float(r[i]) for r in data if r[i] not in ('', '(S)')})
-    return s.sort_index()
 
 
 class Ctx:
@@ -186,18 +171,10 @@ class Ctx:
             return t
         return t[[c for c in t.columns if c.split('|')[0] == str(line)][0]]
 
-    def census(self, *a, **k):
-        """Census API series, archived per as-of date like the other pulls (a re-run of a day reuses its archive)."""
-        key = ('c',) + a + tuple(sorted(k.items()))
-        if key not in self.cache:
-            name = '|'.join(str(x) for x in a[1:]) + '|' + '|'.join(f'{kk}={vv}' for kk, vv in sorted(k.items()))
-            src = f'census_eits:{a[1]}'
-            s = P._archived(self.con, src, name, self.asof)
-            if s is None:
-                s = census(*a, **k)
-                P._archive(self.con, src, name, self.asof, s)
-            self.cache[key] = s
-        return self.cache[key]
+    def census(self, _, dataset, category, data_type, **k):
+        """Census EITS series (current vintage) from the Census bulk files, archived per as-of date like the other pulls
+        (a re-run of a day reuses its archive). The first argument is unused (kept from the API call signature)."""
+        return CB.eits(self.con, self.asof, dataset, category, data_type, **k)
 
 
 def asof_cut(s, asof):

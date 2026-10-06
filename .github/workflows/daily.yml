@@ -32,7 +32,6 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: pip install -r requirements.txt
-      - run: sudo apt-get install -y poppler-utils
       - name: Restore state (archived pulls, estimates)
         uses: actions/cache/restore@v4
         with:
