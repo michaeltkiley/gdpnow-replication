@@ -1856,6 +1856,205 @@ def veh28():
             out('V28', fid, 'ERR', repr(e)[:200])
 
 
+def g17_29():
+    """Fed G.17: where are the whole-release files (industrial production, capacity utilization, motor vehicle assemblies)? Headers, page links,
+    layout of candidate files and FRED's latest values for the 16 series to match against."""
+    import re
+    ids = ['INDPRO', 'IPMAT', 'IPCONGD', 'IPDCONGD', 'IPDMAN', 'IPFINAL', 'IPFPNSS', 'IPMANSICS', 'IPNCONGD', 'IPNMAN', 'IPUTIL', 'IPB54000S',
+           'IPBUSEQ', 'IPN213111S', 'CUMFNS', 'MVAAUTLTTS']
+    for fid in ids:
+        try:
+            st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&sort_order=desc&limit=2', timeout=60)
+            st2, n2, t2, _, _ = call(f'https://api.stlouisfed.org/fred/series?series_id={fid}&api_key={FRED_KEY}&file_type=json', timeout=60)
+            sr = json.loads(t2)['seriess'][0]
+            out('G29', fid, sr['title'][:70], '| updated', sr['last_updated'], '| latest', [(o['date'], o['value']) for o in json.loads(t)['observations']])
+        except Exception as e:
+            out('G29', fid, 'ERR', repr(e)[:120])
+    base = 'https://www.federalreserve.gov/releases/g17/'
+    for u in ['current/default.htm', 'ipdisk/', 'ipdisk/ip_sa.txt', 'ipdisk/ip_nsa.txt', 'ipdisk/utl_sa.txt', 'ipdisk/utl_nsa.txt', 'download.htm', 'ipdisk/download.htm',
+              'iprevisions.htm', 'about.htm', 'data.htm']:
+        out('G29', 'HEAD', u, _head(base + u))
+    for u in ['download.htm', 'ipdisk/', 'current/default.htm']:
+        try:
+            st, n, t, _, _ = call(base + u, timeout=60)
+            links = sorted(set(re.findall(r'href="([^"]+)"', t)))
+            hit = [l for l in links if re.search(r'ipdisk|\.txt|\.csv|\.zip|\.xls|datadownload|feeds', l, re.I)]
+            out('G29', 'page', u, st, n, 'links', len(links), hit[:40])
+        except Exception as e:
+            out('G29', 'page', u, 'ERR', repr(e)[:120])
+    for u in ['ipdisk/ip_sa.txt', 'ipdisk/utl_sa.txt']:
+        try:
+            req = urllib.request.Request(base + u, headers={'User-Agent': 'Mozilla/5.0'})
+            raw = urllib.request.urlopen(req, timeout=120).read().decode('latin-1')
+            ls = raw.splitlines()
+            out('G29', 'file', u, len(raw), 'lines', len(ls))
+            for l in ls[:4]:
+                out('G29', u, 'head', l[:300])
+            for l in ls[-2:]:
+                out('G29', u, 'tail', l[:300])
+        except Exception as e:
+            out('G29', 'file', u, 'ERR', repr(e)[:120])
+
+
+def g17_30():
+    """Map each of the 16 FRED G.17 series to the G.17 file code whose full history equals it: parse ip_sa.txt and utl_sa.txt (rows
+    '"CODE" year v1..v12', header lines '"CODE: label"'), compare every code with the FRED history, report the best match (and ties)."""
+    import re
+    import pandas as pd
+    base = 'https://www.federalreserve.gov/releases/g17/ipdisk/'
+    codes = {}
+    labels = {}
+    for fname in ['ip_sa.txt', 'utl_sa.txt']:
+        req = urllib.request.Request(base + fname, headers={'User-Agent': 'Mozilla/5.0'})
+        raw = urllib.request.urlopen(req, timeout=120).read().decode('latin-1')
+        for line in raw.splitlines():
+            m = re.match(r'^"([^"]+?)(?::\s*(.*?))?"\s*(.*)$', line)
+            if not m:
+                continue
+            code, label, rest = m.group(1), m.group(2), m.group(3).split()
+            if label is not None and not rest:
+                labels[(fname, code)] = label
+                continue
+            if len(rest) < 2 or not rest[0].isdigit():
+                continue
+            yr = int(rest[0])
+            for i, v in enumerate(rest[1:13]):
+                try:
+                    codes.setdefault((fname, code), {})[pd.Timestamp(yr, i + 1, 1)] = float(v)
+                except ValueError:
+                    pass
+    out('G30', 'codes parsed', len(codes), 'labels', len(labels))
+    ids = ['INDPRO', 'IPMAT', 'IPCONGD', 'IPDCONGD', 'IPDMAN', 'IPFINAL', 'IPFPNSS', 'IPMANSICS', 'IPNCONGD', 'IPNMAN', 'IPUTIL', 'IPB54000S',
+           'IPBUSEQ', 'IPN213111S', 'CUMFNS', 'MVAAUTLTTS']
+    for fid in ids:
+        try:
+            st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+            f = pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(t)['observations'] if o['value'] != '.'}).sort_index()
+            hits = []
+            for key, d in codes.items():
+                b = pd.Series(d).sort_index()
+                common = f.index.intersection(b.index)
+                if len(common) < 12:
+                    continue
+                dif = (f[common] - b[common]).abs()
+                hits.append((float(dif.max()), key, len(common), str(b.index.min())[:7], str(b.index.max())[:7], int((f.index.difference(b.index)).size), int((b.index.difference(f.index)).size)))
+            hits.sort(key=lambda h: h[0])
+            out('G30', fid, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], '| best', [(round(h[0], 6), h[1][0], h[1][1], labels.get(h[1], '')[:40], h[2], h[3], h[4], 'onlyFRED', h[5], 'onlyFile', h[6]) for h in hits[:3]])
+        except Exception as e:
+            out('G30', fid, 'ERR', repr(e)[:150])
+
+
+def g17_31():
+    """The pipeline's own G.17 reader (gdpnow/fed_g17.py) against FRED, full history, for the 15 mapped series; and where MVAAUTLTTS
+    (motor vehicle assemblies) lives: the G.17 pages the release links (auxiliary, other data, download) searched for 'assembl'."""
+    import re
+    import tempfile
+    import duckdb
+    import pandas as pd
+    from gdpnow import fed_g17 as G
+    con = duckdb.connect(tempfile.mkdtemp() + '/g.duckdb')
+    for fid in G.MAP:
+        try:
+            st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+            f = pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(t)['observations'] if o['value'] != '.'}).sort_index()
+            b = G.series(con, fid, '2026-10-06')
+            idx = f.index.union(b.index)
+            fa, ba = f.reindex(idx), b.reindex(idx)
+            both = fa.notna() & ba.notna()
+            absd = (fa[both] - ba[both]).abs()
+            out('G31', fid, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], '| file', len(b), str(b.index.min())[:7], str(b.index.max())[:7],
+                '| common', int(both.sum()), 'max abs', float(absd.max()), '| only FRED', int((fa.notna() & ba.isna()).sum()), 'only file', int((fa.isna() & ba.notna()).sum()))
+        except Exception as e:
+            out('G31', fid, 'ERR', repr(e)[:200])
+    base = 'https://www.federalreserve.gov/releases/g17/'
+    for u in ['Current/ipdisk/auxiliary.htm', 'other_data.htm', 'download.htm', 'Current/ipdisk/caputl.htm', 'Current/ipdisk/alltables.htm', 'about.htm']:
+        try:
+            st, n, t, _, _ = call(base + u, timeout=60)
+            txt = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', t))
+            links = sorted(set(re.findall(r'href="([^"]+)"', t)))
+            hit = [l for l in links if re.search(r'assembl|mv|vehicle|\.txt|\.csv|\.xls|\.zip|datadownload', l, re.I)]
+            out('G31', 'page', u, st, n, 'links', hit[:30])
+            for k in list(re.finditer(r'assembl', txt, re.I))[:3]:
+                out('G31', 'page', u, 'text', txt[max(0, k.start() - 120):k.start() + 160])
+        except Exception as e:
+            out('G31', 'page', u, 'ERR', repr(e)[:120])
+    for u in ['Current/ipdisk/auxiliary.txt', 'ipdisk/auxiliary.txt', 'ipdisk/mv_assemblies.txt', 'ipdisk/g17sup_tab1.txt', 'Current/ipdisk/g17sup_tab1.txt', 'ipdisk/ip_sa_mv.txt']:
+        out('G31', 'HEAD', u, _head(base + u))
+
+
+def g17_32():
+    """Motor vehicle assemblies (FRED MVAAUTLTTS, 1977-): Table 3 text file g17mv.txt (layout, how many months it holds), the full-release zip
+    FRB_g17_xml.zip (members, where the assemblies series sit) and HEADs of the candidate files."""
+    import io
+    import re
+    import zipfile
+    base = 'https://www.federalreserve.gov/releases/g17/'
+    for u in ['Current/ipdisk/g17mv.txt', 'ipdisk/g17mv.txt', 'data/FRB_g17_xml.zip', 'Current/ipdisk/revh_sa.txt', 'mvsf.htm', 'mv_sales_sf.htm']:
+        out('G32', 'HEAD', u, _head(base + u))
+    req = urllib.request.Request(base + 'Current/ipdisk/g17mv.txt', headers={'User-Agent': 'Mozilla/5.0'})
+    raw = urllib.request.urlopen(req, timeout=120).read().decode('latin-1')
+    ls = raw.splitlines()
+    out('G32', 'g17mv.txt', len(raw), 'lines', len(ls))
+    for l in ls[:40]:
+        out('G32', 'mv', l[:200])
+    req = urllib.request.Request(base + 'data/FRB_g17_xml.zip', headers={'User-Agent': 'Mozilla/5.0'})
+    zb = urllib.request.urlopen(req, timeout=300).read()
+    z = zipfile.ZipFile(io.BytesIO(zb))
+    out('G32', 'zip', len(zb), [(i.filename, i.file_size) for i in z.infolist()][:10])
+    for i in z.infolist()[:4]:
+        t = z.read(i.filename).decode('utf8', 'replace')
+        out('G32', 'member', i.filename, len(t), t[:600].replace('\n', ' '))
+        for k in list(re.finditer(r'assembl|MVA|motor vehicle', t, re.I))[:4]:
+            out('G32', 'hit', i.filename, t[max(0, k.start() - 200):k.start() + 300].replace('\n', ' '))
+
+
+def g17_33():
+    """G.17 'Historical Data: Table 3, Motor Vehicle Assemblies' page: its links, and for each data file the headers, layout and a full-history
+    comparison with FRED's MVAAUTLTTS (1977-)."""
+    import re
+    import pandas as pd
+    base = 'https://www.federalreserve.gov/releases/g17/Current/ipdisk/'
+    st, n, t, _, _ = call(base + 'table3.htm', timeout=60)
+    links = sorted(set(re.findall(r'href="([^"]+)"', t)))
+    out('G33', 'table3.htm', st, n, 'links', [l for l in links if not l.startswith('#')][:40])
+    txt = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', t))
+    out('G33', 'text', txt[:900])
+    st, n, ft, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id=MVAAUTLTTS&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+    f = pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(ft)['observations'] if o['value'] != '.'}).sort_index()
+    out('G33', 'FRED MVAAUTLTTS', len(f), str(f.index.min())[:7], str(f.index.max())[:7], 'last', float(f.iloc[-1]))
+    for l in links:
+        if not re.search(r'\.(txt|csv|xls|xlsx)$', l, re.I) or l.startswith('http') and 'federalreserve.gov' not in l:
+            continue
+        u = l if l.startswith('http') else base + l.lstrip('./') if not l.startswith('/') else 'https://www.federalreserve.gov' + l
+        out('G33', 'file', u, _head(u))
+        try:
+            req = urllib.request.Request(u, headers={'User-Agent': 'Mozilla/5.0'})
+            raw = urllib.request.urlopen(req, timeout=120).read().decode('latin-1')
+            ls = raw.splitlines()
+            out('G33', u, len(raw), 'lines', len(ls))
+            for x in ls[:6]:
+                out('G33', 'head', x[:220])
+            for x in ls[-3:]:
+                out('G33', 'tail', x[:220])
+            acc = {}
+            for x in ls:
+                m = re.match(r'^"?([^"\s:]+)"?\s+(\d{4})\s+(.*)$', x)
+                if m:
+                    for i, v in enumerate(m.group(3).split()[:12]):
+                        try:
+                            acc.setdefault(m.group(1), {})[pd.Timestamp(int(m.group(2)), i + 1, 1)] = float(v)
+                        except ValueError:
+                            pass
+            for code, d in acc.items():
+                b = pd.Series(d).sort_index()
+                both = f.index.intersection(b.index)
+                if len(both) >= 12:
+                    dif = (f[both] - b[both]).abs()
+                    out('G33', 'cmp', u.rsplit('/', 1)[1], code, 'common', len(both), 'max abs', float(dif.max()), 'file', str(b.index.min())[:7], str(b.index.max())[:7], 'onlyFRED', int(f.index.difference(b.index).size), 'onlyFile', int(b.index.difference(f.index).size))
+        except Exception as e:
+            out('G33', 'file', u, 'ERR', repr(e)[:150])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1863,7 +2062,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33)):
         if name in which:
             try:
                 fn()
