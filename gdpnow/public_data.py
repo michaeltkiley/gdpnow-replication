@@ -32,6 +32,11 @@ def _get(url, tries=4):
             time.sleep(2 * (k + 1))
 
 
+# GDPNOW_REFRESH=1 (daily change check): every pull is fetched again once per process, replacing the archive for
+# its as-of date, instead of being served from the archive (which is what makes a re-run of a day repeatable).
+REFRESH = os.environ.get('GDPNOW_REFRESH') == '1'
+_SEEN = set()
+
 _OVR = {}
 
 
@@ -78,6 +83,9 @@ def _archived(con, source, series, asof):
     if not store.table_exists(con, 'raw_pulls'):
         return None
     asof = _as_of_for(con, source, series, asof)
+    if REFRESH and (source, series, str(asof)) not in _SEEN:
+        _SEEN.add((source, series, str(asof)))
+        return None
     df = store.query(con, 'SELECT date, value FROM raw_pulls WHERE source = ? AND series = ? AND as_of = ?',
                      (source, series, str(asof)))
     if df.empty:
@@ -132,6 +140,9 @@ def bea_table(con, dataset, table, frequency, asof, refresh=False):
     """All lines of a BEA NIPA / underlying-detail table (current vintage; archived under `asof`).
     Returns DataFrame indexed by period end with columns 'line|description'."""
     key = f'{dataset}:{table}:{frequency}'
+    if REFRESH and (key, str(asof)) not in _SEEN:
+        _SEEN.add((key, str(asof)))
+        refresh = True
     if not refresh and store.table_exists(con, 'raw_pulls'):
         df = store.query(con, "SELECT series, date, value FROM raw_pulls WHERE source = 'bea' AND series LIKE ? AND as_of = ?",
                          (key + '|%', _as_of_for_table(con, key, asof)))
@@ -175,3 +186,11 @@ def bea_table(con, dataset, table, frequency, asof, refresh=False):
         _archive(con, 'bea', f'{key}|{ser}', asof, pd.Series(g.value.to_numpy(), index=g.date))
     w = df.pivot(index='date', columns='series', values='value')
     return w.sort_index()
+
+
+def note_file(con, asof, name, content):
+    """Record the SHA-256 of a downloaded file that is parsed rather than archived value by value (table
+    raw_files), so a change in it is visible to the daily change check."""
+    import hashlib
+    df = pd.DataFrame({'as_of': [str(asof)], 'name': [name], 'sha256': [hashlib.sha256(content).hexdigest()]})
+    store.replace_rows(con, 'raw_files', df, {'as_of': str(asof), 'name': name})

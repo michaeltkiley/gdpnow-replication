@@ -32,13 +32,56 @@ def published_on(con, quarter, asof):
     return d, {k: dict(zip(g.key, g.value)) for k, g in x.groupby('kind')}
 
 
+def benchmark(con, quarter, asof, gdp, vintage):
+    """GDPNow's published numbers as of `asof` and the L1 integrity line, as (gdpnow, integrity, row fields)."""
+    pdate, pub = published_on(con, quarter, asof)
+    l1 = con.execute('SELECT gdp FROM runs WHERE run_id = ?', [f'L1_{vintage}']).fetchone()
+    l1_pub = published_on(con, quarter, '9999-12-31')[1].get('growth', {}).get('GDP') if l1 else None
+    gdpnow = {'date': pdate, 'gdp': pub.get('growth', {}).get('GDP'),
+              'growth': {k: pub.get('growth', {}).get(k) for k in KEYS},
+              'contribution': {k: pub.get('contribution', {}).get(k) for k in KEYS + ['V']}} if pdate else None
+    integrity = {'l1_gdp': l1[0], 'gdpnow_latest': l1_pub, 'l1_minus_gdpnow': (l1[0] - l1_pub) if l1_pub is not None else None,
+                 'workbook_vintage': vintage} if l1 else None
+    row = {'gdpnow_date': pdate, 'gdpnow': gdpnow['gdp'] if pdate else None,
+           'l1_minus_gdpnow': integrity['l1_minus_gdpnow'] if integrity else None}
+    row['diff'] = (gdp - row['gdpnow']) if row['gdpnow'] is not None else None
+    if pdate:
+        for k in KEYS:
+            row[f'gd_{k}'], row[f'cd_{k}'] = pub['growth'].get(k), pub['contribution'].get(k)
+        row['cd_V'] = pub['contribution'].get('V')
+    return gdpnow, integrity, row
+
+
+def carry_forward(asof, prev, vintage):
+    """No new public data since the run for `prev`: the day's record repeats that run's nowcast (flagged
+    `unchanged`); only the benchmark (GDPNow's published numbers, the L1 integrity line) is refreshed."""
+    hist = OUT / 'history.csv'
+    df = pd.read_csv(hist)
+    old = df[df['asof'] == prev].iloc[0].to_dict()
+    rec = json.loads((OUT / 'runs' / f'{prev}.json').read_text())
+    con = store.connect()
+    vintage = vintage or store.latest_vintage(con)
+    gdpnow, integrity, upd = benchmark(con, rec['quarter'], asof, rec['nowcast']['gdp'], vintage)
+    since = rec.get('unchanged', {}).get('since', prev)
+    rec.update(asof=asof, gdpnow=gdpnow, integrity=integrity, unchanged={'since': since})
+    (OUT / 'runs' / f'{asof}.json').write_text(json.dumps(rec, indent=1))
+    row = {**old, 'asof': asof, **upd, 'unchanged': True}
+    df = pd.concat([df[df['asof'] != asof], pd.DataFrame([row])], ignore_index=True).sort_values('asof')
+    df.to_csv(hist, index=False)
+    print(f'{asof}: no new public data since {since}; nowcast {old["nowcast"]:.3f} carried forward, '
+          f'GDPNow {upd["gdpnow"]} (update {upd["gdpnow_date"]})')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--asof', required=True)
     ap.add_argument('--vintage', help='workbook vintage of the L1 integrity run (default: latest loaded)')
+    ap.add_argument('--carry-from', metavar='ASOF', help='no new data: repeat that day\'s nowcast, refresh the benchmark only')
     ap.add_argument('--force', action='store_true')
     a = ap.parse_args()
     asof = a.asof
+    if a.carry_from:
+        return carry_forward(asof, a.carry_from, a.vintage)
     out = OUT / 'runs' / f'{asof}.json'
     if out.exists() and not a.force:
         print(f'{out.name} exists; use --force to rewrite')
@@ -74,6 +117,7 @@ def main():
            'gdpnow': rec['gdpnow']['gdp'] if pdate else None}
     row['diff'] = (gdp - row['gdpnow']) if row['gdpnow'] is not None else None
     row['l1_minus_gdpnow'] = rec['integrity']['l1_minus_gdpnow'] if rec['integrity'] else None
+    row['unchanged'] = False
     for r in comps.itertuples():
         row[f'g_{r.id}'], row[f'c_{r.id}'] = r.growth_pct, r.contribution
     if pdate:

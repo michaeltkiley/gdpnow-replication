@@ -15,6 +15,8 @@ from pathlib import Path
 import openpyxl
 import pandas as pd
 
+from . import public_data as P
+
 URL = 'https://apps.bea.gov/international/zip/{}.zip'
 FILES = {'Historical': 'IDS0182-Hist', 'Current': 'IDS0182'}
 
@@ -47,13 +49,15 @@ def load(cx):
     if 'ids0182' in cx.cache:
         return cx.cache['ids0182']
     path = Path('data') / f'{cx.asof.replace("-", "")}_ids0182.pkl'
-    if path.exists():
+    if path.exists() and not P.REFRESH:
         cx.cache['ids0182'] = pd.read_pickle(path)
         return cx.cache['ids0182']
     res = {}
     for part, name in FILES.items():
         req = urllib.request.Request(URL.format(name), headers={'User-Agent': 'Mozilla/5.0'})
-        z = zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(req, timeout=300).read()))
+        raw = urllib.request.urlopen(req, timeout=300).read()
+        P.note_file(cx.con, cx.asof, f'ids0182:{name}', raw)
+        z = zipfile.ZipFile(io.BytesIO(raw))
         for member in z.namelist():
             low = member.lower()
             if not low.endswith('.xlsx') or 'exports' not in low and 'imports' not in low:

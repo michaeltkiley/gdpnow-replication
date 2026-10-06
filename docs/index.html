@@ -103,7 +103,7 @@ function drawComp(L){
 
 async function showRun(a){
   const el=$('chg');el.innerHTML='';
-  let D;try{D=await j(`data/decomp/${a}.json`)}catch(e){el.innerHTML='<p class="sub">No decomposition for this run (first run of a quarter, or no earlier run to compare to).</p>';return}
+  let D;try{D=await j(`data/decomp/${a}.json`)}catch(e){el.innerHTML='<p class="sub">No decomposition for this run (no new data since the last run, first run of a quarter, or no earlier run to compare to).</p>';return}
   const h=D.layer1.headline,dr=D.layer1.drivers;
   el.innerHTML=`<p>${D.previous} → ${a}: <b>${f2(h.from_)}</b> → <b>${f2(h.to)}</b> (<b class="${h.delta>=0?'pos':'neg'}">${sg(h.delta)} pp</b>). Contributions of each model piece, in GDP growth points; they sum to the change.</p><svg id="drv" class="chart"></svg><div id="l2"></div><h3 style="font-size:1rem;margin:20px 0 6px">Data released since the previous run</h3><div class="tablewrap"><table id="rel"></table></div><h3 style="font-size:1rem;margin:20px 0 6px">By component</h3><div id="cmp"></div>`;
   const rows=dr.filter(x=>Math.abs(x.pp)>=0.001).slice(0,12),rh=24,Ht=rows.length*rh+30,s=$('drv');
