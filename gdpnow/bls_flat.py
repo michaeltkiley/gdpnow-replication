@@ -85,7 +85,7 @@ def load(con, asof, file):
     if file in _LOADED:
         return
     wanted = {b for b, f in MAP.values() if f == file} | {b for b, (f, _) in DIRECT.items() if f == file}
-    P.record_head(file, head(file))
+    P.record_head(url(file), head(file))
     req = urllib.request.Request(url(file), headers=headers())
     with urllib.request.urlopen(req, timeout=900) as r:
         got = parse((ln.decode('utf8', 'replace') for ln in r), wanted)

@@ -152,9 +152,12 @@ def head_digest(last_modified, etag, length):
     return hashlib.sha256(f'{last_modified}|{etag}|{length}'.encode()).hexdigest()
 
 
-def record_head(file, head):
-    """Log a header-only check of a BLS flat file (Last-Modified, ETag, length) so the probe can repeat it."""
-    _record('BLS_HEAD', 'https://download.bls.gov/pub/time.series/' + file, None, head_digest(*head))
+def record_head(url, head):
+    """Log a header-only check of a bulk file (Last-Modified, ETag, length) so the probe can repeat it. `url` is the file's
+    full URL (a BLS flat-file name given without a scheme is expanded)."""
+    if not url.startswith('http'):
+        url = 'https://download.bls.gov/pub/time.series/' + url
+    _record('BULK_HEAD', url, None, head_digest(*head))
 
 
 def replay(kind, url, body):
@@ -163,9 +166,12 @@ def replay(kind, url, body):
         return digest_json(_get_core(url, tries=6, throttle=True))
     if kind == 'GET_BYTES':
         return digest_bytes(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=300).read())
-    if kind == 'BLS_HEAD':
-        from . import bls_flat
-        return head_digest(*bls_flat.head(url.split('/pub/time.series/', 1)[1]))
+    if kind in ('BLS_HEAD', 'BULK_HEAD'):          # BLS_HEAD: requests logged by the previous version
+        if '/pub/time.series/' in url:
+            from . import bls_flat
+            return head_digest(*bls_flat.head(url.split('/pub/time.series/', 1)[1]))
+        from . import bea_bulk
+        return head_digest(*bea_bulk.head(url.rsplit('/', 1)[1]))
     if kind == 'CENSUS_ZIP':
         from . import census_bulk
         return census_bulk.digest(url.split('programCode=', 1)[1])
@@ -256,7 +262,7 @@ def _archive(con, source, series, asof, s):
 
 def fred(con, series_id, asof, refresh=False):
     """Observations of a FRED series as known on `asof` (ALFRED real-time period). Series listed in
-    config/bls_series.toml come from BLS's flat files (gdpnow/bls_flat.py), those in config/census_series.toml from Census's bulk files (gdpnow/census_bulk.py)."""
+    config/bls_series.toml come from BLS's flat files (gdpnow/bls_flat.py), those in config/census_series.toml from Census's bulk files (gdpnow/census_bulk.py); BEA tables come from BEA's bulk files (gdpnow/bea_bulk.py)."""
     from . import bls_flat, census_bulk
     if bls_flat.covers(series_id):
         return bls_flat.series(con, series_id, asof)
@@ -297,7 +303,7 @@ def fred_search(text, limit=10):
 
 
 def bea_table(con, dataset, table, frequency, asof, refresh=False):
-    """All lines of a BEA NIPA / underlying-detail table (current vintage; archived under `asof`).
+    """All lines of a BEA NIPA / underlying-detail table (current vintage, from BEA's bulk files; archived under `asof`).
     Returns DataFrame indexed by period end with columns 'line|description'."""
     key = f'{dataset}:{table}:{frequency}'
     if REFRESH and (key, str(asof)) not in _SEEN:
@@ -311,37 +317,11 @@ def bea_table(con, dataset, table, frequency, asof, refresh=False):
             w.index = pd.to_datetime(w.index)
             w.columns = [c[len(key) + 1:] for c in w.columns]
             return w.sort_index()
-    if dataset == 'NIPA':
-        chunks = ['ALL']
-    else:   # underlying-detail requests are size-capped: fetch in 4-year chunks
-        ys = list(range(1959, dt.date.today().year + 1))
-        chunks = [','.join(str(y) for y in ys[i:i + 4]) for i in range(0, len(ys), 4)]
-    rows = []
-    for years in chunks:
-        q = dict(UserID=os.environ['BEA_API_KEY'], method='GetData', DataSetName=dataset, TableName=table,
-                 Frequency=frequency, Year=years, ResultFormat='JSON')
-        d = _get(BEA + '?' + urllib.parse.urlencode(q))
-        res = d['BEAAPI'].get('Results')
-        if res is None or 'Data' not in res:
-            if dataset == 'NIPA':
-                raise RuntimeError(f'BEA {key}: {json.dumps(d)[:300]}')
-            continue          # years before a table starts return no data
-        rows += res['Data']
-    recs = []
-    for r in rows:
-        tp = r['TimePeriod']
-        if 'Q' in tp:
-            date = pd.Period(tp.replace('Q', 'Q'), 'Q').end_time.normalize()
-        elif 'M' in tp:
-            date = pd.Period(tp.replace('M', '-'), 'M').end_time.normalize()
-        else:
-            date = pd.Period(tp, 'Y').end_time.normalize()
-        try:
-            v = float(r['DataValue'].replace(',', ''))
-        except ValueError:
-            continue
-        recs.append((f"{r['LineNumber']}|{r['LineDescription']}", date, v))
-    df = pd.DataFrame(recs, columns=['series', 'date', 'value']).drop_duplicates(['series', 'date'])
+    from . import bea_bulk
+    df = bea_bulk.table(table, frequency)
+    if dataset != 'NIPA':          # the API path asked underlying-detail tables from 1959 on
+        df = df[df.date >= '1959-01-01']
+    df = df.drop_duplicates(['series', 'date'])
     for ser, g in df.groupby('series'):
         _archive(con, 'bea', f'{key}|{ser}', asof, pd.Series(g.value.to_numpy(), index=g.date))
     w = df.pivot(index='date', columns='series', values='value')
