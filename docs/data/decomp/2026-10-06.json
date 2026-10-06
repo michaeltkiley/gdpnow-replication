@@ -7,773 +7,783 @@
    {
     "component": "MM",
     "what": "Monthly model",
-    "pp": -0.42462664233357394
+    "pp": -0.40289046743902435
    },
    {
     "component": "XM",
     "what": "Monthly model",
-    "pp": 0.3070860994695529
+    "pp": 0.3179306610155021
    },
    {
     "component": "MS",
     "what": "Monthly model",
-    "pp": 0.25765846001595233
+    "pp": 0.25273414260177457
    },
    {
     "component": "FNE",
     "what": "NetComputersShipments (indicator data)",
-    "pp": -0.1719514153173815,
+    "pp": -0.17197319492774074,
     "via": "FNENPZ_USNAqtr"
    },
    {
     "component": "XS",
     "what": "Monthly model",
-    "pp": -0.15696704949782048
+    "pp": -0.15697108182778727
    },
    {
     "component": "MS",
     "what": "aggregation weights and prices",
-    "pp": -0.11999818044222021
+    "pp": -0.11554110733849975
    },
    {
     "component": "FNE",
     "what": "NetCoreCapGoodsShipments (indicator data)",
-    "pp": 0.10787087592420172,
+    "pp": 0.10783894031660389,
     "via": "HerzonCoreEQty"
    },
    {
     "component": "FNE",
     "what": "NondefenseAircraftNetShipments (indicator data)",
-    "pp": 0.07804277153545823,
+    "pp": 0.07804161359598795,
     "via": "FNETPZ_USNAqtr"
    },
    {
     "component": "CS",
     "what": "travel_out",
-    "pp": -0.039673679897891
+    "pp": -0.0396728623375586
    },
    {
     "component": "CS",
     "what": "travel_in",
-    "pp": 0.02806488473936711
+    "pp": 0.02806836577796726
    },
    {
     "component": "MS",
     "what": "Blend weight",
-    "pp": -0.024732596455470584
+    "pp": -0.02426033486181247
    },
    {
     "component": "FNE",
     "what": "Monthly-indicator model",
-    "pp": 0.01185611153435311
+    "pp": 0.011814717186338274
    },
    {
     "component": "XS",
     "what": "Blend weight",
-    "pp": 0.008557339787760932
+    "pp": 0.008557573263753431
    },
    {
     "component": "MM",
     "what": "aggregation weights and prices",
-    "pp": -0.007025491080322799
-   },
-   {
-    "component": "XM",
-    "what": "aggregation weights and prices",
-    "pp": -0.003820780203138141
+    "pp": -0.006836954467084322
    },
    {
     "component": "V",
-    "what": "aggregation weights and prices",
-    "pp": -0.0013083521229484418
-   },
-   {
-    "component": "CS",
-    "what": "aggregation weights and prices",
-    "pp": -0.001034318098351519
-   },
-   {
-    "component": "XS",
-    "what": "aggregation weights and prices",
-    "pp": -0.00040905491867185284
-   },
-   {
-    "component": "CTG",
-    "what": "aggregation weights and prices",
-    "pp": -0.00040275058447255093
-   },
-   {
-    "component": "FNE",
-    "what": "aggregation weights and prices",
-    "pp": -0.00034477439536678527
-   },
-   {
-    "component": "FNE",
-    "what": "NetComputersShipments (coefficient)",
-    "pp": 0.0002414161946977306,
-    "via": "FNENPZ_USNAqtr"
-   },
-   {
-    "component": "FNP",
-    "what": "aggregation weights and prices",
-    "pp": -0.00023027034537520554
-   },
-   {
-    "component": "GF",
-    "what": "aggregation weights and prices",
-    "pp": -0.0002104341695202723
-   },
-   {
-    "component": "FNS",
-    "what": "aggregation weights and prices",
-    "pp": -0.00011936607180387769
-   },
-   {
-    "component": "FNE",
-    "what": "Aircraft (constant/other)",
-    "pp": -9.287034069489195e-05,
-    "via": "FNETPZ_USNAqtr"
-   },
-   {
-    "component": "GS",
-    "what": "aggregation weights and prices",
-    "pp": -7.863973466402256e-05
-   },
-   {
-    "component": "FNE",
-    "what": "Core equipment (constant/other)",
-    "pp": -6.669797905101644e-05,
-    "via": "HerzonCoreEQty"
-   },
-   {
-    "component": "CS",
-    "what": "other_services",
-    "pp": -6.044506451858026e-05
-   },
-   {
-    "component": "FNE",
-    "what": "Computers and peripherals (constant/other)",
-    "pp": 5.986947389121535e-05,
-    "via": "FNENPZ_USNAqtr"
-   },
-   {
-    "component": "CTG",
-    "what": "core_retail",
-    "pp": -3.2558239440179776e-05
-   },
-   {
-    "component": "FR",
-    "what": "valTotalHomeSales (indicator data)",
-    "pp": -3.0687515639756316e-05,
-    "via": "FRSBKZ_USNAqtr"
-   },
-   {
-    "component": "FR",
-    "what": "aggregation weights and prices",
-    "pp": 2.8574908132037768e-05
+    "what": "Monthly inventory model",
+    "pp": 0.006103669448857544
    },
    {
     "component": "FR",
     "what": "MobileHomeVal (indicator data)",
-    "pp": 2.1518835917127347e-05,
+    "pp": -0.00544149970888406,
     "via": "FRSHMZ_USNAqtr"
    },
    {
-    "component": "CS",
-    "what": "food_services",
-    "pp": -2.0515802167170778e-05
+    "component": "FR",
+    "what": "Monthly-indicator model",
+    "pp": -0.004477657152125997
    },
    {
-    "component": "FNE",
+    "component": "XM",
+    "what": "aggregation weights and prices",
+    "pp": -0.004064734963870886
+   },
+   {
+    "component": "V",
     "what": "Blend weight",
-    "pp": -1.9928727707245628e-05
-   },
-   {
-    "component": "FNS",
-    "what": "Monthly-indicator model",
-    "pp": 1.4518138089067215e-05
-   },
-   {
-    "component": "FNS",
-    "what": "CPVD@USECON (indicator data)",
-    "pp": 1.4125900618165812e-05,
-    "via": "NResStructExMineWellQuant"
-   },
-   {
-    "component": "CTG",
-    "what": "new_mv",
-    "pp": -1.2584192685831541e-05
-   },
-   {
-    "component": "CTG",
-    "what": "used_mv",
-    "pp": 1.2036110646186305e-05
-   },
-   {
-    "component": "FNE",
-    "what": "NondefenseAircraftNetShipments (coefficient)",
-    "pp": -1.1113105041259574e-05,
-    "via": "FNETPZ_USNAqtr"
-   },
-   {
-    "component": "FNE",
-    "what": "MonthlyRealBusTruckSales (indicator data)",
-    "pp": 1.0723823391180839e-05,
-    "via": "TIZ_USNAqtr"
-   },
-   {
-    "component": "GF",
-    "what": "Monthly-indicator model",
-    "pp": -7.3424995626001875e-06
-   },
-   {
-    "component": "FR",
-    "what": "SplicedNewHousingConstruction (indicator data)",
-    "pp": 6.935999822603039e-06,
-    "via": "FRSPZ_USNAqtr"
-   },
-   {
-    "component": "CTG",
-    "what": "gasoline",
-    "pp": 6.128974749111729e-06
-   },
-   {
-    "component": "FR",
-    "what": "Monthly-indicator model",
-    "pp": -5.971547663570756e-06
-   },
-   {
-    "component": "GF",
-    "what": "saFTOD@USECON (indicator data)",
-    "pp": -5.842239144813544e-06,
-    "via": "NatDefenseTreasCatsQty"
-   },
-   {
-    "component": "GS",
-    "what": "Monthly-indicator model",
-    "pp": 4.506907233951279e-06
-   },
-   {
-    "component": "GS",
-    "what": "CPGS@USECON (indicator data)",
-    "pp": 3.964999734489333e-06,
-    "via": "GSISZ_USNAqtr"
-   },
-   {
-    "component": "FR",
-    "what": "LPD61DA@LABOR (indicator data)",
-    "pp": -3.5799810642957246e-06,
-    "via": "FRSINZ_USNAqtr"
-   },
-   {
-    "component": "FNE",
-    "what": "MonthlyRealBusAutoSales (indicator data)",
-    "pp": 3.4204275997286594e-06,
-    "via": "AINZ_USNAqtr"
-   },
-   {
-    "component": "GF",
-    "what": "saFTO@USECON (indicator data)",
-    "pp": -3.016556587228171e-06,
-    "via": "GFNEDZ_USNAqtr"
-   },
-   {
-    "component": "GF",
-    "what": "LAFGDA@LABOR (indicator data)",
-    "pp": -1.8960037744968463e-06,
-    "via": "GFDESVZ_USNAqtr"
-   },
-   {
-    "component": "FNE",
-    "what": "NetCoreCapGoodsShipments (coefficient)",
-    "pp": 1.7134570898431026e-06,
-    "via": "HerzonCoreEQty"
-   },
-   {
-    "component": "FNS",
-    "what": "IPB31@IP (indicator data)",
-    "pp": 1.0999881475324078e-06,
-    "via": "FNSMPZ_USNAqtr"
+    "pp": 0.0032741305684418644
    },
    {
     "component": "CS",
-    "what": "electricity_gas",
-    "pp": -1.0817659340698108e-06
-   },
-   {
-    "component": "FNE",
-    "what": "New trucks (constant/other)",
-    "pp": 7.796859240456317e-07,
-    "via": "TIZ_USNAqtr"
-   },
-   {
-    "component": "GS",
-    "what": "IP@IP (indicator data)",
-    "pp": 6.614532683528931e-07,
-    "via": "GSIEZ_USNAqtr"
-   },
-   {
-    "component": "GF",
-    "what": "NonDefenseEmployment (indicator data)",
-    "pp": 4.55586658458175e-07,
-    "via": "GGNESZ_USNAqtr"
-   },
-   {
-    "component": "FR",
-    "what": "SplicedBuildingMaterials (indicator data)",
-    "pp": 3.364024894486083e-07,
-    "via": "FRSINZ_USNAqtr"
-   },
-   {
-    "component": "GF",
-    "what": "saFTO@USECON (indicator data)",
-    "pp": -3.3028001608217614e-07,
-    "via": "GFNENZ_USNAqtr"
+    "what": "aggregation weights and prices",
+    "pp": -0.0008018988412566361
    },
    {
     "component": "FR",
     "what": "MobileHomeVal (coefficient)",
-    "pp": -2.8582757650673265e-07,
+    "pp": 0.0006427734622952082,
     "via": "FRSHMZ_USNAqtr"
    },
    {
-    "component": "GF",
-    "what": "CPGF@USECON (indicator data)",
-    "pp": -2.8211218053858097e-07,
-    "via": "GFNISZ_USNAqtr"
+    "component": "XS",
+    "what": "aggregation weights and prices",
+    "pp": -0.00039758599557765395
    },
    {
-    "component": "FR",
-    "what": "Brokers' commissions (constant/other)",
-    "pp": 2.6306164971745795e-07,
-    "via": "FRSBKZ_USNAqtr"
-   },
-   {
-    "component": "GF",
-    "what": "Blend weight",
-    "pp": 2.564034764862705e-07
+    "component": "CTG",
+    "what": "aggregation weights and prices",
+    "pp": -0.00030762151684851104
    },
    {
     "component": "FNE",
-    "what": "MonthlyRealBusTruckSales (coefficient)",
-    "pp": -2.4846649010550566e-07,
-    "via": "TIZ_USNAqtr"
+    "what": "NetComputersShipments (coefficient)",
+    "pp": 0.00028059393152290974,
+    "via": "FNENPZ_USNAqtr"
    },
    {
     "component": "FR",
-    "what": "SplicedBuildingMaterials (coefficient)",
-    "pp": -2.1161120980583916e-07,
-    "via": "FRSINZ_USNAqtr"
+    "what": "Manufactured homes (constant/other)",
+    "pp": 0.00025196770211984276,
+    "via": "FRSHMZ_USNAqtr"
+   },
+   {
+    "component": "FNE",
+    "what": "aggregation weights and prices",
+    "pp": -0.00021017000414320225
    },
    {
     "component": "FR",
-    "what": "valTotalHomeSales (coefficient)",
-    "pp": -1.927252125041538e-07,
+    "what": "Blend weight",
+    "pp": 0.0001853832206061625
+   },
+   {
+    "component": "FNP",
+    "what": "aggregation weights and prices",
+    "pp": -0.00017594711304631518
+   },
+   {
+    "component": "GF",
+    "what": "aggregation weights and prices",
+    "pp": -0.00016078099996550487
+   },
+   {
+    "component": "FNE",
+    "what": "Aircraft (constant/other)",
+    "pp": -9.28648865565055e-05,
+    "via": "FNETPZ_USNAqtr"
+   },
+   {
+    "component": "FNS",
+    "what": "aggregation weights and prices",
+    "pp": -9.123558596602717e-05
+   },
+   {
+    "component": "FNE",
+    "what": "Core equipment (constant/other)",
+    "pp": -7.202022485602901e-05,
+    "via": "HerzonCoreEQty"
+   },
+   {
+    "component": "GS",
+    "what": "aggregation weights and prices",
+    "pp": -6.00890786751914e-05
+   },
+   {
+    "component": "FNE",
+    "what": "Computers and peripherals (constant/other)",
+    "pp": 5.2838132248089105e-05,
+    "via": "FNENPZ_USNAqtr"
+   },
+   {
+    "component": "CS",
+    "what": "other_services",
+    "pp": -2.99638682451241e-05
+   },
+   {
+    "component": "FR",
+    "what": "aggregation weights and prices",
+    "pp": 2.9895307352672228e-05
+   },
+   {
+    "component": "FR",
+    "what": "valTotalHomeSales (indicator data)",
+    "pp": -1.987861854221575e-05,
     "via": "FRSBKZ_USNAqtr"
    },
    {
+    "component": "FNE",
+    "what": "Blend weight",
+    "pp": -1.629832235307394e-05
+   },
+   {
+    "component": "CS",
+    "what": "food_services",
+    "pp": -1.3730000457445279e-05
+   },
+   {
     "component": "FR",
-    "what": "RetSalesResEquip (indicator data)",
-    "pp": -1.8058722251051453e-07,
-    "via": "FREZ_USNAqtr"
+    "what": "SplicedNewHousingConstruction (indicator data)",
+    "pp": 1.1624678883897544e-05,
+    "via": "FRSPZ_USNAqtr"
+   },
+   {
+    "component": "FNE",
+    "what": "NondefenseAircraftNetShipments (coefficient)",
+    "pp": -1.109108430695061e-05,
+    "via": "FNETPZ_USNAqtr"
+   },
+   {
+    "component": "FNS",
+    "what": "CPVD@USECON (indicator data)",
+    "pp": 8.71518871082509e-06,
+    "via": "NResStructExMineWellQuant"
+   },
+   {
+    "component": "CTG",
+    "what": "used_mv",
+    "pp": 7.914114328477753e-06
+   },
+   {
+    "component": "FNE",
+    "what": "NetCoreCapGoodsShipments (coefficient)",
+    "pp": -7.892728798545635e-06,
+    "via": "HerzonCoreEQty"
+   },
+   {
+    "component": "CTG",
+    "what": "core_retail",
+    "pp": 7.830986427005696e-06
+   },
+   {
+    "component": "CTG",
+    "what": "new_mv",
+    "pp": -7.572206749179921e-06
+   },
+   {
+    "component": "FNS",
+    "what": "Monthly-indicator model",
+    "pp": 7.152647108823208e-06
+   },
+   {
+    "component": "FNE",
+    "what": "MonthlyRealBusTruckSales (indicator data)",
+    "pp": 7.085273217543361e-06,
+    "via": "TIZ_USNAqtr"
+   },
+   {
+    "component": "FNE",
+    "what": "New trucks (constant/other)",
+    "pp": -5.182901096084316e-06,
+    "via": "TIZ_USNAqtr"
+   },
+   {
+    "component": "GF",
+    "what": "Monthly-indicator model",
+    "pp": -3.9456129419761904e-06
+   },
+   {
+    "component": "CTG",
+    "what": "gasoline",
+    "pp": 3.764009434545191e-06
+   },
+   {
+    "component": "FR",
+    "what": "LPD61DA@LABOR (indicator data)",
+    "pp": -3.008190414390523e-06,
+    "via": "FRSINZ_USNAqtr"
+   },
+   {
+    "component": "GF",
+    "what": "saFTOD@USECON (indicator data)",
+    "pp": -2.853621776040399e-06,
+    "via": "NatDefenseTreasCatsQty"
+   },
+   {
+    "component": "GS",
+    "what": "CPGS@USECON (indicator data)",
+    "pp": 2.452621464827039e-06,
+    "via": "GSISZ_USNAqtr"
+   },
+   {
+    "component": "FR",
+    "what": "Permanent-site (constant/other)",
+    "pp": -2.383266689421794e-06,
+    "via": "FRSPZ_USNAqtr"
+   },
+   {
+    "component": "GS",
+    "what": "Monthly-indicator model",
+    "pp": 2.27799304011154e-06
+   },
+   {
+    "component": "GF",
+    "what": "saFTO@USECON (indicator data)",
+    "pp": -2.268520436841299e-06,
+    "via": "GFNEDZ_USNAqtr"
    },
    {
     "component": "FNS",
     "what": "Structures excl. mining and wells (constant/other)",
-    "pp": 1.6982491519525617e-07,
+    "pp": -1.8358096922501793e-06,
     "via": "NResStructExMineWellQuant"
+   },
+   {
+    "component": "FR",
+    "what": "SplicedBuildingMaterials (coefficient)",
+    "pp": 1.590744438639926e-06,
+    "via": "FRSINZ_USNAqtr"
+   },
+   {
+    "component": "FR",
+    "what": "Brokers' commissions (constant/other)",
+    "pp": -1.5541577258450354e-06,
+    "via": "FRSBKZ_USNAqtr"
+   },
+   {
+    "component": "FR",
+    "what": "valTotalHomeSales (coefficient)",
+    "pp": 1.473825162169248e-06,
+    "via": "FRSBKZ_USNAqtr"
+   },
+   {
+    "component": "FNE",
+    "what": "MonthlyRealBusAutoSales (indicator data)",
+    "pp": 1.4019702459421514e-06,
+    "via": "AINZ_USNAqtr"
+   },
+   {
+    "component": "FR",
+    "what": "SplicedBuildingMaterials (indicator data)",
+    "pp": 1.3701500686543733e-06,
+    "via": "FRSINZ_USNAqtr"
+   },
+   {
+    "component": "GF",
+    "what": "LAFGDA@LABOR (indicator data)",
+    "pp": -1.289967147554759e-06,
+    "via": "GFDESVZ_USNAqtr"
+   },
+   {
+    "component": "CS",
+    "what": "electricity_gas",
+    "pp": -1.1541051650511713e-06
    },
    {
     "component": "FNE",
     "what": "New autos (constant/other)",
-    "pp": 8.825412157828151e-08,
+    "pp": -8.40879359829216e-07,
     "via": "AINZ_USNAqtr"
+   },
+   {
+    "component": "FNS",
+    "what": "IPB31@IP (indicator data)",
+    "pp": 8.189606517971469e-07,
+    "via": "FNSMPZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "Defense purchases tracked by Treasury outlays (constant/other)",
-    "pp": -8.627015311153074e-08,
+    "pp": 6.978925165357807e-07,
     "via": "NatDefenseTreasCatsQty"
+   },
+   {
+    "component": "FNE",
+    "what": "MonthlyRealBusTruckSales (coefficient)",
+    "pp": 6.710415236588216e-07,
+    "via": "TIZ_USNAqtr"
+   },
+   {
+    "component": "FR",
+    "what": "Improvements (constant/other)",
+    "pp": -6.686225147155488e-07,
+    "via": "FRSINZ_USNAqtr"
    },
    {
     "component": "FR",
     "what": "LPD61DA@LABOR (coefficient)",
-    "pp": -7.196938206773615e-08,
+    "pp": 4.942430134792874e-07,
     "via": "FRSINZ_USNAqtr"
    },
    {
     "component": "GS",
     "what": "Structures (constant/other)",
-    "pp": 5.1390189124143706e-08,
+    "pp": -4.311399709110135e-07,
     "via": "GSISZ_USNAqtr"
    },
    {
-    "component": "FR",
-    "what": "Improvements (constant/other)",
-    "pp": 5.11210515165516e-08,
-    "via": "FRSINZ_USNAqtr"
+    "component": "GS",
+    "what": "IP@IP (indicator data)",
+    "pp": 3.918519753959325e-07,
+    "via": "GSIEZ_USNAqtr"
    },
    {
-    "component": "FR",
-    "what": "Permanent-site (constant/other)",
-    "pp": 4.267114938653145e-08,
-    "via": "FRSPZ_USNAqtr"
+    "component": "GF",
+    "what": "NonDefenseEmployment (indicator data)",
+    "pp": 3.0996341577477437e-07,
+    "via": "GGNESZ_USNAqtr"
+   },
+   {
+    "component": "FNS",
+    "what": "Blend weight",
+    "pp": 2.592986250438471e-07
+   },
+   {
+    "component": "GF",
+    "what": "saFTO@USECON (indicator data)",
+    "pp": -2.484304121597172e-07,
+    "via": "GFNENZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "saFTOD@USECON (coefficient)",
-    "pp": -4.058061759050213e-08,
+    "pp": -2.067320033726091e-07,
     "via": "NatDefenseTreasCatsQty"
-   },
-   {
-    "component": "FNS",
-    "what": "Blend weight",
-    "pp": 3.743074139944616e-08
-   },
-   {
-    "component": "FNS",
-    "what": "CPVD@USECON (coefficient)",
-    "pp": 3.716466840305336e-08,
-    "via": "NResStructExMineWellQuant"
-   },
-   {
-    "component": "GF",
-    "what": "saFTO@USECON (coefficient)",
-    "pp": -3.074590114683526e-08,
-    "via": "GFNENZ_USNAqtr"
    },
    {
     "component": "GS",
     "what": "Equipment (constant/other)",
-    "pp": 2.4954518481206835e-08,
+    "pp": -1.928030366010775e-07,
     "via": "GSIEZ_USNAqtr"
    },
    {
+    "component": "GF",
+    "what": "CPGF@USECON (indicator data)",
+    "pp": -1.7381127887716834e-07,
+    "via": "GFNISZ_USNAqtr"
+   },
+   {
     "component": "FNS",
-    "what": "IPB31@IP (coefficient)",
-    "pp": 1.7635316743464072e-08,
-    "via": "FNSMPZ_USNAqtr"
+    "what": "CPVD@USECON (coefficient)",
+    "pp": 1.377170820433278e-07,
+    "via": "NResStructExMineWellQuant"
    },
    {
     "component": "FR",
-    "what": "SplicedNewHousingConstruction (coefficient)",
-    "pp": -1.649180437324858e-08,
-    "via": "FRSPZ_USNAqtr"
+    "what": "RetSalesResEquip (indicator data)",
+    "pp": -1.2622901269145483e-07,
+    "via": "FREZ_USNAqtr"
+   },
+   {
+    "component": "GS",
+    "what": "Blend weight",
+    "pp": -1.1883177162355785e-07
    },
    {
     "component": "FNS",
     "what": "Petroleum and natural gas wells (constant/other)",
-    "pp": 1.521532103452313e-08,
+    "pp": -1.1827144229288825e-07,
     "via": "FNSMPZ_USNAqtr"
-   },
-   {
-    "component": "FR",
-    "what": "Manufactured homes (constant/other)",
-    "pp": 1.1042037630349011e-08,
-    "via": "FRSHMZ_USNAqtr"
-   },
-   {
-    "component": "GF",
-    "what": "saFTO@USECON (coefficient)",
-    "pp": -8.76889051999307e-09,
-    "via": "GFNEDZ_USNAqtr"
-   },
-   {
-    "component": "FR",
-    "what": "Blend weight",
-    "pp": -7.937835089786012e-09
-   },
-   {
-    "component": "GF",
-    "what": "Nondefense intermediate nondurables (constant/other)",
-    "pp": 7.645997484554305e-09,
-    "via": "GFNENZ_USNAqtr"
-   },
-   {
-    "component": "GF",
-    "what": "Nondefense intermediate durables (constant/other)",
-    "pp": 7.325192312997057e-09,
-    "via": "GFNEDZ_USNAqtr"
-   },
-   {
-    "component": "GS",
-    "what": "IP@IP (coefficient)",
-    "pp": -6.728282298476259e-09,
-    "via": "GSIEZ_USNAqtr"
-   },
-   {
-    "component": "GF",
-    "what": "Nondefense structures (constant/other)",
-    "pp": -4.1644402157954255e-09,
-    "via": "GFNISZ_USNAqtr"
-   },
-   {
-    "component": "GS",
-    "what": "Blend weight",
-    "pp": -3.798244333608473e-09
-   },
-   {
-    "component": "FR",
-    "what": "Residential equipment (constant/other)",
-    "pp": 3.0087606472862124e-09,
-    "via": "FREZ_USNAqtr"
-   },
-   {
-    "component": "FNE",
-    "what": "MonthlyRealBusAutoSales (coefficient)",
-    "pp": -2.229339711317536e-09,
-    "via": "AINZ_USNAqtr"
    },
    {
     "component": "GS",
     "what": "CPGS@USECON (coefficient)",
-    "pp": -1.8716296194150043e-09,
+    "pp": 1.0137754704938084e-07,
     "via": "GSISZ_USNAqtr"
    },
    {
-    "component": "GF",
-    "what": "Defense compensation (DoD employment) (constant/other)",
-    "pp": 1.7560442816949652e-09,
-    "via": "GFDESVZ_USNAqtr"
+    "component": "FNS",
+    "what": "IPB31@IP (coefficient)",
+    "pp": -9.829394003551143e-08,
+    "via": "FNSMPZ_USNAqtr"
+   },
+   {
+    "component": "FNE",
+    "what": "MonthlyRealBusAutoSales (coefficient)",
+    "pp": -6.925634643266017e-08,
+    "via": "AINZ_USNAqtr"
+   },
+   {
+    "component": "FR",
+    "what": "SplicedNewHousingConstruction (coefficient)",
+    "pp": -6.375966516097506e-08,
+    "via": "FRSPZ_USNAqtr"
+   },
+   {
+    "component": "GS",
+    "what": "IP@IP (coefficient)",
+    "pp": 5.075178643574364e-08,
+    "via": "GSIEZ_USNAqtr"
    },
    {
     "component": "GF",
-    "what": "Nondefense compensation (constant/other)",
-    "pp": -1.5219487300971708e-09,
-    "via": "GGNESZ_USNAqtr"
+    "what": "saFTO@USECON (coefficient)",
+    "pp": 4.6850445080983985e-08,
+    "via": "GFNENZ_USNAqtr"
    },
    {
     "component": "GF",
-    "what": "CPGF@USECON (coefficient)",
-    "pp": 8.762162696020638e-10,
+    "what": "Nondefense structures (constant/other)",
+    "pp": 3.506274692889673e-08,
     "via": "GFNISZ_USNAqtr"
    },
    {
     "component": "FR",
-    "what": "RetSalesResEquip (coefficient)",
-    "pp": -8.128056108402382e-10,
+    "what": "Residential equipment (constant/other)",
+    "pp": -1.940721233107685e-08,
     "via": "FREZ_USNAqtr"
    },
    {
     "component": "GF",
-    "what": "LAFGDA@LABOR (coefficient)",
-    "pp": 1.4409397933611718e-10,
+    "what": "saFTO@USECON (coefficient)",
+    "pp": 1.5749078422029113e-08,
+    "via": "GFNEDZ_USNAqtr"
+   },
+   {
+    "component": "GF",
+    "what": "Nondefense intermediate nondurables (constant/other)",
+    "pp": -1.4040054808296543e-08,
+    "via": "GFNENZ_USNAqtr"
+   },
+   {
+    "component": "GF",
+    "what": "Nondefense compensation (constant/other)",
+    "pp": 1.3015536373684248e-08,
+    "via": "GGNESZ_USNAqtr"
+   },
+   {
+    "component": "GF",
+    "what": "Defense compensation (DoD employment) (constant/other)",
+    "pp": -1.1821746850301773e-08,
     "via": "GFDESVZ_USNAqtr"
    },
    {
     "component": "GF",
+    "what": "CPGF@USECON (coefficient)",
+    "pp": 1.0480436582990679e-08,
+    "via": "GFNISZ_USNAqtr"
+   },
+   {
+    "component": "GF",
+    "what": "Nondefense intermediate durables (constant/other)",
+    "pp": -8.044987944172535e-09,
+    "via": "GFNEDZ_USNAqtr"
+   },
+   {
+    "component": "GF",
+    "what": "Blend weight",
+    "pp": 5.964361156623517e-09
+   },
+   {
+    "component": "GF",
+    "what": "LAFGDA@LABOR (coefficient)",
+    "pp": -4.6261101040502673e-10,
+    "via": "GFDESVZ_USNAqtr"
+   },
+   {
+    "component": "FR",
+    "what": "RetSalesResEquip (coefficient)",
+    "pp": -1.252600693020245e-10,
+    "via": "FREZ_USNAqtr"
+   },
+   {
+    "component": "GF",
     "what": "NonDefenseEmployment (coefficient)",
-    "pp": 1.0992885512855008e-11,
+    "pp": -6.4606962355617724e-12,
     "via": "GGNESZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "Quarterly BVAR",
-    "pp": -3.2450662473184345e-13
+    "pp": -3.245302666595883e-13
    },
    {
     "component": "FNP",
     "what": "Quarterly BVAR",
-    "pp": 1.6250304049526131e-13
+    "pp": 1.6251475931167464e-13
+   },
+   {
+    "component": "V",
+    "what": "Quarterly BVAR",
+    "pp": 1.317274299484433e-13
    },
    {
     "component": "FNS",
     "what": "Quarterly BVAR",
-    "pp": 2.1805002522766312e-14
-   },
-   {
-    "component": "MS",
-    "what": "Quarterly BVAR",
-    "pp": -2.115453521001682e-14
+    "pp": 2.180634877767598e-14
    },
    {
     "component": "FNE",
     "what": "Quarterly BVAR",
-    "pp": 2.0779791309404223e-14
+    "pp": 2.0780802687461108e-14
+   },
+   {
+    "component": "MS",
+    "what": "Quarterly BVAR",
+    "pp": -2.075077032576943e-14
    },
    {
     "component": "FNP",
     "what": "Blend weight",
-    "pp": -1.3287657811671987e-14
+    "pp": -1.3288616043727116e-14
    },
    {
     "component": "GS",
     "what": "Quarterly BVAR",
-    "pp": -9.718090591316e-15
+    "pp": -9.718956425796717e-15
    },
    {
     "component": "FR",
     "what": "Quarterly BVAR",
-    "pp": -3.637393775828261e-15
+    "pp": -4.139751677343061e-15
    },
    {
     "component": "XS",
     "what": "Quarterly BVAR",
-    "pp": 8.932275664518517e-16
-   },
-   {
-    "component": "CS",
-    "what": "bucket weights",
-    "pp": -1.7723701789586447e-16
+    "pp": 8.932535965959713e-16
    },
    {
     "component": "GS",
     "what": "Intermediate goods and services (constant/other)",
-    "pp": -1.3243405315151435e-16,
+    "pp": -1.324436022744172e-16,
     "via": "GSEPIZ_USNAqtr"
+   },
+   {
+    "component": "CS",
+    "what": "bucket weights",
+    "pp": -1.0503689595033858e-16
    },
    {
     "component": "FNP",
     "what": "Research and development (constant/other)",
-    "pp": -9.004689006763749e-17,
+    "pp": -9.005338374904848e-17,
     "via": "FNPRZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "(-) Nondefense sales to other sectors (constant/other)",
-    "pp": -8.163309102139586e-17,
+    "pp": -8.163898039315729e-17,
     "via": "GNOSSZ_USNAqtr"
    },
    {
     "component": "FNP",
     "what": "Monthly-indicator model",
-    "pp": -6.379055960454019e-17
-   },
-   {
-    "component": "CTG",
-    "what": "bucket weights",
-    "pp": -6.333363282740127e-17
+    "pp": -6.379515982527841e-17
    },
    {
     "component": "GS",
     "what": "Compensation (constant/other)",
-    "pp": -5.847822726991695e-17,
+    "pp": -5.848244382726042e-17,
     "via": "GGSESZ_USNAqtr"
    },
    {
     "component": "FNP",
     "what": "Software (constant/other)",
-    "pp": -4.769664130558294e-17,
+    "pp": -4.770008092235128e-17,
     "via": "FNPSZ_USNAqtr"
    },
    {
     "component": "FNE",
     "what": "Used autos and light trucks (net) (constant/other)",
-    "pp": -4.445029595399669e-17,
+    "pp": -4.445350437128706e-17,
     "via": "MVIUTZ_USNAqtr"
    },
    {
     "component": "GS",
     "what": "Consumption of fixed capital (constant/other)",
-    "pp": -2.4011340924260695e-17,
+    "pp": -2.401307225574298e-17,
     "via": "GSESFZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "Nondefense intermediate services (constant/other)",
-    "pp": -1.7270462405056555e-17,
+    "pp": -1.7271708372498467e-17,
     "via": "GFNESZ_USNAqtr"
+   },
+   {
+    "component": "CTG",
+    "what": "bucket weights",
+    "pp": -1.3963288032436417e-17
    },
    {
     "component": "GS",
     "what": "IPP (constant/other)",
-    "pp": 9.653031798755914e-18,
+    "pp": 9.653727828099106e-18,
     "via": "GSIPZ_USNAqtr"
    },
    {
     "component": "GS",
     "what": "StateLocalEmp (coefficient)",
-    "pp": 9.206893894954003e-18,
+    "pp": 9.207557755639861e-18,
     "via": "GGSESZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "Defense compensation (other) (constant/other)",
-    "pp": 8.034334960137166e-18,
+    "pp": 8.034914592549024e-18,
     "via": "GFDESLZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "Defense consumption of fixed capital (constant/other)",
-    "pp": -6.487399621085195e-18,
+    "pp": -6.487867650748846e-18,
     "via": "GFDSFZ_USNAqtr"
    },
    {
     "component": "FNS",
     "what": "Mining (constant/other)",
-    "pp": -5.060652693304589e-18,
+    "pp": -5.06101690401865e-18,
     "via": "FNSMIZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "Defense IPP (constant/other)",
-    "pp": -2.9713350829353455e-18,
+    "pp": -2.9715494481726806e-18,
     "via": "GFDIPZ_USNAqtr"
    },
    {
     "component": "FNP",
     "what": "LAPBSVA@USECON (coefficient)",
-    "pp": 2.733198250550853e-18,
+    "pp": 2.7333953536230283e-18,
     "via": "FNPSZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "Nondefense consumption of fixed capital (constant/other)",
-    "pp": 2.5999286361981837e-18,
+    "pp": 2.6001162065339404e-18,
     "via": "GFNSFZ_USNAqtr"
    },
    {
     "component": "FNP",
     "what": "LAPTSVA@USECON (coefficient)",
-    "pp": -2.3733720716126187e-18,
+    "pp": -2.373543226019964e-18,
     "via": "FNPRZ_USNAqtr"
    },
    {
     "component": "FNP",
     "what": "Entertainment, literary, artistic originals (constant/other)",
-    "pp": -1.6603245770094144e-18,
+    "pp": -1.6604443103931423e-18,
     "via": "FNPEZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "Nondefense equipment (constant/other)",
-    "pp": 1.419987683039617e-18,
+    "pp": 1.4200901272231882e-18,
     "via": "GFNIEZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "Nondefense IPP (constant/other)",
-    "pp": -1.2195103190223012e-18,
+    "pp": -1.2195982998833192e-18,
     "via": "GFNIPZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "(-) Defense sales to other sectors (constant/other)",
-    "pp": -9.368878979076372e-19,
+    "pp": -9.369554891388466e-19,
     "via": "GDOSSZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "(-) Nondefense own-account investment (constant/other)",
-    "pp": 4.180323263163069e-19,
+    "pp": 4.1806248501478527e-19,
     "via": "GNOAIZ_USNAqtr"
    },
    {
     "component": "FR",
     "what": "Dormitories (constant/other)",
-    "pp": 1.0149217386235994e-19,
+    "pp": 1.0149073969703074e-19,
     "via": "FRSHDZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "Defense intermediate nondurables (constant/other)",
-    "pp": -5.824407449815766e-20,
+    "pp": -5.824827648295731e-20,
     "via": "GFDENZ_USNAqtr"
    },
    {
     "component": "GF",
     "what": "(-) Defense own-account investment (constant/other)",
-    "pp": 5.583971011090471e-20,
+    "pp": 5.584373863423735e-20,
     "via": "GDOAIZ_USNAqtr"
    },
    {
@@ -828,139 +838,129 @@
    },
    {
     "component": "V",
-    "what": "Monthly inventory model",
-    "pp": -0.0
-   },
-   {
-    "component": "V",
-    "what": "Quarterly BVAR",
-    "pp": 0.0
-   },
-   {
-    "component": "V",
-    "what": "Blend weight",
+    "what": "aggregation weights and prices",
     "pp": 0.0
    }
   ],
   "headline": {
    "from_": 3.830430922732342,
-   "to": 3.6625770572249694,
-   "delta": -0.16785386550737247
+   "to": 3.7021653536652988,
+   "delta": -0.12826556906704312
   },
   "components": [
    {
     "id": "CTG",
     "label": "PCE goods",
     "g_from": 3.119747797887551,
-    "g_to": 3.1196180371404925,
-    "d_reported_growth": -0.00012976074705850493,
+    "g_to": 3.1198052101703677,
+    "d_reported_growth": 5.741228281674893e-05,
     "c_from": 0.6588123350924462,
-    "c_to": 0.6583826071612429,
-    "d_contribution": -0.00042972793120332753,
-    "d_growth": -0.00012583509122432446,
-    "k": 0.2143865154647878,
+    "c_to": 0.6585166504790385,
+    "d_contribution": -0.00029568461340767627,
+    "d_growth": 5.5675336671168196e-05,
+    "k": 0.2144019983451012,
     "parts": [
      {
       "name": "core_retail",
-      "d_growth": -0.00015186701164293773,
-      "pp": -3.2558239440179776e-05
+      "d_growth": 3.652478282595551e-05,
+      "pp": 7.830986427005696e-06
      },
      {
       "name": "new_mv",
-      "d_growth": -5.869862037987389e-05,
-      "pp": -1.2584192685831541e-05
+      "d_growth": -3.531779930983528e-05,
+      "pp": -7.572206749179921e-06
      },
      {
       "name": "used_mv",
-      "d_growth": 5.61421067929209e-05,
-      "pp": 1.2036110646186305e-05
+      "d_growth": 3.691250263320403e-05,
+      "pp": 7.914114328477753e-06
      },
      {
       "name": "gasoline",
-      "d_growth": 2.8588434005861673e-05,
-      "pp": 6.128974749111729e-06
+      "d_growth": 1.7555850521909063e-05,
+      "pp": 3.764009434545191e-06
      },
      {
       "name": "bucket weights",
-      "d_growth": -2.954179869479878e-16,
-      "pp": -6.333363282740127e-17
+      "d_growth": -6.512666924848864e-17,
+      "pp": -1.3963288032436417e-17
      }
     ],
     "detail": null,
-    "other_pp": -0.00040275058447255093
+    "other_pp": -0.00030762151684851104
    },
    {
     "id": "CS",
     "label": "PCE services",
     "g_from": 3.475844016400642,
-    "g_to": 3.4502722624876414,
-    "d_reported_growth": -0.025571753913000705,
+    "g_to": 3.450364842703424,
+    "d_reported_growth": -0.025479173697218194,
     "c_from": 1.6166985114159051,
-    "c_to": 1.6039733555264097,
-    "d_contribution": -0.01272515588949541,
-    "d_growth": -0.024715830464506983,
-    "k": 0.47301011422345074,
+    "c_to": 1.6042472680411894,
+    "d_contribution": -0.012451243374715704,
+    "d_growth": -0.024626338023074013,
+    "k": 0.4730441254620984,
     "parts": [
      {
       "name": "food_services",
-      "d_growth": -4.337286148912892e-05,
-      "pp": -2.0515802167170778e-05
+      "d_growth": -2.9024777432830344e-05,
+      "pp": -1.3730000457445279e-05
      },
      {
       "name": "electricity_gas",
-      "d_growth": -2.28698267022422e-06,
-      "pp": -1.0817659340698108e-06
+      "d_growth": -2.439741036681876e-06,
+      "pp": -1.1541051650511713e-06
      },
      {
       "name": "travel_out",
-      "d_growth": -0.08387490817828283,
-      "pp": -0.039673679897891
+      "d_growth": -0.08386714938866163,
+      "pp": -0.0396728623375586
      },
      {
       "name": "travel_in",
-      "d_growth": 0.059332525659502526,
-      "pp": 0.02806488473936711
+      "d_growth": 0.05933561853357415,
+      "pp": 0.02806836577796726
      },
      {
       "name": "other_services",
-      "d_growth": -0.00012778810156694855,
-      "pp": -6.044506451858026e-05
+      "d_growth": -6.334264951679415e-05,
+      "pp": -2.99638682451241e-05
      },
      {
       "name": "bucket weights",
-      "d_growth": -3.7470027081099033e-16,
-      "pp": -1.7723701789586447e-16
+      "d_growth": -2.220446049250313e-16,
+      "pp": -1.0503689595033858e-16
      }
     ],
     "detail": null,
-    "other_pp": -0.001034318098351519
+    "other_pp": -0.0008018988412566361
    },
    {
     "id": "FNE",
     "label": "Equipment",
     "g_from": 16.503203983670666,
-    "g_to": 16.72932181563589,
-    "d_reported_growth": 0.2261178319652224,
+    "g_to": 16.72858339419141,
+    "d_reported_growth": 0.22537941052074473,
     "c_from": 0.9325955237665674,
-    "c_to": 0.9440869321778672,
-    "d_contribution": 0.011491408411299808,
-    "d_growth": 0.19389911594411657,
-    "k": 0.0610429952144696,
+    "c_to": 0.9441837726264302,
+    "d_contribution": 0.01158824885986276,
+    "d_growth": 0.19326652100692776,
+    "k": 0.061047401290899424,
     "parts": [
      {
       "name": "Monthly-indicator model",
-      "d_growth": 0.1942255862887728,
-      "pp": 0.01185611153435311
+      "d_growth": 0.19353349915812942,
+      "pp": 0.011814717186338274
      },
      {
       "name": "Quarterly BVAR",
-      "d_growth": 3.404123804278626e-13,
-      "pp": 2.0779791309404223e-14
+      "d_growth": 3.4040437836882966e-13,
+      "pp": 2.0780802687461108e-14
      },
      {
       "name": "Blend weight",
-      "d_growth": -0.0003264703449958126,
-      "pp": -1.9928727707245628e-05
+      "d_growth": -0.00026697815154178554,
+      "pp": -1.629832235307394e-05
      }
     ],
     "detail": {
@@ -971,23 +971,23 @@
        "kind": "bridge",
        "share": 0.6062165412407491,
        "sub_from": 11.361963547383604,
-       "sub_to": 14.275221075885268,
-       "d_sub": 2.9132575285016635,
-       "contribution_to_bridge": 1.7660649026718516,
+       "sub_to": 14.273744488708477,
+       "d_sub": 2.9117809413248725,
+       "contribution_to_bridge": 1.7651697711006968,
        "indicators": [
         {
          "name": "NetCoreCapGoodsShipments",
          "kind": "indicator",
-         "d_ind": 3.9693729597958605,
+         "d_ind": 3.9679624742703137,
          "ind_from": 11.7481662851438,
-         "ind_to": 15.71753924493966,
-         "coef": 0.7343763476426908,
-         "data": 1.7671294723531532,
-         "coefficient": 2.8069675870638564e-05
+         "ind_to": 15.716128759414113,
+         "coef": 0.7343668963942451,
+         "data": 1.7664788023119318,
+         "coefficient": -0.00012928853041484396
         }
        ],
-       "constant": -0.0010926393571732158,
-       "other": 8.076426743929265e-16
+       "constant": -0.001179742680819878,
+       "other": -2.6921422479764216e-16
       },
       {
        "lhs": "FNENPZ_USNAqtr",
@@ -995,23 +995,23 @@
        "kind": "bridge",
        "share": 0.21850221272540774,
        "sub_from": 64.11613864530639,
-       "sub_to": 51.24691164911219,
-       "d_sub": -12.8692269961942,
-       "contribution_to_bridge": -2.8119545747339854,
+       "sub_to": 51.24861766041704,
+       "d_sub": -12.867520984889353,
+       "contribution_to_bridge": -2.8115818074889414,
        "indicators": [
         {
          "name": "NetComputersShipments",
          "kind": "indicator",
-         "d_ind": -24.56469538931877,
+         "d_ind": -24.565323676089164,
          "ind_from": 109.06600558509818,
-         "ind_to": 84.50131019577941,
-         "coef": 0.5248107196541578,
-         "data": -2.8168902052273843,
-         "coefficient": 0.003954854997687031
+         "ind_to": 84.50068190900902,
+         "coef": 0.524825886706622,
+         "data": -2.8170436626493625,
+         "coefficient": 0.0045963288459379345
         }
        ],
-       "constant": 0.0009807754957119785,
-       "other": 0.0
+       "constant": 0.0008655263144824234,
+       "other": 7.762757999977329e-16
       },
       {
        "lhs": "TIZ_USNAqtr",
@@ -1019,23 +1019,23 @@
        "kind": "bridge",
        "share": 0.1939848615044036,
        "sub_from": -14.240540441091001,
-       "sub_to": -14.239589960008267,
-       "d_sub": 0.0009504810827341004,
-       "contribution_to_bridge": 0.00018437894119673005,
+       "sub_to": -14.240323133659315,
+       "d_sub": 0.00021730743168646427,
+       "contribution_to_bridge": 4.215435203957642e-05,
        "indicators": [
         {
          "name": "MonthlyRealBusTruckSales",
          "kind": "indicator",
-         "d_ind": 0.0008355075267800771,
+         "d_ind": 0.0005519847204205064,
          "ind_from": -14.313086422494267,
-         "ind_to": -14.312250914967487,
-         "coef": 1.0839159628083173,
-         "data": 0.00017567655966918983,
-         "coefficient": -4.070352203926738e-06
+         "ind_to": -14.312534437773847,
+         "coef": 1.0839132502741566,
+         "data": 0.00011606183175236307,
+         "coefficient": 1.099213905046039e-05
         }
        ],
-       "constant": 1.2772733731696664e-05,
-       "other": -2.2971020239508697e-16
+       "constant": -8.489961876317304e-05,
+       "other": -7.39901567502212e-17
       },
       {
        "lhs": "AINZ_USNAqtr",
@@ -1043,23 +1043,23 @@
        "kind": "bridge",
        "share": 0.02484660725840513,
        "sub_from": 0.7818137475081466,
-       "sub_to": 0.7841256260554554,
-       "d_sub": 0.0023118785473088543,
-       "contribution_to_bridge": 5.7442338294115285e-05,
+       "sub_to": 0.7821380010642531,
+       "d_sub": 0.00032425355610654627,
+       "contribution_to_bridge": 8.056600760720588e-06,
        "indicators": [
         {
          "name": "MonthlyRealBusAutoSales",
          "kind": "indicator",
-         "d_ind": 0.0019676553518155337,
+         "d_ind": 0.0008064323793397499,
          "ind_from": -1.0311144399477024,
-         "ind_to": -1.0291467845958868,
-         "coef": 1.1461156441888898,
-         "data": 5.6033089262924686e-05,
-         "coefficient": -3.65208113311762e-08
+         "ind_to": -1.0303080075683626,
+         "coef": 1.1461370799724295,
+         "data": 2.2965273153259493e-05,
+         "coefficient": -1.1344683797864545e-06
         }
        ],
-       "constant": 1.44576984251955e-06,
-       "other": 2.2305281330682353e-18
+       "constant": -1.3774204012753474e-05,
+       "other": 1.0236723316013639e-18
       },
       {
        "lhs": "MVIUTZ_USNAqtr",
@@ -1080,28 +1080,28 @@
        "kind": "bridge",
        "share": 0.027741771719975283,
        "sub_from": -49.864378873248825,
-       "sub_to": -3.840457443571255,
-       "d_sub": 46.02392142967757,
-       "contribution_to_bridge": 1.2767851219601936,
+       "sub_to": -3.844446711846092,
+       "d_sub": 46.019932161402735,
+       "contribution_to_bridge": 1.2766744525903835,
        "indicators": [
         {
          "name": "NondefenseAircraftNetShipments",
          "kind": "indicator",
-         "d_ind": 49.31600657315064,
+         "d_ind": 49.311727550495945,
          "ind_from": -55.28163077600205,
-         "ind_to": -5.965624202851413,
-         "coef": 0.9344902047100516,
-         "data": 1.2784885679554436,
-         "coefficient": -0.00018205373118102385
+         "ind_to": -5.969903225506106,
+         "coef": 0.9344899772099254,
+         "data": 1.2783773255819477,
+         "coefficient": -0.00018167987616868472
         }
        ],
-       "constant": -0.0015213922640691464,
+       "constant": -0.0015211931153957454,
        "other": 1.9711714372743417e-16
       }
      ],
      "composition": 0.0
     },
-    "other_pp": -0.00034477439536678527
+    "other_pp": -0.00021017000414320225
    },
    {
     "id": "FNP",
@@ -1110,25 +1110,25 @@
     "g_to": 6.617339120374122,
     "d_reported_growth": 2.686739719592879e-12,
     "c_from": 0.37676112533051265,
-    "c_to": 0.3765308549852866,
-    "d_contribution": -0.00023027034522604684,
+    "c_to": 0.3765851782176155,
+    "d_contribution": -0.0001759471128971457,
     "d_growth": 2.5375257450832578e-12,
-    "k": 0.05878116232750256,
+    "k": 0.05878540129834138,
     "parts": [
      {
       "name": "Monthly-indicator model",
       "d_growth": -1.0852211334156254e-15,
-      "pp": -6.379055960454019e-17
+      "pp": -6.379515982527841e-17
      },
      {
       "name": "Quarterly BVAR",
       "d_growth": 2.7645428239385e-12,
-      "pp": 1.6250304049526131e-13
+      "pp": 1.6251475931167464e-13
      },
      {
       "name": "Blend weight",
       "d_growth": -2.2605299530552073e-13,
-      "pp": -1.3287657811671987e-14
+      "pp": -1.3288616043727116e-14
      }
     ],
     "detail": {
@@ -1197,34 +1197,34 @@
      ],
      "composition": 0.0
     },
-    "other_pp": -0.00023027034537520554
+    "other_pp": -0.00017594711304631518
    },
    {
     "id": "FNS",
     "label": "Nonresidential structures",
     "g_from": 6.858329279732933,
-    "g_to": 6.858857204581836,
-    "d_reported_growth": 0.0005279248489031829,
+    "g_to": 6.858598088465007,
+    "d_reported_growth": 0.00026880873207346667,
     "c_from": 0.1954941024850476,
-    "c_to": 0.195389291982096,
-    "d_contribution": -0.00010481050295158001,
-    "d_growth": 0.000494040612847968,
-    "k": 0.029462292114791958,
+    "c_to": 0.19541027884483725,
+    "d_contribution": -8.382364021033983e-05,
+    "d_growth": 0.00025155586449265854,
+    "k": 0.029464412489988462,
     "parts": [
      {
       "name": "Monthly-indicator model",
-      "d_growth": 0.0004927701494677048,
-      "pp": 1.4518138089067215e-05
+      "d_growth": 0.00024275546343418736,
+      "pp": 7.152647108823208e-06
      },
      {
       "name": "Quarterly BVAR",
-      "d_growth": 7.4009864669758e-13,
-      "pp": 2.1805002522766312e-14
+      "d_growth": 7.400910771625068e-13,
+      "pp": 2.180634877767598e-14
      },
      {
       "name": "Blend weight",
-      "d_growth": 1.2704626392816711e-06,
-      "pp": 3.743074139944616e-08
+      "d_growth": 8.800400317907328e-06,
+      "pp": 2.592986250438471e-07
      }
     ],
     "detail": {
@@ -1235,23 +1235,23 @@
        "kind": "bridge",
        "share": 0.8848997317555843,
        "sub_from": 4.551698964809739,
-       "sub_to": 4.5522487248622685,
-       "d_sub": 0.000549760052529713,
-       "contribution_to_bridge": 0.00048648252301347904,
+       "sub_to": 4.551968096956146,
+       "d_sub": 0.0002691321464070029,
+       "contribution_to_bridge": 0.00023815496416236152,
        "indicators": [
         {
          "name": "CPVD@USECON",
          "kind": "indicator",
-         "d_ind": 0.000558038442402875,
+         "d_ind": 0.0003442653452694344,
          "ind_from": 4.217762412181098,
-         "ind_to": 4.218320450623501,
-         "coef": 0.970937855638853,
-         "data": 0.0004794569466329371,
-         "coefficient": 1.2614316719911386e-06
+         "ind_to": 4.218106677526367,
+         "coef": 0.9709383127937059,
+         "data": 0.0002957869502331456,
+         "coefficient": 4.674014188815809e-06
         }
        ],
-       "constant": 5.764144707828273e-06,
-       "other": 7.225318303568973e-16
+       "constant": -6.230600026037341e-05,
+       "other": 7.735244831035035e-16
       },
       {
        "lhs": "FNSMPZ_USNAqtr",
@@ -1259,23 +1259,23 @@
        "kind": "bridge",
        "share": 0.09898422072805534,
        "sub_from": 25.48817182780634,
-       "sub_to": 25.48856027823955,
-       "d_sub": 0.00038845043320989703,
-       "contribution_to_bridge": 3.8450463422757166e-05,
+       "sub_to": 25.488378374286572,
+       "d_sub": 0.00020654648023210598,
+       "contribution_to_bridge": 2.0444842389897695e-05,
        "indicators": [
         {
          "name": "IPB31@IP",
          "kind": "indicator",
-         "d_ind": 0.0004551176930611689,
+         "d_ind": 0.00033881906086463687,
          "ind_from": 30.69205772253451,
-         "ind_to": 30.69251284022757,
-         "coef": 0.8287657343769078,
-         "data": 3.7335457242993774e-05,
-         "coefficient": 5.985724625481536e-07
+         "ind_to": 30.692396541595375,
+         "coef": 0.8287650868235976,
+         "data": 2.779490858931658e-05,
+         "coefficient": -3.3360223988484463e-06
         }
        ],
-       "constant": 5.164337172804102e-07,
-       "other": -6.517477231531791e-17
+       "constant": -4.014043800640003e-06,
+       "other": 6.956948156332099e-17
       },
       {
        "lhs": "FNSMIZ_USNAqtr",
@@ -1293,34 +1293,34 @@
      ],
      "composition": 0.0
     },
-    "other_pp": -0.00011936607180387769
+    "other_pp": -9.123558596602717e-05
    },
    {
     "id": "FR",
     "label": "Residential",
     "g_from": -1.262655210027952,
-    "g_to": -1.2628157848465715,
-    "d_reported_growth": -0.00016057481861952994,
+    "g_to": -1.3778556312580181,
+    "d_reported_growth": -0.11520042123006613,
     "c_from": -0.0467349076431758,
-    "c_to": -0.046712312220546066,
-    "d_contribution": 2.2595422629737016e-05,
-    "d_growth": -0.00016262838502401067,
-    "k": 0.03676778504206342,
+    "c_to": -0.05099728626734711,
+    "d_contribution": -0.004262378624171309,
+    "d_growth": -0.11674172324286314,
+    "k": 0.03676726548394842,
     "parts": [
      {
       "name": "Monthly-indicator model",
-      "d_growth": -0.00016241249389211591,
-      "pp": -5.971547663570756e-06
+      "d_growth": -0.12178379580828003,
+      "pp": -0.004477657152125997
      },
      {
       "name": "Quarterly BVAR",
-      "d_growth": -9.892882510238179e-14,
-      "pp": -3.637393775828261e-15
+      "d_growth": -1.1259340673976321e-13,
+      "pp": -4.139751677343061e-15
      },
      {
       "name": "Blend weight",
-      "d_growth": -2.1589103288938665e-07,
-      "pp": -7.937835089786012e-09
+      "d_growth": 0.005042072565529675,
+      "pp": 0.0001853832206061625
      }
     ],
     "detail": {
@@ -1331,23 +1331,23 @@
        "kind": "bridge",
        "share": 0.4423780503232706,
        "sub_from": 0.8387688819948063,
-       "sub_to": 0.8391969217994699,
-       "d_sub": 0.0004280398046636602,
-       "contribution_to_bridge": 0.0001893554142478636,
+       "sub_to": 0.8393331386755892,
+       "d_sub": 0.0005642566807829708,
+       "contribution_to_bridge": 0.00024961477032665067,
        "indicators": [
         {
          "name": "SplicedNewHousingConstruction",
          "kind": "indicator",
-         "d_ind": 0.0004188482520347536,
+         "d_ind": 0.000701997368278473,
          "ind_from": 0.828134080978286,
-         "ind_to": 0.8285529292303208,
-         "coef": 1.0181020872090234,
-         "data": 0.0001886433956972946,
-         "coefficient": -4.485395123579371e-07
+         "ind_to": 0.8288360783465645,
+         "coef": 1.0181003334391616,
+         "data": 0.00031616925357074924,
+         "coefficient": -1.7341421593838893e-06
         }
        ],
-       "constant": 1.1605580629013577e-06,
-       "other": 2.5588113425807902e-17
+       "constant": -6.482034108472992e-05,
+       "other": 1.525214633440846e-17
       },
       {
        "lhs": "FRSHMZ_USNAqtr",
@@ -1355,23 +1355,23 @@
        "kind": "bridge",
        "share": 0.01697739889043885,
        "sub_from": 19.723323383414264,
-       "sub_to": 19.757356263380537,
-       "d_sub": 0.034032879966272134,
-       "contribution_to_bridge": 0.0005777897785778271,
+       "sub_to": 12.439332259087358,
+       "d_sub": -7.283991124326906,
+       "contribution_to_bridge": -0.12366322283211405,
        "indicators": [
         {
          "name": "MobileHomeVal",
          "kind": "indicator",
-         "d_ind": 0.04390698696180095,
+         "d_ind": -10.806339443591249,
          "ind_from": 29.300669439839126,
-         "ind_to": 29.344576426800927,
-         "coef": 0.7851389411375902,
-         "data": 0.0005852633193027312,
-         "coefficient": -7.773858995850241e-06
+         "ind_to": 18.494329996247878,
+         "coef": 0.8066915751371446,
+         "data": -0.14799848825471312,
+         "coefficient": 0.017482221041861964
         }
        ],
-       "constant": 3.003182709096616e-07,
-       "other": 3.640155022650585e-17
+       "constant": 0.006853044380737109,
+       "other": 1.5078959317128636e-17
       },
       {
        "lhs": "FRSHDZ_USNAqtr",
@@ -1392,23 +1392,23 @@
        "kind": "bridge",
        "share": 0.15513952166410558,
        "sub_from": -18.733900451873623,
-       "sub_to": -18.739267991509337,
-       "d_sub": -0.00536753963571357,
-       "contribution_to_bridge": -0.0008327175315977307,
+       "sub_to": -18.737399532383282,
+       "d_sub": -0.0034990805096590805,
+       "contribution_to_bridge": -0.0005428456765327044,
        "indicators": [
         {
          "name": "valTotalHomeSales",
          "kind": "indicator",
-         "d_ind": -0.005367279147272086,
+         "d_ind": -0.0034768678991774493,
          "ind_from": -18.60864899186296,
-         "ind_to": -18.614016271010232,
-         "coef": 1.0023459308290812,
-         "data": -0.0008346305224709322,
-         "coefficient": -5.24168677236528e-06
+         "ind_to": -18.612125859762138,
+         "coef": 1.0023380812567395,
+         "data": -0.0005406607829155587,
+         "coefficient": 4.0085253629010826e-05
         }
        ],
-       "constant": 7.154677646104011e-06,
-       "other": -5.371718438839426e-16
+       "constant": -4.2270147246116484e-05,
+       "other": -4.023406345723919e-17
       },
       {
        "lhs": "FRSINZ_USNAqtr",
@@ -1416,33 +1416,33 @@
        "kind": "bridge",
        "share": 0.36330621560031506,
        "sub_from": 2.2447135087874845,
-       "sub_to": 2.244453286653579,
-       "d_sub": -0.00026022213390541893,
-       "contribution_to_bridge": -9.454031868461618e-05,
+       "sub_to": 2.2446969135543418,
+       "d_sub": -1.6595233142790988e-05,
+       "contribution_to_bridge": -6.029151350112317e-06,
        "indicators": [
         {
          "name": "SplicedBuildingMaterials",
          "kind": "indicator",
-         "d_ind": 7.811411050306916e-05,
+         "d_ind": 0.0003181423577354181,
          "ind_from": 3.939215256197812,
-         "ind_to": 3.9392933703083153,
-         "coef": 0.3223958280940614,
-         "data": 9.149381423541125e-06,
-         "coefficient": -5.75534287865722e-06
+         "ind_to": 3.9395333985555476,
+         "coef": 0.3224129538566758,
+         "data": 3.726548740081155e-05,
+         "coefficient": 4.326523655490238e-05
         },
         {
          "name": "LPD61DA@LABOR",
          "kind": "indicator",
-         "d_ind": -0.0009866424929381168,
+         "d_ind": -0.0008290969865689668,
          "ind_from": -2.2906911475909784,
-         "ind_to": -2.2916777900839165,
-         "coef": 0.2716318038546391,
-         "data": -9.736733012881036e-05,
-         "coefficient": -1.9574032535656168e-06
+         "ind_to": -2.2915202445775473,
+         "coef": 0.27162255330761703,
+         "data": -8.181708307091307e-05,
+         "coefficient": 1.3442474085951817e-05
         }
        ],
-       "constant": 1.3903761527971238e-06,
-       "other": 7.875978277685817e-17
+       "constant": -1.8185266320970884e-05,
+       "other": 1.0589931282599808e-16
       },
       {
        "lhs": "FREZ_USNAqtr",
@@ -1450,55 +1450,55 @@
        "kind": "bridge",
        "share": 0.019090929025532725,
        "sub_from": 4.5020078473082314,
-       "sub_to": 4.5017537037769095,
-       "d_sub": -0.00025414353132191536,
-       "contribution_to_bridge": -4.851836118764939e-06,
+       "sub_to": 4.5018001865715265,
+       "d_sub": -0.0002076607367049732,
+       "contribution_to_bridge": -3.964436385824481e-06,
        "indicators": [
         {
          "name": "RetSalesResEquip",
          "kind": "indicator",
-         "d_ind": -0.0012582414685162746,
+         "d_ind": -0.0008795126909264539,
          "ind_from": 5.541547843741431,
-         "ind_to": 5.540289602272915,
-         "coef": 0.20446948026714556,
-         "data": -4.911561093601844e-06,
-         "coefficient": -2.210646112922943e-08
+         "ind_to": 5.5406683310505045,
+         "coef": 0.2044695686558462,
+         "data": -3.4331901225170784e-06,
+         "coefficient": -3.4068366970807117e-09
         }
        ],
-       "constant": 8.183143595816152e-08,
-       "other": 7.973033974180775e-18
+       "constant": -5.278394266207051e-07,
+       "other": 1.0382330844883375e-17
       }
      ],
      "composition": 0.0
     },
-    "other_pp": 2.8574908132037768e-05
+    "other_pp": 2.9895307352672228e-05
    },
    {
     "id": "GF",
     "label": "Federal government",
     "g_from": 5.736204267718037,
-    "g_to": 5.736082824651256,
-    "d_reported_growth": -0.00012144306678063543,
+    "g_to": 5.736136754008858,
+    "d_reported_growth": -6.751370917879029e-05,
     "c_from": 0.3442286545202092,
-    "c_to": 0.34401113425427826,
-    "d_contribution": -0.000217520265930915,
-    "d_growth": -0.00011485482888495824,
-    "k": 0.061696112209094364,
+    "c_to": 0.34406393387133827,
+    "d_contribution": -0.00016472064887090854,
+    "d_growth": -6.385110116635673e-05,
+    "k": 0.061700563239142206,
     "parts": [
      {
       "name": "Monthly-indicator model",
-      "d_growth": -0.00011901073341081387,
-      "pp": -7.3424995626001875e-06
+      "d_growth": -6.394776214089945e-05,
+      "pp": -3.9456129419761904e-06
      },
      {
       "name": "Quarterly BVAR",
-      "d_growth": -5.259758080574959e-12,
-      "pp": -3.2450662473184345e-13
+      "d_growth": -5.259761817761003e-12,
+      "pp": -3.245302666595883e-13
      },
      {
       "name": "Blend weight",
-      "d_growth": 4.155909785973113e-06,
-      "pp": 2.564034764862705e-07
+      "d_growth": 9.666623517692278e-08,
+      "pp": 5.964361156623517e-09
      }
     ],
     "detail": {
@@ -1522,23 +1522,23 @@
        "kind": "bridge",
        "share": 0.05912838250750427,
        "sub_from": -0.4761989228130975,
-       "sub_to": -0.4767181410537912,
-       "d_sub": -0.0005192182406936752,
-       "contribution_to_bridge": -3.0700534740609046e-05,
+       "sub_to": -0.47655587474831484,
+       "d_sub": -0.00035695193521734225,
+       "contribution_to_bridge": -2.1105990562324896e-05,
        "indicators": [
         {
          "name": "LAFGDA@LABOR",
          "kind": "indicator",
-         "d_ind": -0.0005791124970109252,
+         "d_ind": -0.00039397706338434313,
          "ind_from": -0.3356700013012051,
-         "ind_to": -0.33624911379821604,
-         "coef": 0.8974752156950727,
-         "data": -3.073133308742531e-05,
-         "coefficient": 2.3355439131685983e-09
+         "ind_to": -0.33606397836458946,
+         "coef": 0.8974754632514624,
+         "data": -2.0906894197303164e-05,
+         "coefficient": -7.497678888473275e-09
         }
        ],
-       "constant": 2.8462802902189203e-08,
-       "other": 9.103211149366984e-19
+       "constant": -1.9159868613611284e-07,
+       "other": 2.852766874273456e-18
       },
       {
        "lhs": "GFDSFZ_USNAqtr",
@@ -1559,23 +1559,23 @@
        "kind": "bridge",
        "share": 0.25736240993992016,
        "sub_from": 0.5317182950051795,
-       "sub_to": 0.5313423665426382,
-       "d_sub": -0.0003759284625413084,
-       "contribution_to_bridge": -9.674985508464013e-05,
+       "sub_to": 0.5315695198359467,
+       "d_sub": -0.00014877516923283984,
+       "contribution_to_bridge": -3.828913609298313e-05,
        "indicators": [
         {
          "name": "saFTOD@USECON",
          "kind": "indicator",
-         "d_ind": -0.0006483723522834328,
+         "d_ind": -0.0003166708140771579,
          "ind_from": -1.8211331047721824,
-         "ind_to": -1.8217814771244658,
-         "coef": 0.567481790586864,
-         "data": -9.469379731762683e-05,
-         "coefficient": -6.577499965146962e-07
+         "ind_to": -1.8214497755862595,
+         "coef": 0.5674846631017566,
+         "data": -4.624952555100973e-05,
+         "coefficient": -3.3505691442612377e-06
         }
        ],
-       "constant": -1.3983077705159367e-06,
-       "other": 1.7327942094721216e-17
+       "constant": 1.1310958602266395e-05,
+       "other": 2.1450652955421793e-17
       },
       {
        "lhs": "GFDENZ_USNAqtr",
@@ -1635,23 +1635,23 @@
        "kind": "bridge",
        "share": 0.12818743977156755,
        "sub_from": 0.40072425803024053,
-       "sub_to": 0.4007816729804058,
-       "d_sub": 5.741495016525766e-05,
-       "contribution_to_bridge": 7.3598754662965185e-06,
+       "sub_to": 0.4007650928771282,
+       "d_sub": 4.08348468876607e-05,
+       "contribution_to_bridge": 5.234514475993189e-06,
        "indicators": [
         {
          "name": "NonDefenseEmployment",
          "kind": "indicator",
-         "d_ind": 0.00012466203857054714,
+         "d_ind": 8.48090793333367e-05,
          "ind_from": 0.07229457068470704,
-         "ind_to": 0.07241923272327759,
-         "coef": 0.4620973751740566,
-         "data": 7.384365758966234e-06,
-         "coefficient": 1.781779291959112e-10
+         "ind_to": 0.07237937976404038,
+         "coef": 0.46209735992285655,
+         "data": 5.02367238648053e-06,
+         "coefficient": -1.0471049041353277e-10
         }
        ],
-       "constant": -2.4668470598674933e-08,
-       "other": -2.362678711656701e-19
+       "constant": 2.1094680000334682e-07,
+       "other": -2.744876738542344e-19
       },
       {
        "lhs": "GFNSFZ_USNAqtr",
@@ -1672,23 +1672,23 @@
        "kind": "bridge",
        "share": 0.004848753928659057,
        "sub_from": 10.362636180908584,
-       "sub_to": 10.35254757089399,
-       "d_sub": -0.010088610014594934,
-       "contribution_to_bridge": -4.891718744297629e-05,
+       "sub_to": 10.355079240256087,
+       "d_sub": -0.007556940652497346,
+       "contribution_to_bridge": -3.664174567743984e-05,
        "indicators": [
         {
          "name": "saFTO@USECON",
          "kind": "indicator",
-         "d_ind": -0.014631943907908784,
+         "d_ind": -0.011002684157920939,
          "ind_from": 7.90311394269886,
-         "ind_to": 7.888481998790951,
-         "coef": 0.6891622921192615,
-         "data": -4.889378729416135e-05,
-         "coefficient": -1.4213035807304054e-07
+         "ind_to": 7.892111258540939,
+         "coef": 0.6891674811506603,
+         "data": -3.676660824065497e-05,
+         "coefficient": 2.552501564854121e-07
         }
        ],
-       "constant": 1.1873020925563655e-07,
-       "other": 2.464495449898934e-18
+       "constant": -1.3038759327404517e-07,
+       "other": 3.764033153002638e-18
       },
       {
        "lhs": "GFNENZ_USNAqtr",
@@ -1696,23 +1696,23 @@
        "kind": "bridge",
        "share": 0.02029720397836577,
        "sub_from": 1.5137429887519875,
-       "sub_to": 1.5134607947011496,
-       "d_sub": -0.00028219405083795834,
-       "contribution_to_bridge": -5.727750211339361e-06,
+       "sub_to": 1.5135708162696633,
+       "d_sub": -0.00017217248232426208,
+       "contribution_to_bridge": -3.4946199931971223e-06,
        "indicators": [
         {
          "name": "saFTO@USECON",
          "kind": "indicator",
-         "d_ind": -0.014631943907908784,
+         "d_ind": -0.011002684157920939,
          "ind_from": 7.90311394269886,
-         "ind_to": 7.888481998790951,
-         "coef": 0.01802545580862,
-         "data": -5.353335960016796e-06,
-         "coefficient": -4.983442237435366e-07
+         "ind_to": 7.892111258540939,
+         "coef": 0.01802937902324322,
+         "data": -4.026388076829021e-06,
+         "coefficient": 7.593195689219016e-07
         }
        ],
-       "constant": 1.2392997241887556e-07,
-       "other": 2.0971977834235488e-18
+       "constant": -2.27551485290742e-07,
+       "other": 7.394107609971799e-19
       },
       {
        "lhs": "GFNESZ_USNAqtr",
@@ -1759,23 +1759,23 @@
        "kind": "bridge",
        "share": 0.013821869632779914,
        "sub_from": -7.948083358534431,
-       "sub_to": -7.94841803871461,
-       "d_sub": -0.00033468018017934753,
-       "contribution_to_bridge": -4.6259058191142335e-06,
+       "sub_to": -7.9482337636906415,
+       "d_sub": -0.00015040515621045358,
+       "contribution_to_bridge": -2.0788804612387878e-06,
        "indicators": [
         {
          "name": "CPGF@USECON",
          "kind": "indicator",
-         "d_ind": -0.00033388752668628285,
+         "d_ind": -0.00020569573046991252,
          "ind_from": -8.344321634699376,
-         "ind_to": -8.344655522226063,
-         "coef": 0.9908252203491161,
-         "data": -4.5726087177499005e-06,
-         "coefficient": 1.420213102946387e-08
+         "ind_to": -8.344527330429846,
+         "coef": 0.990824545545728,
+         "data": -2.8170128399557987e-06,
+         "coefficient": 1.698596582071717e-07
         }
        ],
-       "constant": -6.749923240918487e-08,
-       "other": 1.5388067157767982e-17
+       "constant": 5.682727204879838e-07,
+       "other": 2.185552110295347e-17
       },
       {
        "lhs": "GFNIEZ_USNAqtr",
@@ -1806,34 +1806,34 @@
      ],
      "composition": 0.0
     },
-    "other_pp": -0.0002104341695202723
+    "other_pp": -0.00016078099996550487
    },
    {
     "id": "GS",
     "label": "State and local government",
     "g_from": 1.1321327889410648,
-    "g_to": 1.1321726443012547,
-    "d_reported_growth": 3.985536018991098e-05,
+    "g_to": 1.132151897502931,
+    "d_reported_growth": 1.9108561866154616e-05,
     "c_from": 0.12867618977804032,
-    "c_to": 0.1286020531523562,
-    "d_contribution": -7.413662568411805e-05,
-    "d_growth": 3.9409187916339405e-05,
-    "k": 0.11426545985834646,
+    "c_to": 0.1286182598606239,
+    "d_contribution": -5.792991741643272e-05,
+    "d_growth": 1.889464748927594e-05,
+    "k": 0.11427369893956289,
     "parts": [
      {
       "name": "Monthly-indicator model",
-      "d_growth": 3.9442428530357635e-05,
-      "pp": 4.506907233951279e-06
+      "d_growth": 1.9934534903926805e-05,
+      "pp": 2.27799304011154e-06
      },
      {
       "name": "Quarterly BVAR",
-      "d_growth": -8.504836547600124e-14,
-      "pp": -9.718090591316e-15
+      "d_growth": -8.504981037619936e-14,
+      "pp": -9.718956425796717e-15
      },
      {
       "name": "Blend weight",
-      "d_growth": -3.324052901302906e-08,
-      "pp": -3.798244333608473e-09
+      "d_growth": -1.0398873295105782e-06,
+      "pp": -1.1883177162355785e-07
      }
     ],
     "detail": {
@@ -1920,23 +1920,23 @@
        "kind": "bridge",
        "share": 0.14094358221831976,
        "sub_from": -1.7059274262076407,
-       "sub_to": -1.7056781543993376,
-       "d_sub": 0.000249271808303142,
-       "contribution_to_bridge": 3.5133261608283136e-05,
+       "sub_to": -1.7057956219112522,
+       "d_sub": 0.00013180429638848246,
+       "contribution_to_bridge": 1.8576969684757864e-05,
        "indicators": [
         {
          "name": "CPGS@USECON",
          "kind": "indicator",
-         "d_ind": 0.00031072283614674845,
+         "d_ind": 0.00019218962074152302,
          "ind_from": -2.4787748886454226,
-         "ind_to": -2.478464165809276,
-         "coef": 0.792336592043509,
-         "data": 3.469989740910942e-05,
-         "coefficient": -1.6379662075794745e-08
+         "ind_to": -2.478582699024681,
+         "coef": 0.7923352989035988,
+         "data": 2.146269428212158e-05,
+         "coefficient": 8.87146806221766e-07
         }
        ],
-       "constant": 4.497438612536442e-07,
-       "other": -4.1335466939547225e-18
+       "constant": -3.7728714035625722e-06,
+       "other": -2.2910239855495814e-17
       },
       {
        "lhs": "GSIEZ_USNAqtr",
@@ -1944,23 +1944,23 @@
        "kind": "bridge",
        "share": 0.019948869659730646,
        "sub_from": 4.086284645761182,
-       "sub_to": 4.086582820542616,
-       "d_sub": 0.0002981747814336799,
-       "contribution_to_bridge": 5.948249850639154e-06,
+       "sub_to": 4.086394225211303,
+       "d_sub": 0.0001095794501209113,
+       "contribution_to_bridge": 2.1859861678470154e-06,
        "indicators": [
         {
          "name": "IP@IP",
          "kind": "indicator",
-         "d_ind": 0.0006231349218350779,
+         "d_ind": 0.0003691187369927462,
          "ind_from": 1.5551025342478981,
-         "ind_to": 1.5557256691697332,
-         "coef": 0.46567595235509873,
-         "data": 5.788742015066398e-06,
-         "coefficient": -5.8882905707614796e-08
+         "ind_to": 1.5554716529848909,
+         "coef": 0.4656840584493882,
+         "data": 3.4290652970214546e-06,
+         "coefficient": 4.441248240558421e-07
         }
        ],
-       "constant": 2.1839074127481312e-07,
-       "other": 5.5585522106935036e-18
+       "constant": -1.6872039532358599e-06,
+       "other": 5.578558672930436e-18
       },
       {
        "lhs": "GSIPZ_USNAqtr",
@@ -1978,24 +1978,24 @@
      ],
      "composition": 0.0
     },
-    "other_pp": -7.863973466402256e-05
+    "other_pp": -6.00890786751914e-05
    },
    {
     "id": "XM",
     "label": "Goods exports",
     "g_from": -12.845122428968015,
-    "g_to": -9.262004625522502,
-    "d_reported_growth": 3.5831178034455125,
+    "g_to": -9.13325208241984,
+    "d_reported_growth": 3.7118703465481744,
     "c_from": -1.0459883031186614,
-    "c_to": -0.7427229838522467,
-    "d_contribution": 0.30326531926641476,
-    "d_growth": 4.028944408097255,
-    "k": 0.07621998924889116,
+    "c_to": -0.7321223770670302,
+    "d_contribution": 0.3138659260516312,
+    "d_growth": 4.170738683225499,
+    "k": 0.07622886139910975,
     "parts": [
      {
       "name": "Monthly model",
-      "d_growth": 4.028944408097255,
-      "pp": 0.3070860994695529
+      "d_growth": 4.170738683225499,
+      "pp": 0.3179306610155021
      },
      {
       "name": "Quarterly BVAR",
@@ -2009,55 +2009,55 @@
      }
     ],
     "detail": null,
-    "other_pp": -0.003820780203138141
+    "other_pp": -0.004064734963870886
    },
    {
     "id": "XS",
     "label": "Services exports",
     "g_from": 4.946214794512627,
-    "g_to": 1.2235466806188366,
-    "d_reported_growth": -3.72266811389379,
+    "g_to": 1.2235587775670131,
+    "d_reported_growth": -3.7226560169456135,
     "c_from": 0.19858694195875526,
-    "c_to": 0.049768177330024754,
-    "d_contribution": -0.1488187646287305,
-    "d_growth": -3.6116574367032306,
-    "k": 0.04109185666443743,
+    "c_to": 0.04977584739914471,
+    "d_contribution": -0.14881109455961056,
+    "d_growth": -3.6116454859785003,
+    "k": 0.041093044469679825,
     "parts": [
      {
       "name": "Monthly model",
-      "d_growth": -3.819906478785763,
-      "pp": -0.15696704949782048
+      "d_growth": -3.8198941902103924,
+      "pp": -0.15697108182778727
      },
      {
       "name": "Quarterly BVAR",
-      "d_growth": 2.1737337734483225e-14,
-      "pp": 8.932275664518517e-16
+      "d_growth": 2.1737342855067634e-14,
+      "pp": 8.932535965959713e-16
      },
      {
       "name": "Blend weight",
-      "d_growth": 0.2082490420825108,
-      "pp": 0.008557339787760932
+      "d_growth": 0.20824870423186992,
+      "pp": 0.008557573263753431
      }
     ],
     "detail": null,
-    "other_pp": -0.00040905491867185284
+    "other_pp": -0.00039758599557765395
    },
    {
     "id": "MM",
     "label": "Goods imports",
     "g_from": 14.609002968740526,
-    "g_to": 18.78946436911557,
-    "d_reported_growth": 4.180461400375044,
+    "g_to": 18.572049668531342,
+    "d_reported_growth": 3.963046699790816,
     "c_from": -1.612628773694927,
-    "c_to": -2.0442809071088237,
-    "d_contribution": -0.43165213341389674,
-    "d_growth": 3.582635810263106,
-    "k": -0.11852352983162687,
+    "c_to": -2.0223561956010356,
+    "d_contribution": -0.40972742190610867,
+    "d_growth": 3.399442875832502,
+    "k": -0.11851661644420455,
     "parts": [
      {
       "name": "Monthly model",
-      "d_growth": 3.582635810263106,
-      "pp": -0.42462664233357394
+      "d_growth": 3.399442875832502,
+      "pp": -0.40289046743902435
      },
      {
       "name": "Quarterly BVAR",
@@ -2071,38 +2071,38 @@
      }
     ],
     "detail": null,
-    "other_pp": -0.007025491080322799
+    "other_pp": -0.006836954467084322
    },
    {
     "id": "MS",
     "label": "Services imports",
     "g_from": 1.9381497775497136,
-    "g_to": -1.8917571587033666,
-    "d_reported_growth": -3.82990693625308,
+    "g_to": -1.8916539717725334,
+    "d_reported_growth": -3.829803749322247,
     "c_from": -0.056759662346165814,
-    "c_to": 0.05616802077207458,
-    "d_contribution": 0.11292768311824039,
-    "d_growth": -3.829486670763581,
-    "k": -0.06082430455725188,
+    "c_to": 0.0561730380552758,
+    "d_contribution": 0.11293270040144161,
+    "d_growth": -3.8293814942018605,
+    "k": -0.059663370726024005,
     "parts": [
      {
       "name": "Monthly model",
-      "d_growth": -4.236110250523737,
-      "pp": 0.25765846001595233
+      "d_growth": -4.236001746571399,
+      "pp": 0.25273414260177457
      },
      {
       "name": "Quarterly BVAR",
-      "d_growth": 3.477974037517316e-13,
-      "pp": -2.115453521001682e-14
+      "d_growth": 3.4779748568108214e-13,
+      "pp": -2.075077032576943e-14
      },
      {
       "name": "Blend weight",
-      "d_growth": 0.40662357975980834,
-      "pp": -0.024732596455470584
+      "d_growth": 0.40662025236919075,
+      "pp": -0.02426033486181247
      }
     ],
     "detail": null,
-    "other_pp": -0.11999818044222021
+    "other_pp": -0.11554110733849975
    },
    {
     "id": "V",
@@ -2111,34 +2111,51 @@
     "g_to": 0.0,
     "d_reported_growth": 0.0,
     "c_from": 2.140689185187788,
-    "c_to": 2.1393808330648394,
-    "d_contribution": -0.0013083521229484418,
-    "d_growth": 7.680966973566683e-12,
-    "k": 0.0,
+    "c_to": 2.150066985205219,
+    "d_contribution": 0.00937780001743116,
+    "d_growth": 0.596448782873253,
+    "k": 0.01572272471117435,
     "parts": [
      {
       "name": "Monthly inventory model",
-      "d_growth": -3.1768784651188268e-12,
-      "pp": -0.0
+      "d_growth": 0.38820685097409263,
+      "pp": 0.006103669448857544
      },
      {
       "name": "Quarterly BVAR",
-      "d_growth": 8.925713846275927e-12,
-      "pp": 0.0
+      "d_growth": 8.378155336830571e-12,
+      "pp": 1.317274299484433e-13
      },
      {
       "name": "Blend weight",
-      "d_growth": 1.9301670941936404e-12,
-      "pp": 0.0
+      "d_growth": 0.20824193189078077,
+      "pp": 0.0032741305684418644
      }
     ],
     "detail": null,
-    "other_pp": -0.0013083521229484418
+    "other_pp": 0.0
    }
   ],
-  "aggregation_remainder": 1.099120794378905e-13
+  "aggregation_remainder": -1.1102230246251565e-15
  },
  "data_changes": [
+  {
+   "release": "GDP and underlying detail (BEA)",
+   "series": 123,
+   "new_observations": 15426,
+   "revised_values": 0,
+   "latest_period": "2026-06-30",
+   "examples": [
+    "NIPA:T31006:Q|5|Consumption of general government fixed capital",
+    "NIPA:T31103:Q|10|Durable goods",
+    "NIPA:T31103:Q|17|Nondurable goods",
+    "NIPA:T31103:Q|21|Services",
+    "NIPA:T31103:Q|27|Less: Own-account investment",
+    "NIPA:T31103:Q|28|Less: Sales to other sectors",
+    "NIPA:T31103:Q|2|Consumption expenditures",
+    "NIPA:T31103:Q|30|Structures"
+   ]
+  },
   {
    "release": "U.S. International Trade in Goods and Services",
    "series": 4,
@@ -2150,6 +2167,27 @@
     "BOPGIMP",
     "BOPSEXP",
     "BOPSIMP"
+   ]
+  },
+  {
+   "release": "Manufactured Housing Survey",
+   "series": 2,
+   "new_observations": 2,
+   "revised_values": 1,
+   "latest_period": "2026-08-01",
+   "examples": [
+    "SHTSAUS",
+    "SPTNSAUS"
+   ]
+  },
+  {
+   "release": "Inventories and Sales (BEA monthly detail)",
+   "series": 1,
+   "new_observations": 360,
+   "revised_values": 0,
+   "latest_period": "1996-12-31",
+   "examples": [
+    "NIUnderlyingDetail:U50706BM:M|1|Nonfarm industries"
    ]
   }
  ],
@@ -2221,11 +2259,160 @@
       "via": "FNETPZ_USNAqtr"
      }
     ]
+   },
+   {
+    "release": "GDP and underlying detail (BEA)",
+    "series": 123,
+    "effect": 0.03477593622653874,
+    "data_effect": 0.031021583140895,
+    "reestimation_effect": 0.0037543530856437397,
+    "components": {
+     "CTG": 8.43263556018492e-05,
+     "CS": 0.0002046468113081623,
+     "FNE": 0.00014176230924334288,
+     "FNP": 4.758748768646237e-05,
+     "FNS": 2.1907115238695152e-05,
+     "FR": -1.0032860245402786e-05,
+     "GF": 4.473407762434212e-05,
+     "GS": 1.5421800270837283e-05,
+     "XM": 0.00851356511199386,
+     "XS": 2.489372488018171e-05,
+     "MM": 0.015020622450453658,
+     "MS": -7.527727294710795e-06,
+     "V": 0.010674029569777588
+    },
+    "drivers": [
+     {
+      "component": "MM",
+      "what": "Monthly model",
+      "pp": 0.014986613145084704
+     },
+     {
+      "component": "XM",
+      "what": "Monthly model",
+      "pp": 0.008812054638043632
+     },
+     {
+      "component": "V",
+      "what": "Monthly inventory model",
+      "pp": 0.006947338188224922
+     },
+     {
+      "component": "V",
+      "what": "Blend weight",
+      "pp": 0.0037266913815526747
+     },
+     {
+      "component": "XM",
+      "what": "aggregation weights and prices",
+      "pp": -0.0002984895260497722
+     },
+     {
+      "component": "CS",
+      "what": "aggregation weights and prices",
+      "pp": 0.00020274144939232198
+     },
+     {
+      "component": "FNE",
+      "what": "aggregation weights and prices",
+      "pp": 0.00011826746728128335
+     }
+    ]
+   },
+   {
+    "release": "Manufactured Housing Survey",
+    "series": 2,
+    "effect": -0.0043515312593722655,
+    "data_effect": -0.005430476719482736,
+    "reestimation_effect": 0.0010789454601104701,
+    "components": {
+     "CTG": 2.6506945755233602e-05,
+     "CS": 1.4290282057016768e-05,
+     "FNE": -6.167794608546995e-05,
+     "FNP": -5.955101756716097e-06,
+     "FNS": -7.420059493029596e-06,
+     "FR": -0.004260389950210448,
+     "GF": -3.5566656818031284e-06,
+     "GS": -3.5311414500471816e-06,
+     "XM": -8.329604883416941e-05,
+     "XS": -0.00012917500569264995,
+     "MM": 0.00011850242140010181,
+     "MS": 7.800677300089792e-05,
+     "V": -3.3835762203171527e-05
+    },
+    "drivers": [
+     {
+      "component": "FR",
+      "what": "MobileHomeVal (indicator data)",
+      "pp": -0.0054492207122385896,
+      "via": "FRSHMZ_USNAqtr"
+     },
+     {
+      "component": "FR",
+      "what": "Monthly-indicator model",
+      "pp": -0.004454191118297688
+     },
+     {
+      "component": "FR",
+      "what": "MobileHomeVal (coefficient)",
+      "pp": 0.0006440207964851364,
+      "via": "FRSHMZ_USNAqtr"
+     },
+     {
+      "component": "FR",
+      "what": "Manufactured homes (constant/other)",
+      "pp": 0.00025260527950306255,
+      "via": "FRSHMZ_USNAqtr"
+     },
+     {
+      "component": "FR",
+      "what": "Blend weight",
+      "pp": 0.00018596357912910075
+     },
+     {
+      "component": "XS",
+      "what": "Monthly model",
+      "pp": -0.0001252811516062399
+     },
+     {
+      "component": "XM",
+      "what": "Monthly model",
+      "pp": -0.00010267708693918001
+     },
+     {
+      "component": "MM",
+      "what": "Monthly model",
+      "pp": 0.00010131692362307452
+     }
+    ]
+   },
+   {
+    "release": "Inventories and Sales (BEA monthly detail)",
+    "series": 1,
+    "effect": 0.0,
+    "data_effect": 0.0,
+    "reestimation_effect": 0.0,
+    "components": {
+     "CTG": 0.0,
+     "CS": 0.0,
+     "FNE": 0.0,
+     "FNP": 0.0,
+     "FNS": 0.0,
+     "FR": 0.0,
+     "GF": 0.0,
+     "GS": 0.0,
+     "XM": 0.0,
+     "XS": 0.0,
+     "MM": 0.0,
+     "MS": 0.0,
+     "V": 0.0
+    },
+    "drivers": []
    }
   ],
-  "total": -0.16785386550737247,
+  "total": -0.12826556906704312,
   "unarchived_inputs": 0.5294844783663155,
-  "interaction": 0.0,
+  "interaction": 0.009163891473162877,
   "skipped": []
  }
 }
