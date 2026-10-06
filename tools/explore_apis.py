@@ -916,6 +916,83 @@ def bea11():
         time.sleep(2)
 
 
+def _head(url, ua=None):
+    try:
+        req = urllib.request.Request(url, method='HEAD', headers={'User-Agent': ua or 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            h = {k.lower(): v for k, v in dict(r.headers).items()}
+            return r.status, {k: h[k] for k in ('last-modified', 'content-length', 'content-type', 'etag') if k in h}
+    except urllib.error.HTTPError as e:
+        return e.code, {}
+    except Exception as ex:
+        return 'ERR', {'err': str(ex)[:80]}
+
+
+def census12():
+    """Census: unfiltered EITS per dataset (and equality with today's 14 filtered calls), real download links on census.gov pages,
+    candidate bulk-file URLs (with a made-up control name to spot soft-404s), calendar endpoints."""
+    import re
+    base = 'https://api.census.gov/data/timeseries/eits/'
+    k = f'&key={CENSUS_KEY}'
+    specs = [('advm3', 'MDM', 'TI'), ('advm3', 'MDM', 'VS'), ('advm3', 'MDM', 'NO'), ('advm3', 'NXA', 'VS'), ('advm3', 'DEF', 'VS'),
+             ('advm3', 'NAP', 'VS'), ('m3', 'MNM', 'TI'), ('m3', 'MNM', 'VS'), ('m3', 'MTM', 'VS'), ('m3', 'MTM', 'TI'),
+             ('mwtsadv', '42', 'IM'), ('mrts', '4400A', 'IM'), ('mrtsadv', '4400A', 'IM'), ('ftdadv', 'CBG', 'EXP')]
+    # (a) unfiltered per dataset
+    for ds in dict.fromkeys(d for d, _, _ in specs):
+        url = base + ds + '?get=cell_value,time_slot_id,category_code,data_type_code,seasonally_adj&time=from+1992&for=us:*' + k
+        st, n, t, _, secs = call(url, timeout=300)
+        try:
+            d = json.loads(t)
+        except Exception:
+            out('C12 unfiltered', ds, 'http', st, 'bytes', n, 'secs', secs, '|', short(t, 200))
+            continue
+        hdr, rows = d[0], d[1:]
+        ix = {c: hdr.index(c) for c in hdr}
+        out('C12 unfiltered', ds, 'http', st, 'bytes', n, 'rows', len(rows), 'secs', secs, 'header', hdr,
+            'categories', len({r[ix['category_code']] for r in rows}), 'data_types', sorted({r[ix['data_type_code']] for r in rows})[:30],
+            'sa values', sorted({r[ix['seasonally_adj']] for r in rows}))
+        for dsx, cat, dt in specs:
+            if dsx != ds:
+                continue
+            sub = {r[ix['time']]: r[ix['cell_value']] for r in rows if r[ix['category_code']] == cat and r[ix['data_type_code']] == dt
+                   and r[ix['seasonally_adj']].lower() in ('yes', 'y', 'true')}
+            st2, n2, t2, _, _ = call(base + f'{ds}?get=cell_value,time_slot_id&category_code={cat}&data_type_code={dt}&seasonally_adj=yes&time=from+1992&for=us:*' + k, timeout=300)
+            try:
+                d2 = json.loads(t2)
+                h2 = d2[0]
+                old = {r[h2.index('time')]: r[h2.index('cell_value')] for r in d2[1:]}
+            except Exception:
+                out('C12 equal', ds, cat, dt, 'filtered call failed', st2, short(t2, 120))
+                continue
+            diff = sum(1 for kk, v in old.items() if sub.get(kk) != v)
+            out('C12 equal', ds, cat, dt, 'filtered rows', len(old), 'unfiltered subset', len(sub), 'differ/missing', diff, 'only unfiltered', len(set(sub) - set(old)))
+            time.sleep(0.5)
+    # (b) links on census.gov pages
+    pages = ['https://www.census.gov/econ/currentdata/', 'https://www.census.gov/econ/currentdata/datasets/', 'https://www.census.gov/econ/currentdata/dbsearch',
+             'https://www.census.gov/construction/c30/historical_data/', 'https://www.census.gov/construction/c30/c30index.html',
+             'https://www.census.gov/construction/nrc/historical_data/', 'https://www.census.gov/construction/nrs/historical_data/',
+             'https://www.census.gov/economic-indicators/', 'https://www.census.gov/data/developers/data-sets/economic-indicators.html']
+    for u in pages:
+        st, n, t, hdr, secs = call(u, maxb=3000000)
+        links = sorted(set(re.findall(r'href="([^"]+\.(?:csv|zip|xlsx?|txt|json|ics)[^"]*)"', t, flags=re.I)))
+        out('C12 page', u, st, 'bytes', n, 'file links', len(links), links[:40])
+    # (c) candidate URLs vs a made-up control
+    cands = ['https://www.census.gov/econ/currentdata/datasets/m3.zip', 'https://www.census.gov/econ/currentdata/datasets/m3.csv',
+             'https://www.census.gov/econ/currentdata/datasets/mrts.zip', 'https://www.census.gov/econ/currentdata/datasets/mwts.zip',
+             'https://www.census.gov/econ/currentdata/datasets/ftd.zip', 'https://www.census.gov/econ/currentdata/datasets/zzz_control_nonexistent.zip',
+             'https://www.census.gov/construction/c30/csv/total.csv', 'https://www.census.gov/construction/c30/xlsx/total.xlsx',
+             'https://www.census.gov/construction/nrc/csv/starts_cust.csv', 'https://www.census.gov/construction/nrc/xls/starts_cust.xls',
+             'https://www.census.gov/construction/nrc/csv/permits_cust.csv', 'https://www.census.gov/construction/nrc/xls/permits_cust.xls',
+             'https://www.census.gov/construction/nrs/xls/price_uc_cust.xlsx', 'https://www.census.gov/construction/zzz_control_nonexistent.csv']
+    for u in cands:
+        out('C12 HEAD', u, *_head(u))
+    # (d) calendar endpoints
+    for u in ('https://api.census.gov/data/economic/indicators/calendar', 'https://www.census.gov/economic-indicators/calendar.json',
+              'https://www.census.gov/economic-indicators/calendar-listview.html'):
+        st, n, t, hdr, secs = call(u, maxb=500000)
+        out('C12 calendar', u, st, 'bytes', n, 'ctype', hdr.get('Content-Type'), '|', short(t, 220))
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -923,7 +1000,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12)):
         if name in which:
             try:
                 fn()
