@@ -152,7 +152,7 @@ def main():
                 finally:
                     con.close()
             unchanged = bool(res) and not res['changed']
-            print(f'change check vs {prev[0] if prev else None}: probe {None if res is None else (res["n"], "requests, changed:", res["changed"][:10])}; '
+            print(f'change check vs {prev[0] if prev else None}: probe {None if res is None else (res["n"], "requests in", res["seconds"], "s, changed:", res["changed"][:10])}; '
                   f'code unchanged {bool(prev) and prev[1] == chash}; last run ok {prev_ok}; same month {same_month} -> '
                   f'{"NO NEW DATA, skipping build and estimation" if unchanged else "estimating"}')
             fl = ['--force']                 # a date already recorded today is replaced, not skipped

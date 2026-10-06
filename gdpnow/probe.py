@@ -2,6 +2,7 @@
 production build (table `fetch_log`, written by scripts/02_build_public.py) and compares digests of the responses,
 without running the build. The FRED/ALFRED date, API keys and other volatile echoes are normalised out
 (public_data.tokenise / VOLATILE), so an unchanged input gives an identical digest on any day."""
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from . import public_data as P
@@ -11,7 +12,7 @@ WORKERS = 3          # FRED allows 120 requests a minute and BEA 100; the build 
 
 
 def run(con, asof, workers=WORKERS):
-    """Returns {'base': as-of of the log replayed, 'n': requests, 'changed': [urls]}, or None if there is no log."""
+    """Returns {'base': as-of of the log replayed, 'n': requests, 'changed': [urls], 'seconds'}, or None if there is no log."""
     if not store.table_exists(con, 'fetch_log'):
         return None
     base = con.execute('SELECT max(as_of) FROM fetch_log WHERE as_of <= ?', [str(asof)]).fetchone()[0]
@@ -27,6 +28,7 @@ def run(con, asof, workers=WORKERS):
             raise RuntimeError(f'probe request failed ({kind} {url[:120]}): {e}') from e
         return (url, new != digest)
 
+    t0 = time.time()
     with ThreadPoolExecutor(workers) as ex:
         res = list(ex.map(one, rows))
-    return {'base': str(base), 'n': len(rows), 'changed': [u for u, c in res if c]}
+    return {'base': str(base), 'n': len(rows), 'changed': [u for u, c in res if c], 'seconds': round(time.time() - t0)}

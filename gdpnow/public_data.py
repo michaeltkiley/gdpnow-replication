@@ -7,6 +7,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -88,16 +89,39 @@ def save_recording(con):
     return len(df)
 
 
-def _get_core(url, tries=4):
+# Replay (the probe) sends a few hundred requests in minutes; the build spreads them over a long run. Per-host minimum
+# gaps keep the probe under the providers' limits (BEA 100 requests a minute, FRED 120).
+MIN_GAP = {'apps.bea.gov': 0.8, 'api.stlouisfed.org': 0.6}
+_GATE = {}
+_GATE_LOCK = threading.Lock()
+
+
+def _throttle(url):
+    host = urllib.parse.urlparse(url).netloc
+    gap = MIN_GAP.get(host)
+    if gap is None:
+        return
+    with _GATE_LOCK:
+        gate = _GATE.setdefault(host, [threading.Lock(), 0.0])
+    with gate[0]:
+        wait = gate[1] - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        gate[1] = time.monotonic() + gap
+
+
+def _get_core(url, tries=4, throttle=False):
     for k in range(tries):
         try:
+            if throttle:
+                _throttle(url)
             with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'gdpnow-replication'}),
                                         timeout=120) as r:
                 return json.loads(r.read().decode())
-        except Exception:
+        except Exception as e:
             if k == tries - 1:
                 raise
-            time.sleep(2 * (k + 1))
+            time.sleep(30 * (k + 1) if getattr(e, 'code', None) == 429 else 2 * (k + 1))
 
 
 def _get(url, tries=4):
@@ -136,7 +160,7 @@ def bea_trade_xlsx():
 def replay(kind, url, body):
     """Fetch a logged request again (no recording); returns the digest of the response."""
     if kind == 'GET_JSON':
-        return digest_json(_get_core(url, tries=6))
+        return digest_json(_get_core(url, tries=6, throttle=True))
     if kind == 'POST_JSON':
         req = urllib.request.Request(url, data=body.encode(), headers={'Content-Type': 'application/json'})
         with urllib.request.urlopen(req, timeout=120) as r:
