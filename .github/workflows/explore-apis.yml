@@ -27,4 +27,4 @@ jobs:
           BEA_API_KEY: ${{ secrets.BEA_API_KEY }}
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
           BLS_CONTACT: ${{ secrets.BLS_CONTACT }}
-        run: python tools/explore_apis.py ${{ inputs.which || 'bls8' }}
+        run: python tools/explore_apis.py ${{ inputs.which || 'bea9' }}
