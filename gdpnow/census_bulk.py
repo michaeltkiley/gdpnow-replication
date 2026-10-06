@@ -10,12 +10,14 @@ config/census_series.toml maps the EITS dataset ids used in the code and the FRE
 archived in `raw_pulls` (source 'census_bulk', series 'PROGRAM|category|datatype|is_adj|geo'). No fallback: a failed
 download or a missing series fails the run.
 
-Change signal: the digest of the zip's CSV member (not the zip, whose README and metadata change independently), logged
-as a CENSUS_ZIP request for the daily probe.
+Change signal: the program's size and last-updated stamp on Census's data-set download page (one request for all programs; the zip's
+own Last-Modified is just the current time), logged as a CENSUS_ZIP request for the daily probe.
 """
 import csv
 import hashlib
 import io
+import re
+import threading
 import tomllib
 import urllib.request
 import zipfile
@@ -61,9 +63,42 @@ def csv_text(raw, program):
     return z.read(f'{program}-mf.csv').decode('utf8', 'replace')
 
 
+PAGE = 'https://www.census.gov/econ_datasets/'
+_PAGE = {}
+_LOCK = threading.Lock()
+_ROW = re.compile(r'programCode=([A-Z0-9]+)"[^>]*>[^<]*</a></td>\s*<td[^>]*>([^<]+)</td>\s*<td[^>]*>([^<]+)</td>')
+
+
+def page_rows():
+    """{program code: (size, last updated)} from Census's data-set download page (one request, shared by every program)."""
+    with _LOCK:
+        if not _PAGE:
+            last = None
+            for k in range(3):
+                try:
+                    html = urllib.request.urlopen(urllib.request.Request(PAGE, headers=P.UA), timeout=120).read().decode('utf8', 'replace')
+                    rows = {m.group(1): (m.group(2).strip(), m.group(3).strip()) for m in _ROW.finditer(html)}
+                    if not rows:
+                        raise RuntimeError('no program rows found on the page')
+                    _PAGE.update(rows)
+                    break
+                except Exception as e:
+                    last = e
+                    if k < 2:
+                        import time
+                        time.sleep(5 * (k + 1))
+            else:
+                raise RuntimeError(f'Census data-set page {PAGE} failed: {last}') from last
+        return dict(_PAGE)
+
+
 def digest(program):
-    """Digest of a program's CSV (what the daily probe compares)."""
-    return hashlib.sha256(csv_text(download(program), program).encode()).hexdigest()
+    """What the daily probe compares for a program: its size and last-updated stamp on Census's download page (the zip itself
+    carries only the current time as Last-Modified). One page request serves all programs."""
+    rows = page_rows()
+    if program not in rows:
+        raise RuntimeError(f'Census data-set page lists no program {program}')
+    return hashlib.sha256('|'.join(rows[program]).encode()).hexdigest()
 
 
 def _sections(text):
@@ -101,7 +136,7 @@ def _frame(program):
     if program not in _FRAMES:
         raw = download(program)
         text = csv_text(raw, program)
-        P._record('CENSUS_ZIP', program_url(program), None, hashlib.sha256(text.encode()).hexdigest())
+        P._record('CENSUS_ZIP', program_url(program), None, digest(program))
         _FRAMES[program] = parse(text)
     return _FRAMES[program]
 

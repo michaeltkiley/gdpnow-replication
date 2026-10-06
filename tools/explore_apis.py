@@ -2235,6 +2235,47 @@ def groupA_39():
     out('GA39', 'MARTS cats (adj SM US)', sorted({k[0] for k in cands if k[1] == 'SM' and k[2] == 1}))
 
 
+def groupA_40():
+    """End-to-end test of the reworked probe without running the build: record one request of every kind the build makes (Census zips via the
+    download page, BLS/BEA/Fed headers, files via get_bytes headers, FRED, Treasury, BEA trade workbook), save the log, then run probe.run on it.
+    Expect 'changed' empty and no large downloads in the probe. Prints the kind of each logged request and the probe's timing."""
+    import tempfile
+    import time
+    import duckdb
+    from gdpnow import (bea_bulk as BB, bls_flat as BF, census_bulk as CB, fed_g17 as G, probe, public_data as P, store)
+    asof = '2026-10-07'
+    con = duckdb.connect(tempfile.mkdtemp() + '/p.duckdb')
+    P.REFRESH = True
+    P.begin_recording(asof)
+    t0 = time.time()
+    progs = sorted({v[0] for v in CB.FRED.values()} | set(CB._CFG['eits'].values()))
+    for prog in progs:
+        CB._frame(prog)
+    out('GA40', 'census programs recorded', progs, 'page rows', len(CB.page_rows()))
+    for f in ('ip_sa.txt', 'utl_sa.txt', 'auto_sa.txt'):
+        P.record_head(G.BASE + f, G.head(f))
+    for f in ('NipaDataM.txt', 'NipaDataQ.txt', 'SeriesRegister.txt'):
+        P.record_head(BB.BASE + f, BB.head(f))
+    for f in ('ce/ce.data.0.AllCESSeries', 'cu/cu.data.1.AllItems'):
+        P.record_head(f, BF.head(f))
+    for u in ('https://apps.bea.gov/international/zip/IDS0182.zip', 'https://apps.bea.gov/national/xls/gap_hist.xlsx',
+              'https://www.census.gov/construction/c30/xlsx/fedsatime.xlsx', 'https://www.census.gov/construction/nrs/xls/price_uc_cust.xlsx',
+              'https://www.census.gov/econ/indicators/tab1adv.xlsx'):
+        P.get_bytes(u, timeout=300)
+    P.bea_trade_xlsx()
+    for sid in ('UMCSENT', 'WTISPLC'):
+        P.fred(con, sid, asof, refresh=True)
+    out('GA40', 'recording seconds', round(time.time() - t0))
+    n = P.save_recording(con)
+    rows = con.execute('SELECT kind, url FROM fetch_log WHERE as_of = ?', [asof]).fetchall()
+    import collections
+    out('GA40', 'logged', n, dict(collections.Counter(k for k, u in rows)))
+    out('GA40', 'GET_BYTES (content digest, no Last-Modified)', [u for k, u in rows if k == 'GET_BYTES'])
+    t1 = time.time()
+    res = probe.run(con, asof)
+    out('GA40', 'probe', res, 'wall seconds', round(time.time() - t1))
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -2242,7 +2283,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40)):
         if name in which:
             try:
                 fn()

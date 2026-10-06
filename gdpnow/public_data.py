@@ -130,9 +130,26 @@ def _get(url, tries=4):
     return d
 
 
+def head(url, timeout=60):
+    """(Last-Modified, ETag, Content-Length) of any file from a header-only request."""
+    req = urllib.request.Request(url, method='HEAD', headers=UA)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        h = r.headers
+        return h.get('Last-Modified'), h.get('ETag'), h.get('Content-Length')
+
+
 def get_bytes(url, timeout=120):
+    """A file's bytes. The change signal for the daily probe is the file's header (Last-Modified, ETag, length) when the server sends
+    a Last-Modified, so the probe repeats a header-only request; a server without one is checked by a digest of the content."""
+    try:
+        h = head(url)
+    except Exception:
+        h = None
     raw = urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout).read()
-    _record('GET_BYTES', url, None, digest_bytes(raw))
+    if h and h[0]:
+        record_head(url, h)
+    else:
+        _record('GET_BYTES', url, None, digest_bytes(raw))
     return raw
 
 
@@ -173,8 +190,10 @@ def replay(kind, url, body):
         if 'federalreserve.gov/releases/g17/' in url:
             from . import fed_g17
             return head_digest(*fed_g17.head(url.rsplit('/', 1)[1]))
-        from . import bea_bulk
-        return head_digest(*bea_bulk.head(url.rsplit('/', 1)[1]))
+        if 'apps.bea.gov/national/Release/TXT/' in url:
+            from . import bea_bulk
+            return head_digest(*bea_bulk.head(url.rsplit('/', 1)[1]))
+        return head_digest(*head(url))
     if kind == 'CENSUS_ZIP':
         from . import census_bulk
         return census_bulk.digest(url.split('programCode=', 1)[1])
