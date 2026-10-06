@@ -1637,6 +1637,28 @@ def pair22():
             out('P22', t, qt, 'ERR', repr(e)[:160])
 
 
+def bop23():
+    """Layout of the BEA trade workbook sheets 'Table 1'-'Table 3': header rows, the 'Period'/'Monthly' markers and the last rows."""
+    import io
+    import openpyxl
+    from gdpnow import public_data as PD
+    wb = openpyxl.load_workbook(io.BytesIO(PD.bea_trade_xlsx()), data_only=True)
+    for name in ('Table 1', 'Table 2', 'Table 3'):
+        ws = wb[name]
+        rows = [list(r) for r in ws.iter_rows(values_only=True)]
+        out('B23 sheet', name, 'rows', len(rows), 'cols', ws.max_column)
+        for i, r in enumerate(rows[:14]):
+            out('B23 head', name, i, [str(c)[:34] if c is not None else None for c in r[:12]])
+        marks = [(i, str(r[0]).strip()) for i, r in enumerate(rows) if r and str(r[0]).strip() in ('Period', 'Monthly', 'Quarterly', 'Annual')]
+        out('B23 markers', name, marks)
+        for i in range(max(0, len(rows) - 3), len(rows)):
+            out('B23 tail', name, i, [str(c)[:20] if c is not None else None for c in rows[i][:12]])
+        m = [i for i, r in enumerate(rows) if r and str(r[0]).strip() == 'Monthly']
+        if m:
+            for i in range(m[0], m[0] + 3):
+                out('B23 monthly start', name, i, [str(c)[:20] if c is not None else None for c in rows[i][:12]])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1644,7 +1666,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23)):
         if name in which:
             try:
                 fn()
