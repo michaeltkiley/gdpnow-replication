@@ -1856,6 +1856,46 @@ def veh28():
             out('V28', fid, 'ERR', repr(e)[:200])
 
 
+def g17_29():
+    """Fed G.17: where are the whole-release files (industrial production, capacity utilization, motor vehicle assemblies)? Headers, page links,
+    layout of candidate files and FRED's latest values for the 16 series to match against."""
+    import re
+    ids = ['INDPRO', 'IPMAT', 'IPCONGD', 'IPDCONGD', 'IPDMAN', 'IPFINAL', 'IPFPNSS', 'IPMANSICS', 'IPNCONGD', 'IPNMAN', 'IPUTIL', 'IPB54000S',
+           'IPBUSEQ', 'IPN213111S', 'CUMFNS', 'MVAAUTLTTS']
+    for fid in ids:
+        try:
+            st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&sort_order=desc&limit=2', timeout=60)
+            st2, n2, t2, _, _ = call(f'https://api.stlouisfed.org/fred/series?series_id={fid}&api_key={FRED_KEY}&file_type=json', timeout=60)
+            sr = json.loads(t2)['seriess'][0]
+            out('G29', fid, sr['title'][:70], '| updated', sr['last_updated'], '| latest', [(o['date'], o['value']) for o in json.loads(t)['observations']])
+        except Exception as e:
+            out('G29', fid, 'ERR', repr(e)[:120])
+    base = 'https://www.federalreserve.gov/releases/g17/'
+    for u in ['current/default.htm', 'ipdisk/', 'ipdisk/ip_sa.txt', 'ipdisk/ip_nsa.txt', 'ipdisk/utl_sa.txt', 'ipdisk/utl_nsa.txt', 'download.htm', 'ipdisk/download.htm',
+              'iprevisions.htm', 'about.htm', 'data.htm']:
+        out('G29', 'HEAD', u, _head(base + u))
+    for u in ['download.htm', 'ipdisk/', 'current/default.htm']:
+        try:
+            st, n, t, _, _ = call(base + u, timeout=60)
+            links = sorted(set(re.findall(r'href="([^"]+)"', t)))
+            hit = [l for l in links if re.search(r'ipdisk|\.txt|\.csv|\.zip|\.xls|datadownload|feeds', l, re.I)]
+            out('G29', 'page', u, st, n, 'links', len(links), hit[:40])
+        except Exception as e:
+            out('G29', 'page', u, 'ERR', repr(e)[:120])
+    for u in ['ipdisk/ip_sa.txt', 'ipdisk/utl_sa.txt']:
+        try:
+            req = urllib.request.Request(base + u, headers={'User-Agent': 'Mozilla/5.0'})
+            raw = urllib.request.urlopen(req, timeout=120).read().decode('latin-1')
+            ls = raw.splitlines()
+            out('G29', 'file', u, len(raw), 'lines', len(ls))
+            for l in ls[:4]:
+                out('G29', u, 'head', l[:300])
+            for l in ls[-2:]:
+                out('G29', u, 'tail', l[:300])
+        except Exception as e:
+            out('G29', 'file', u, 'ERR', repr(e)[:120])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1863,7 +1903,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29)):
         if name in which:
             try:
                 fn()
