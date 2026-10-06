@@ -820,6 +820,7 @@ def bea10():
 def bea11():
     import csv
     import io
+    import re
     ua = {'User-Agent': 'Mozilla/5.0'}
     base = 'https://apps.bea.gov/national/Release/TXT/'
     # (a) the open-data catalog
