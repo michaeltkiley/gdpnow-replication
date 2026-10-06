@@ -492,14 +492,141 @@ def bls5():
     out('BLS flat CES file: MB', round(n / 1e6, 1), 'secs', s, 'lines', len(t.splitlines()), 'our two series rows', len(rows), 'sample', rows[:2], 'header', t.splitlines()[0][:80])
 
 
+# ---------------------------------------------------------------- round 6: derive and validate the FRED -> BLS series map
+BLS_FILES = ['cu/cu.data.0.Current', 'ce/ce.data.0.AllCESSeries', 'ln/ln.data.1.AllData', 'pc/pc.data.0.Current',
+             'wp/wp.data.0.Current', 'ei/ei.data.0.Current', 'ci/ci.data.0.Current']
+BLS_RELEASES = {50, 46, 188, 10, 11}          # FRED release ids whose source is BLS (Employment Situation, PPI, import/export prices, CPI, ECI)
+
+
+def _bls_stream(path):
+    """Yield (series_id, [(year, month_or_quarter_start, value)...]) per series from a BLS flat file (series are contiguous)."""
+    cur, rows = None, []
+    with open(path, encoding='utf8', errors='replace') as f:
+        next(f)
+        for ln in f:
+            p = ln.rstrip('\n').split('\t')
+            if len(p) < 4:
+                continue
+            sid = p[0].strip()
+            per = p[2].strip()
+            if per == 'M13' or per.startswith('S') or per == 'A01':
+                continue
+            try:
+                m = int(per[1:]) if per[0] == 'M' else 3 * int(per[1:]) - 2 if per[0] == 'Q' else None
+                v = float(p[3])
+            except ValueError:
+                continue
+            if m is None:
+                continue
+            if sid != cur:
+                if cur is not None:
+                    yield cur, rows
+                cur, rows = sid, []
+            rows.append((int(p[1]), m, v))
+    if cur is not None:
+        yield cur, rows
+
+
+def blsmap(inv):
+    import os as _os
+    ua = {'User-Agent': f'gdpnow-replication/1.0 ({BLS_CONTACT})'}
+    k = f'&api_key={FRED_KEY}&file_type=json'
+    ids = sorted(set(inv.get('fred') or []))
+    # 1. which of our FRED series come from BLS releases, with their full histories
+    fred_obs = {}
+    for sid in ids:
+        st, n, t, _, s = call('https://api.stlouisfed.org/fred/series/release?series_id=' + sid + k)
+        try:
+            rid = json.loads(t)['releases'][0]['id']
+        except Exception:
+            rid = None
+        time.sleep(0.5)
+        if rid in BLS_RELEASES:
+            st, n, t, _, s = call('https://api.stlouisfed.org/fred/series/observations?series_id=' + sid + '&observation_start=1947-01-01' + k)
+            d = json.loads(t)
+            obs = {}
+            for o in d.get('observations', []):
+                if o['value'] not in ('.', ''):
+                    y, m = int(o['date'][:4]), int(o['date'][5:7])
+                    obs[(y, m)] = float(o['value'])
+            fred_obs[sid] = obs
+            time.sleep(0.5)
+    out('BLS-release FRED series:', len(fred_obs), sorted(fred_obs))
+    # 2. download the flat files (identifying User-Agent)
+    _os.makedirs('data/bls', exist_ok=True)
+    paths = []
+    for f in BLS_FILES:
+        t0 = time.time()
+        req = urllib.request.Request('https://download.bls.gov/pub/time.series/' + f, headers=ua)
+        dest = 'data/bls/' + f.split('/')[-1]
+        with urllib.request.urlopen(req, timeout=900) as r, open(dest, 'wb') as fh:
+            nb = 0
+            while True:
+                chunk = r.read(1 << 22)
+                if not chunk:
+                    break
+                fh.write(chunk)
+                nb += len(chunk)
+        out('BLS download', f, 'MB', round(nb / 1e6, 1), 'secs', round(time.time() - t0, 1), 'last-modified', r.headers.get('Last-Modified'))
+        paths.append(dest)
+    # 3. index every BLS series by its last 12 observations
+    index, full = {}, {}
+    want = {sid.upper() for sid in fred_obs}
+    for path in paths:
+        t0 = time.time()
+        n_series = 0
+        for sid, rows in _bls_stream(path):
+            n_series += 1
+            if sid in want:
+                full[sid] = {(y, m): v for y, m, v in rows}
+            if len(rows) >= 12:
+                key = tuple((y, m, round(v, 4)) for y, m, v in rows[-12:])
+                index.setdefault(key, []).append((path.split('/')[-1][:2], sid))
+        out('BLS parsed', path, 'series', n_series, 'secs', round(time.time() - t0, 1))
+    # 4. map
+    mapping, report = {}, []
+    for fid, obs in sorted(fred_obs.items()):
+        keys = sorted(obs)
+        cands = []
+        if len(keys) >= 12:
+            key = tuple((y, m, round(obs[(y, m)], 4)) for y, m in keys[-12:])
+            cands = index.get(key, [])
+        direct = fid.upper() in full or any(fid.upper() == sid for _, sid in cands)
+        mapping[fid] = cands
+        report.append((fid, [c[1] for c in cands][:4], 'same-id' if any(fid.upper() == sid for _, sid in cands) else ''))
+    unmatched = [fid for fid, c in mapping.items() if not c]
+    ambiguous = {fid: [x[1] for x in c] for fid, c in mapping.items() if len(c) > 1}
+    out('MAP matched uniquely:', sum(1 for c in mapping.values() if len(c) == 1), 'ambiguous:', len(ambiguous), 'unmatched:', len(unmatched))
+    out('MAP unmatched FRED ids:', unmatched)
+    out('MAP ambiguous (FRED -> candidates):', {k_: v[:6] for k_, v in ambiguous.items()})
+    out('MAP table (unique):', {fid: c[0][1] for fid, c in mapping.items() if len(c) == 1})
+    # 5. full-history comparison for the unique matches (needs the matched BLS series' full rows)
+    need = {c[0][1] for c in mapping.values() if len(c) == 1}
+    for path in paths:
+        for sid, rows in _bls_stream(path):
+            if sid in need and sid not in full:
+                full[sid] = {(y, m): v for y, m, v in rows}
+    for fid, c in sorted(mapping.items()):
+        if len(c) != 1:
+            continue
+        b = full.get(c[0][1], {})
+        f_ = fred_obs[fid]
+        common = set(b) & set(f_)
+        md = max((abs(b[x] - f_[x]) for x in common), default=None)
+        only_f = sorted(set(f_) - set(b))
+        only_b = sorted(set(b) - set(f_))
+        out('MAPCHK', fid, '->', c[0][1], 'fred n', len(f_), 'bls n', len(b), 'common', len(common), 'max abs diff', md,
+            '| only FRED', len(only_f), only_f[:2], '| only BLS', len(only_b), only_b[:2])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
-    if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4') for w in which):
+    if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
         which = ['inventory'] + which
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv))):
         if name in which:
             try:
                 fn()
