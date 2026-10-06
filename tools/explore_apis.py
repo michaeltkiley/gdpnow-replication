@@ -767,6 +767,55 @@ def bea9():
         out('BEA', fn, 'U-style table ids present:', ut)
 
 
+# ---------------------------------------------------------------- round 10: BEA's open-data page and what it links to
+def bea10():
+    import re
+    ua = {'User-Agent': 'Mozilla/5.0'}
+    pat_dl = re.compile(r'\.(zip|txt|csv|xlsx?|json|gz)(\?|$)', re.I)
+
+    def links(u, maxb=3000000):
+        st, n, t, hdr, s = call(u, headers=ua, maxb=maxb)
+        hrefs = re.findall(r'href="([^"#]+)"', t)
+        title = re.search(r'<title>([^<]*)</title>', t)
+        return st, n, (title.group(1).strip() if title else ''), t, hrefs
+
+    def absu(h, base):
+        if h.startswith('//'):
+            return 'https:' + h
+        if h.startswith('/'):
+            return re.match(r'https?://[^/]+', base).group(0) + h
+        return h if h.startswith('http') else base.rstrip('/') + '/' + h
+    root = 'https://www.bea.gov/open-data'
+    st, n, title, t, hrefs = links(root)
+    hrefs = sorted({absu(h, root) for h in hrefs})
+    out('BEA open-data page', st, 'bytes', n, 'title', title, 'links', len(hrefs))
+    dl = [h for h in hrefs if pat_dl.search(h)]
+    out('BEA open-data direct file links:', dl[:60])
+    kids = [h for h in hrefs if re.search(r'open-data|/data/|dataset|download|apps\.bea\.gov', h, re.I)]
+    out('BEA open-data child links (first 60):', kids[:60])
+    seen = set()
+    for k in kids:
+        if len(seen) >= 14 or k in seen or k == root or not k.startswith('http'):
+            continue
+        seen.add(k)
+        st2, n2, title2, t2, h2 = links(k, 1500000)
+        h2 = sorted({absu(h, k) for h in h2})
+        d2 = [h for h in h2 if pat_dl.search(h)]
+        out('BEA child', k, st2, title2[:60], 'file links:', len(d2), d2[:12])
+        time.sleep(0.5)
+    # candidate register names (user-provided and ours)
+    base = 'https://apps.bea.gov/national/Release/TXT/'
+    for fn in ('NIPASeriesRegister.txt', 'NIPATablesRegister.txt', 'SeriesRegister.txt', 'TablesRegister.txt'):
+        try:
+            req = urllib.request.Request(base + fn, method='HEAD', headers=ua)
+            with urllib.request.urlopen(req, timeout=60) as r:
+                out('BEA HEAD', fn, r.status, {k: v for k, v in dict(r.headers).items() if k.lower() in ('last-modified', 'content-length')})
+        except urllib.error.HTTPError as e:
+            out('BEA HEAD', fn, e.code)
+        except Exception as e:
+            out('BEA HEAD', fn, 'ERR', str(e)[:60])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -774,7 +823,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10)):
         if name in which:
             try:
                 fn()
