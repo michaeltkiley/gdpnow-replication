@@ -2293,6 +2293,39 @@ def groupA_41():
             time.sleep(1.5)
 
 
+def groupA_42():
+    """Stability of every header-based change signal the probe uses: 8 sequential and 8 parallel (3 workers) header requests per file with the
+    modules' own head functions; prints the distinct (Last-Modified, ETag, length) tuples where there is more than one, and the count of stable ones."""
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from gdpnow import bea_bulk as BB, bls_flat as BF, fed_g17 as G, public_data as P
+    files = {}
+    for f in ('ce/ce.data.0.AllCESSeries', 'cu/cu.data.1.AllItems', 'wp/wp.data.21.Aggregates', 'ln/ln.data.1.AllData'):
+        files['BLS ' + f] = (lambda f=f: BF.head(f))
+    for f in ('NipaDataM.txt', 'NipaDataQ.txt', 'SeriesRegister.txt'):
+        files['BEA ' + f] = (lambda f=f: BB.head(f))
+    for f in ('ip_sa.txt', 'utl_sa.txt', 'auto_sa.txt'):
+        files['Fed ' + f] = (lambda f=f: G.head(f))
+    for u in ('https://apps.bea.gov/international/zip/IDS0182.zip', 'https://apps.bea.gov/international/zip/IDS0182-Hist.zip',
+              'https://apps.bea.gov/national/xls/gap_hist.xlsx'):
+        files['BEA file ' + u.rsplit('/', 1)[1]] = (lambda u=u: P.head(u))
+    stable = 0
+    for name, fn in files.items():
+        seq = []
+        for k in range(8):
+            seq.append(tuple(fn()))
+            time.sleep(0.4)
+        with ThreadPoolExecutor(3) as ex:
+            par = list(ex.map(lambda _: tuple(fn()), range(8)))
+        distinct = set(seq) | set(par)
+        if len(distinct) == 1:
+            stable += 1
+            out('GA42', 'stable', name, list(distinct)[0])
+        else:
+            out('GA42', 'UNSTABLE', name, 'seq distinct', len(set(seq)), 'parallel distinct', len(set(par)), sorted(distinct, key=str))
+    out('GA42', 'stable files', stable, 'of', len(files))
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -2300,7 +2333,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40), ('groupA_41', groupA_41)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40), ('groupA_41', groupA_41), ('groupA_42', groupA_42)):
         if name in which:
             try:
                 fn()

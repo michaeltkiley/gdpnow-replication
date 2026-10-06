@@ -139,14 +139,16 @@ def head(url, timeout=60):
 
 
 def get_bytes(url, timeout=120):
-    """A file's bytes. The change signal for the daily probe is the file's header (Last-Modified, ETag, length) when the server sends
-    a Last-Modified, so the probe repeats a header-only request; a server without one is checked by a digest of the content."""
+    """A file's bytes. The change signal for the daily probe is the file's header (Last-Modified, ETag, length) when the server sends a
+    Last-Modified together with an ETag or a length, so the probe repeats a header-only request; any other server is checked by a digest
+    of the content (census.gov sits behind a CDN whose HEAD answers carry neither ETag nor length, and whose Last-Modified differs
+    between its servers by seconds to minutes)."""
     try:
         h = head(url)
     except Exception:
         h = None
     raw = urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout).read()
-    if h and h[0]:
+    if h and h[0] and (h[1] or h[2]):
         record_head(url, h)
     else:
         _record('GET_BYTES', url, None, digest_bytes(raw))
