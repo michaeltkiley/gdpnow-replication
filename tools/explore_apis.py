@@ -1804,6 +1804,30 @@ def veh26():
                 out('V26', 'bulk', tb, ln, code, desc[:70], ls[0][0] if ls else None, ls[-1][0] if ls else None, ls[-1][1] if ls else None)
 
 
+def veh27():
+    """BEA's Motor vehicles workbook (gap_hist.xlsx, linked from the GDP page, 'Supplemental Estimates, Motor Vehicles' in FRED): headers,
+    sheets, layout, and the last months of every row against FRED's seven series."""
+    import io
+    import openpyxl
+    u = 'https://apps.bea.gov/national/xls/gap_hist.xlsx'
+    out('V27', 'HEAD', _head(u))
+    st, n, t, _, _ = call(u, timeout=120)
+    req = urllib.request.Request(u, headers={'User-Agent': 'Mozilla/5.0'})
+    raw = urllib.request.urlopen(req, timeout=120).read()
+    out('V27', 'bytes', len(raw))
+    wb = openpyxl.load_workbook(io.BytesIO(raw), data_only=True)
+    for ws in wb.worksheets:
+        out('V27', 'sheet', ws.title, ws.max_row, ws.max_column)
+        for r in range(1, min(ws.max_row, 14) + 1):
+            out('V27', ws.title, r, [c for c in [ws.cell(r, k).value for k in range(1, min(ws.max_column, 12) + 1)]])
+        for r in range(max(1, ws.max_row - 3), ws.max_row + 1):
+            out('V27', ws.title, 'tail', r, [ws.cell(r, k).value for k in range(1, min(ws.max_column, 6) + 1)] + ['...'] + [ws.cell(r, k).value for k in range(max(1, ws.max_column - 4), ws.max_column + 1)])
+        for r in range(1, min(ws.max_row, 80) + 1):
+            lab = ws.cell(r, 1).value or ws.cell(r, 2).value
+            if lab:
+                out('V27', ws.title, 'row', r, str(lab)[:80], '| last', [ws.cell(r, k).value for k in range(max(1, ws.max_column - 3), ws.max_column + 1)])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1811,7 +1835,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27)):
         if name in which:
             try:
                 fn()
