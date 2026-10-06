@@ -676,6 +676,54 @@ def bls7():
     out('BLS ids not found in cu/wp/pc/ei/ci data files (expected for CES/LN which are in ce/ln):', sorted(miss))
 
 
+# ---------------------------------------------------------------- round 8: the remaining unknowns for the BLS flat-file design
+def bls8():
+    import re
+    import os as _os
+    ua = {'User-Agent': f'gdpnow-replication/1.0 ({BLS_CONTACT})'}
+    k = f'&api_key={FRED_KEY}&file_type=json'
+    base = 'https://download.bls.gov/pub/time.series/'
+    # (a) which cu file holds CUSR0000SEHK01 (we pull it from 1967 through the BLS API today)
+    st, n, t, hdr, s = call(base + 'cu/', headers=ua, maxb=400000)
+    files = [nm for nm in re.findall(r'<A HREF="[^"]+/([^/"]+)">', t) if '.data.' in nm]
+    _os.makedirs('data/bls8', exist_ok=True)
+    for fn in files:
+        dest = 'data/bls8/' + fn
+        req = urllib.request.Request(base + 'cu/' + fn, headers=ua)
+        with urllib.request.urlopen(req, timeout=900) as r, open(dest, 'wb') as fh:
+            while True:
+                chunk = r.read(1 << 22)
+                if not chunk:
+                    break
+                fh.write(chunk)
+        for sid, rows in _bls_stream(dest):
+            if sid == 'CUSR0000SEHK01':
+                ym = sorted((y, m) for y, m, v in rows)
+                out('SEHK01 in', fn, 'n', len(ym), '%04d-%02d' % ym[0], '%04d-%02d' % ym[-1])
+        _os.remove(dest)
+    # (b) AWOTMAN: compare both candidate CES series with FRED's full history
+    st, n, t, _, s = call('https://api.stlouisfed.org/fred/series/observations?series_id=AWOTMAN&observation_start=1947-01-01' + k)
+    fobs = {(int(o['date'][:4]), int(o['date'][5:7])): float(o['value']) for o in json.loads(t)['observations'] if o['value'] not in ('.', '')}
+    req = urllib.request.Request(base + 'ce/ce.data.0.AllCESSeries', headers=ua)
+    with urllib.request.urlopen(req, timeout=900) as r, open('data/bls8/ce.txt', 'wb') as fh:
+        while True:
+            chunk = r.read(1 << 22)
+            if not chunk:
+                break
+            fh.write(chunk)
+    want = {'CES3000000009', 'CES3100000009', 'CES9091911001', 'CES2023611806'}
+    for sid, rows in _bls_stream('data/bls8/ce.txt'):
+        if sid in want:
+            b = {(y, m): v for y, m, v in rows}
+            if sid.startswith('CES3'):
+                common = set(b) & set(fobs)
+                md = max((abs(b[x] - fobs[x]) for x in common), default=None)
+                out('AWOTMAN candidate', sid, 'n', len(b), 'FRED n', len(fobs), 'common', len(common), 'max abs diff', md)
+            else:
+                ym = sorted(b)
+                out('direct series in ce file', sid, 'n', len(b), '%04d-%02d' % ym[0], '%04d-%02d' % ym[-1])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -683,7 +731,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8)):
         if name in which:
             try:
                 fn()
