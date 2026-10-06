@@ -1818,14 +1818,13 @@ def veh27():
     wb = openpyxl.load_workbook(io.BytesIO(raw), data_only=True)
     for ws in wb.worksheets:
         out('V27', 'sheet', ws.title, ws.max_row, ws.max_column)
-        for r in range(1, min(ws.max_row, 14) + 1):
-            out('V27', ws.title, r, [c for c in [ws.cell(r, k).value for k in range(1, min(ws.max_column, 12) + 1)]])
-        for r in range(max(1, ws.max_row - 3), ws.max_row + 1):
-            out('V27', ws.title, 'tail', r, [ws.cell(r, k).value for k in range(1, min(ws.max_column, 6) + 1)] + ['...'] + [ws.cell(r, k).value for k in range(max(1, ws.max_column - 4), ws.max_column + 1)])
-        for r in range(1, min(ws.max_row, 80) + 1):
-            lab = ws.cell(r, 1).value or ws.cell(r, 2).value
-            if lab:
-                out('V27', ws.title, 'row', r, str(lab)[:80], '| last', [ws.cell(r, k).value for k in range(max(1, ws.max_column - 3), ws.max_column + 1)])
+        for r in range(1, min(ws.max_row, 9) + 1):
+            v = [c for c in [ws.cell(r, k).value for k in range(1, min(ws.max_column, 10) + 1)] if c is not None]
+            if v:
+                out('V27', ws.title, r, str(v)[:260])
+        rows = [r for r in range(1, ws.max_row + 1) if ws.cell(r, 1).value is not None or ws.cell(r, 2).value is not None]
+        for r in rows[-4:]:
+            out('V27', ws.title, 'tail', r, str([ws.cell(r, k).value for k in range(1, min(ws.max_column, 10) + 1)])[:260])
 
 
 if __name__ == '__main__':
