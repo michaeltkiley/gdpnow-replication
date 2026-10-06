@@ -13,13 +13,13 @@ equal the AEI's published SA values.
 """
 import re
 import subprocess
-import urllib.request
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from . import bvar
+from . import public_data as P
 from . import ids0182 as IDS
 from .config import load_toml
 
@@ -33,10 +33,8 @@ def aei_table(cx, month):
     """Seasonally adjusted AEI Table 1 for `month` (month-end Timestamp): {(flow, category|'Total'): [t, t-1, t-2]}."""
     ym = f'{month.year}{month.month:02d}'
     path = Path('data') / f'{cx.asof.replace("-", "")}_aei_{ym[2:]}.pdf'
-    if not path.exists():
-        url = f'https://www.census.gov/econ/indicators/{month.year}/advance_report{ym[2:]}.pdf'
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        path.write_bytes(urllib.request.urlopen(req, timeout=120).read())
+    if not path.exists() or P.refresh_once(('aei', path.name)):
+        path.write_bytes(P.get_bytes(f'https://www.census.gov/econ/indicators/{month.year}/advance_report{ym[2:]}.pdf'))
     text = subprocess.run(['pdftotext', '-layout', str(path), '-'], capture_output=True, text=True, check=True).stdout
     sa = text.split('Seasonally Adjusted', 1)[1].split('Not Seasonally Adjusted', 1)[0]
     out, flow = {}, None

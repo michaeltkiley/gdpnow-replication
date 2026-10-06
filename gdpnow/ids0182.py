@@ -8,7 +8,6 @@ BEA's SA series it is 0.99-1.00). Also supplies BOP-basis nonmonetary gold (XNMG
 Current-vintage download (the file is overwritten each month): cached per as-of date in data/.
 """
 import io
-import urllib.request
 import zipfile
 from pathlib import Path
 
@@ -54,10 +53,7 @@ def load(cx):
         return cx.cache['ids0182']
     res = {}
     for part, name in FILES.items():
-        req = urllib.request.Request(URL.format(name), headers={'User-Agent': 'Mozilla/5.0'})
-        raw = urllib.request.urlopen(req, timeout=300).read()
-        P.note_file(cx.con, cx.asof, f'ids0182:{name}', raw)
-        z = zipfile.ZipFile(io.BytesIO(raw))
+        z = zipfile.ZipFile(io.BytesIO(P.get_bytes(URL.format(name), timeout=300)))
         for member in z.namelist():
             low = member.lower()
             if not low.endswith('.xlsx') or 'exports' not in low and 'imports' not in low:

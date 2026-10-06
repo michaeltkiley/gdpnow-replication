@@ -4,6 +4,7 @@ Every fetch is stored in DuckDB table `raw_pulls` (source, series, asof, retriev
 for (source, series, asof) already in the archive is served from it unless refresh=True.
 """
 import datetime as dt
+import hashlib
 import json
 import os
 import time
@@ -20,7 +21,74 @@ FRED = 'https://api.stlouisfed.org/fred/'
 BEA = 'https://apps.bea.gov/api/data'
 
 
-def _get(url, tries=4):
+# ------------------------------------------------------------------------------------- fetch layer
+# Every request that feeds the public inputs goes through _get / get_bytes / post_json / bea_trade_xlsx. In a
+# production run (recording on) each is logged with a digest of its response in table `fetch_log`; the daily probe
+# (gdpnow/probe.py) replays the logged requests and compares digests, so "did any raw input change?" is answered
+# without running the build.
+UA = {'User-Agent': 'Mozilla/5.0'}
+SECRETS = ('FRED_API_KEY', 'BEA_API_KEY', 'CENSUS_API_KEY')
+VOLATILE = {'realtime_start', 'realtime_end', 'responseTime', 'Request'}      # echoes of the request, not data
+_REC = {'asof': None, 'items': {}}
+
+
+def _norm(o):
+    if isinstance(o, dict):
+        return {k: _norm(v) for k, v in o.items() if k not in VOLATILE}
+    if isinstance(o, list):
+        return [_norm(v) for v in o]
+    return o
+
+
+def digest_json(o):
+    return hashlib.sha256(json.dumps(_norm(o), sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def digest_bytes(b):
+    return hashlib.sha256(b).hexdigest()
+
+
+def tokenise(text, asof):
+    """Make a request replayable on another day and free of secrets."""
+    if text is None:
+        return None
+    for name in SECRETS:
+        if os.environ.get(name):
+            text = text.replace(os.environ[name], '{ENV:' + name + '}')
+    return text.replace(str(asof), '{ASOF}')
+
+
+def detokenise(text, asof):
+    if text is None:
+        return None
+    for name in SECRETS:
+        text = text.replace('{ENV:' + name + '}', os.environ.get(name, ''))
+    return text.replace('{ASOF}', str(asof))
+
+
+def begin_recording(asof):
+    _REC['asof'], _REC['items'] = str(asof), {}
+
+
+def _record(kind, url, body, digest):
+    if _REC['asof'] is None:
+        return
+    url, body = tokenise(url, _REC['asof']), tokenise(body, _REC['asof'])
+    key = hashlib.sha1(f'{kind}|{url}|{body}'.encode()).hexdigest()
+    _REC['items'][key] = dict(key=key, kind=kind, url=url, body=body, digest=digest)
+
+
+def save_recording(con):
+    """Store this run's request log under its as-of date (replaces any earlier log for the date)."""
+    if _REC['asof'] is None or not _REC['items']:
+        return 0
+    df = pd.DataFrame(list(_REC['items'].values()))
+    df.insert(0, 'as_of', _REC['asof'])
+    store.replace_rows(con, 'fetch_log', df, {'as_of': _REC['asof']})
+    return len(df)
+
+
+def _get_core(url, tries=4):
     for k in range(tries):
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'gdpnow-replication'}),
@@ -32,10 +100,70 @@ def _get(url, tries=4):
             time.sleep(2 * (k + 1))
 
 
+def _get(url, tries=4):
+    d = _get_core(url, tries)
+    _record('GET_JSON', url, None, digest_json(d))
+    return d
+
+
+def get_bytes(url, timeout=120):
+    raw = urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout).read()
+    _record('GET_BYTES', url, None, digest_bytes(raw))
+    return raw
+
+
+def post_json(url, payload):
+    body = json.dumps(payload)
+    req = urllib.request.Request(url, data=body.encode(), headers={'Content-Type': 'application/json'})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        d = json.loads(r.read().decode())
+    _record('POST_JSON', url, body, digest_json(d))
+    return d
+
+
+def bea_trade_xlsx():
+    """The BEA trade-release time-series workbook (its file name carries the release month, so the link is read off
+    the release page each time)."""
+    import re
+    page = urllib.request.urlopen(urllib.request.Request(
+        'https://www.bea.gov/data/intl-trade-investment/international-trade-goods-and-services', headers=UA), timeout=120).read().decode()
+    link = re.search(r'href="([^"]*trad\d{4}-time-series\.xlsx)"', page).group(1)
+    raw = urllib.request.urlopen(urllib.request.Request('https://www.bea.gov' + link, headers=UA), timeout=300).read()
+    _record('BEA_TRADE', '', None, digest_bytes(raw))
+    return raw
+
+
+def replay(kind, url, body):
+    """Fetch a logged request again (no recording); returns the digest of the response."""
+    if kind == 'GET_JSON':
+        return digest_json(_get_core(url, tries=6))
+    if kind == 'POST_JSON':
+        req = urllib.request.Request(url, data=body.encode(), headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return digest_json(json.loads(r.read().decode()))
+    if kind == 'GET_BYTES':
+        return digest_bytes(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=300).read())
+    if kind == 'BEA_TRADE':
+        saved, _REC['asof'] = _REC['asof'], None          # replay is not recorded
+        try:
+            return digest_bytes(bea_trade_xlsx())
+        finally:
+            _REC['asof'] = saved
+    raise ValueError(kind)
+
+
 # GDPNOW_REFRESH=1 (daily change check): every pull is fetched again once per process, replacing the archive for
 # its as-of date, instead of being served from the archive (which is what makes a re-run of a day repeatable).
 REFRESH = os.environ.get('GDPNOW_REFRESH') == '1'
 _SEEN = set()
+
+
+def refresh_once(key):
+    """True once per process and key when GDPNOW_REFRESH is on (re-download a cached file once)."""
+    if REFRESH and key not in _SEEN:
+        _SEEN.add(key)
+        return True
+    return False
 
 _OVR = {}
 
@@ -187,10 +315,3 @@ def bea_table(con, dataset, table, frequency, asof, refresh=False):
     w = df.pivot(index='date', columns='series', values='value')
     return w.sort_index()
 
-
-def note_file(con, asof, name, content):
-    """Record the SHA-256 of a downloaded file that is parsed rather than archived value by value (table
-    raw_files), so a change in it is visible to the daily change check."""
-    import hashlib
-    df = pd.DataFrame({'as_of': [str(asof)], 'name': [name], 'sha256': [hashlib.sha256(content).hexdigest()]})
-    store.replace_rows(con, 'raw_files', df, {'as_of': str(asof), 'name': name})
