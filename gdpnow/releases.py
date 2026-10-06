@@ -78,6 +78,6 @@ def changes(con, asof0, asof1, tol=1e-9):
     d = con.execute(q, [asof0, asof1, tol]).fetchdf()
     # series that exist only on one day (new pulls) carry no comparison
     have0 = set(r[0] for r in con.execute('SELECT DISTINCT source || chr(1) || series FROM raw_pulls WHERE as_of = ?', [asof0]).fetchall())
-    d = d[[f'{s}\x01{k}' in have0 for s, k in zip(d.source, d.series)]].copy()
+    d = d[pd.Series([f'{s}\x01{k}' in have0 for s, k in zip(d.source, d.series)], index=d.index, dtype=bool)].copy()
     d['release'] = [label(con, s, k) for s, k in zip(d.source, d.series)]
     return d.reset_index(drop=True)
