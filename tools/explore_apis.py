@@ -176,10 +176,148 @@ def bls():
             out('BLS', label, '| http', st, short(t, 200))
 
 
+# ---------------------------------------------------------------- round 2
+def fred2(inv):
+    k = f'&api_key={FRED_KEY}&file_type=json'
+    bearer = {'User-Agent': 'Mozilla/5.0', 'Authorization': 'Bearer ' + FRED_KEY}
+    base2 = 'https://api.stlouisfed.org/fred/v2/'
+    st, n, t, _, s = call(base2 + 'release/observations?release_id=9&limit=2', headers=bearer)
+    out('FRED v2 structure (release 9, limit 2):', st, n, short(t, 900))
+    for label, q in (('series_id=RSAFS,RSXFS', 'release_id=9&series_id=RSAFS,RSXFS&limit=2'),
+                     ('series_ids=RSAFS,RSXFS', 'release_id=9&series_ids=RSAFS,RSXFS&limit=2'),
+                     ('series_id=RSAFS', 'release_id=9&series_id=RSAFS&limit=2'),
+                     ('observation_date_start', 'release_id=9&observation_start=2026-01-01&limit=2'),
+                     ('realtime_start vintage', 'release_id=9&realtime_start=2026-09-01&realtime_end=2026-09-01&limit=2'),
+                     ('format=csv', 'release_id=9&format=csv&limit=2')):
+        st, n, t, _, s = call(base2 + 'release/observations?' + q, headers=bearer)
+        out('FRED v2 param test', label, st, n, short(t, 260))
+    for ep in ('series/observations?series_id=RSAFS&limit=2', 'observations?series_id=RSAFS&limit=2'):
+        st, n, t, _, s = call(base2 + ep, headers=bearer)
+        out('FRED v2 endpoint', ep, st, n, short(t, 200))
+    # change detection: series/updates
+    base = 'https://api.stlouisfed.org/fred/'
+    st, n, t, _, s = call(base + 'series/updates?filter_value=all&limit=2&start_time=202610061200' + k)
+    out('FRED series/updates start_time:', st, n, short(t, 500))
+    ours = set(inv.get('fred') or [])
+    seen, pages, offset = {}, 0, 0
+    while pages < 12:
+        st, n, t, _, s = call(base + f'series/updates?filter_value=all&limit=1000&offset={offset}&start_time=202610051200' + k)
+        try:
+            d = json.loads(t)
+        except Exception:
+            out('FRED series/updates page error', st, short(t, 200))
+            break
+        rows = d.get('seriess', [])
+        pages += 1
+        for r in rows:
+            if r['id'] in ours:
+                seen[r['id']] = r.get('last_updated')
+        out('FRED series/updates page', pages, 'rows', len(rows), 'count', d.get('count'), 'last row updated', rows[-1].get('last_updated') if rows else None)
+        if len(rows) < 1000:
+            break
+        offset += 1000
+        time.sleep(0.6)
+    out('FRED our series updated since 2026-10-05 12:00 (per series/updates):', len(seen), sorted(seen.items())[:12])
+
+
+def bea2(inv):
+    base = 'https://apps.bea.gov/api/data?UserID=' + BEA_KEY + '&method=GetData&ResultFormat=JSON'
+    st, n, t, hdr, s = call(base + '&DataSetName=NIPA&TableName=T10105&Frequency=Q&Year=ALL', maxb=2000)
+    out('BEA API response headers:', {k: v for k, v in hdr.items() if k.lower() in ('last-modified', 'etag', 'cache-control', 'content-length', 'age', 'x-ratelimit-remaining', 'content-encoding')})
+    tables = sorted({(a, b, c) for a, b, c, _ in inv.get('bea', [])})
+    total_b, total_t, t_win, b_win = 0, 0.0, time.time(), 0
+    for ds, tb, fr in tables:
+        if b_win > 80e6 and time.time() - t_win < 60:          # stay under BEA's 100 MB a minute
+            time.sleep(max(0, 61 - (time.time() - t_win)))
+            t_win, b_win = time.time(), 0
+        st, n, t, hdr, s = call(base + f'&DataSetName={ds}&TableName={tb}&Frequency={fr}&Year=ALL', timeout=300)
+        total_b += n
+        b_win += n
+        total_t += s
+        try:
+            d = json.loads(t)['BEAAPI']
+            rows = len(d['Results']['Data'])
+            err = None
+        except Exception:
+            rows, err = None, short(t, 120)
+        out('BEA Year=ALL', ds, tb, fr, '| http', st, 'MB', round(n / 1e6, 1), 'rows', rows, 'secs', s, err or '')
+        time.sleep(0.8)
+    out('BEA Year=ALL totals: tables', len(tables), 'MB', round(total_b / 1e6), 'secs', round(total_t))
+    # equivalence with what the build archived
+    try:
+        import duckdb
+        import pandas as pd
+        con = duckdb.connect('data/gdpnow.duckdb', read_only=True)
+        asof = con.execute("SELECT max(as_of) FROM raw_pulls WHERE source='bea'").fetchone()[0]
+        for ds, tb, fr in (('NIUnderlyingDetail', 'U20405', 'M'), ('NIPA', 'T10105', 'Q')):
+            fr_ = [f for d_, t_, f in tables if t_ == tb][0] if any(t_ == tb for _, t_, _ in tables) else fr
+            arch = con.execute("SELECT series, date, value FROM raw_pulls WHERE source='bea' AND series LIKE ? AND as_of=?", [f'{ds}:{tb}:{fr_}|%', asof]).fetchdf()
+            st, n, t, _, s = call(base + f'&DataSetName={ds}&TableName={tb}&Frequency={fr_}&Year=ALL', timeout=300)
+            rows = json.loads(t)['BEAAPI']['Results']['Data']
+            new = {}
+            for r in rows:
+                tp = r['TimePeriod']
+                d_ = (pd.Period(tp, 'Q') if 'Q' in tp else pd.Period(tp.replace('M', '-'), 'M') if 'M' in tp else pd.Period(tp, 'Y')).end_time.normalize()
+                try:
+                    new[(r['LineNumber'] + '|' + r['LineDescription'], d_.date())] = float(r['DataValue'].replace(',', ''))
+                except ValueError:
+                    pass
+            a = {(r.series.split('|', 1)[1], pd.Timestamp(r.date).date()): r.value for r in arch.itertuples()}
+            common = set(a) & set(new)
+            maxdiff = max((abs(a[c] - new[c]) for c in common), default=None)
+            out('BEA equivalence detail', tb, 'only in archive', len(set(a) - set(new)), 'only in Year=ALL', len(set(new) - set(a)), 'common', len(common), 'max abs diff', maxdiff)
+            out('BEA equivalence', ds, tb, fr_, 'archived obs', len(a), 'Year=ALL obs', len(new))
+    except Exception as e:
+        out('BEA equivalence skipped:', repr(e)[:200])
+
+
+def census2():
+    base = 'https://api.census.gov/data/timeseries/eits/'
+    k = f'&key={CENSUS_KEY}'
+    tot_b = 0
+    for ds in ('advm3', 'ftdadv', 'm3', 'mrts', 'mrtsadv', 'mwtsadv'):
+        st, n, t, hdr, s = call(base + ds + '?get=cell_value,time_slot_id,category_code,data_type_code,seasonally_adj&time=from+1992&for=us:*' + k, timeout=300)
+        tot_b += n
+        try:
+            rows = len(json.loads(t)) - 1
+        except Exception:
+            rows = None
+        out('CENSUS unfiltered from 1992', ds, '| http', st, 'MB', round(n / 1e6, 1), 'rows', rows, 'secs', s, 'hdrs', {kk: v for kk, v in hdr.items() if kk.lower() in ('last-modified', 'etag')})
+    out('CENSUS six datasets total MB', round(tot_b / 1e6, 1))
+
+
+def heads(inv):
+    import duckdb
+    con = duckdb.connect('data/gdpnow.duckdb', read_only=True)
+    rows = con.execute("SELECT kind, url FROM fetch_log WHERE as_of = (SELECT max(as_of) FROM fetch_log) AND kind IN ('GET_BYTES', 'BEA_TRADE') OR url LIKE '%fiscaldata%'").fetchall()
+    for kind, url in rows:
+        if kind == 'BEA_TRADE':
+            continue
+        u = url
+        try:
+            req = urllib.request.Request(u, method='HEAD', headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=60) as r:
+                h = dict(r.headers)
+                out('HEAD', u.split('?')[0][-70:], r.status, {kk: v for kk, v in h.items() if kk.lower() in ('last-modified', 'etag', 'content-length')})
+        except Exception as e:
+            out('HEAD', u.split('?')[0][-70:], 'ERR', str(e)[:80])
+    for u in ('https://apps.bea.gov/national/Release/TXT/NipaDataQ.txt',):
+        for hdrs in ({'If-Modified-Since': 'Wed, 30 Sep 2026 12:30:02 GMT'}, {'If-Modified-Since': 'Tue, 29 Sep 2026 12:30:02 GMT'}):
+            try:
+                req = urllib.request.Request(u, method='HEAD', headers={'User-Agent': 'Mozilla/5.0', **hdrs})
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    out('BEA conditional HEAD', hdrs, r.status)
+            except urllib.error.HTTPError as e:
+                out('BEA conditional HEAD', hdrs, e.code)
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
+    if 'inventory' not in which and any(w.endswith('2') or w == 'heads' for w in which):
+        which = ['inventory'] + which
     inv = inventory() if 'inventory' in which else {}
-    for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls)):
+    for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
+                     ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv))):
         if name in which:
             try:
                 fn()
