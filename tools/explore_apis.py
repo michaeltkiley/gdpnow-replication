@@ -1982,6 +1982,32 @@ def g17_31():
         out('G31', 'HEAD', u, _head(base + u))
 
 
+def g17_32():
+    """Motor vehicle assemblies (FRED MVAAUTLTTS, 1977-): Table 3 text file g17mv.txt (layout, how many months it holds), the full-release zip
+    FRB_g17_xml.zip (members, where the assemblies series sit) and HEADs of the candidate files."""
+    import io
+    import re
+    import zipfile
+    base = 'https://www.federalreserve.gov/releases/g17/'
+    for u in ['Current/ipdisk/g17mv.txt', 'ipdisk/g17mv.txt', 'data/FRB_g17_xml.zip', 'Current/ipdisk/revh_sa.txt', 'mvsf.htm', 'mv_sales_sf.htm']:
+        out('G32', 'HEAD', u, _head(base + u))
+    req = urllib.request.Request(base + 'Current/ipdisk/g17mv.txt', headers={'User-Agent': 'Mozilla/5.0'})
+    raw = urllib.request.urlopen(req, timeout=120).read().decode('latin-1')
+    ls = raw.splitlines()
+    out('G32', 'g17mv.txt', len(raw), 'lines', len(ls))
+    for l in ls[:40]:
+        out('G32', 'mv', l[:200])
+    req = urllib.request.Request(base + 'data/FRB_g17_xml.zip', headers={'User-Agent': 'Mozilla/5.0'})
+    zb = urllib.request.urlopen(req, timeout=300).read()
+    z = zipfile.ZipFile(io.BytesIO(zb))
+    out('G32', 'zip', len(zb), [(i.filename, i.file_size) for i in z.infolist()][:10])
+    for i in z.infolist()[:4]:
+        t = z.read(i.filename).decode('utf8', 'replace')
+        out('G32', 'member', i.filename, len(t), t[:600].replace('\n', ' '))
+        for k in list(re.finditer(r'assembl|MVA|motor vehicle', t, re.I))[:4]:
+            out('G32', 'hit', i.filename, t[max(0, k.start() - 200):k.start() + 300].replace('\n', ' '))
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1989,7 +2015,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32)):
         if name in which:
             try:
                 fn()
