@@ -1569,6 +1569,74 @@ def match21():
         out('M21 BOP', fid, 'FRED last', max(f), f[max(f)], 'hits', hits[:3])
 
 
+def pair22():
+    """For every nominal table line the model pairs with a quantity/price line (public_nipa.DETAIL and AGG): which line does
+    description matching pick on the API's descriptions and on the bulk tables' (stem-canonical) descriptions?"""
+    import datetime as dt
+    import pandas as pd
+    from gdpnow import bea_bulk, public_nipa as PN
+    base = 'https://apps.bea.gov/api/data'
+
+    def api_desc(ds, tb, fr):
+        chunks = ['ALL'] if ds == 'NIPA' else [','.join(str(y) for y in range(y0, min(y0 + 4, dt.date.today().year + 1))) for y0 in range(1959, dt.date.today().year + 1, 4)]
+        lines = {}
+        for years in chunks:
+            q = dict(UserID=BEA_KEY, method='GetData', DataSetName=ds, TableName=tb, Frequency=fr, Year=years, ResultFormat='JSON')
+            for attempt in range(4):
+                st, n, t, _, _ = call(base + '?' + urllib.parse.urlencode(q), timeout=300)
+                if st == 200:
+                    break
+                time.sleep(20 * (attempt + 1))
+            time.sleep(0.8)
+            try:
+                res = json.loads(t)['BEAAPI'].get('Results')
+            except Exception:
+                continue
+            if res and 'Data' in res:
+                for r in res['Data']:
+                    lines[r['LineNumber']] = r['LineDescription']
+            if ds == 'NIPA':
+                break
+        return lines
+
+    def pick(nom, qd, n):
+        d = nom[str(n)]
+        cands = [ln for ln, desc in qd.items() if desc == d]
+        return (min(cands, key=lambda ln: abs(int(ln) - n)), qd[min(cands, key=lambda ln: abs(int(ln) - n))], len(cands)) if cands else (None, None, 0)
+    used = {}
+    for k, recipe in PN.DETAIL.items():
+        for t, n, s in recipe:
+            if t in PN.REAL:
+                used.setdefault(t, set()).add(n)
+    used.setdefault('T10105', set()).update(PN.AGG.values())
+    used['T10105'].discard(1)
+    pairs = dict(PN.REAL)
+    pairs['T10105'] = 'T10103'
+    for t, qt in pairs.items():
+        if t not in used:
+            continue
+        ds_n = 'NIUnderlyingDetail' if t in PN.UDT else 'NIPA'
+        ds_q = 'NIUnderlyingDetail' if qt in PN.UDT else 'NIPA'
+        try:
+            an, aq = api_desc(ds_n, t, 'Q'), api_desc(ds_q, qt, 'Q')
+            bn_df, bq_df = bea_bulk.table(t, 'Q'), bea_bulk.table(qt, 'Q')
+            bn = dict(s.split('|', 1) for s in bn_df.series.unique())
+            bq = dict(s.split('|', 1) for s in bq_df.series.unique())
+            diff = []
+            for n in sorted(used[t]):
+                a = pick(an, aq, n)
+                b = pick(bn, bq, n)
+                if a[0] != b[0]:
+                    diff.append((n, an.get(str(n)), a, bn.get(str(n)), b))
+            out('P22', t, qt, 'lines used', sorted(used[t]), 'pairings that differ', len(diff))
+            for d in diff:
+                out('P22 diff', t, 'nominal line', d[0], 'API desc', d[1], '-> API picks', d[2], '| bulk desc', d[3], '-> bulk picks', d[4])
+            dup = [(n, pick(bn, bq, n)[2]) for n in sorted(used[t]) if pick(bn, bq, n)[2] > 1]
+            out('P22 ambiguous (bulk) lines', t, dup)
+        except Exception as e:
+            out('P22', t, qt, 'ERR', repr(e)[:160])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1576,7 +1644,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22)):
         if name in which:
             try:
                 fn()
