@@ -1061,6 +1061,27 @@ def census13():
             break
 
 
+def census14():
+    """Census bulk zip layout: full README, section titles and first rows of each section in M3ADV and RESCONST."""
+    import io
+    import zipfile
+    for code in ('M3ADV', 'RESCONST'):
+        req = urllib.request.Request(f'https://www.census.gov/econ_getzippedfile/?programCode={code}', headers={'User-Agent': 'Mozilla/5.0'})
+        z = zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(req, timeout=300).read()))
+        if code == 'M3ADV':
+            for i, line in enumerate(z.read('/README').decode('utf8', 'replace').splitlines()):
+                out('C14 README', i, line[:230])
+        txt = z.read(f'{code}-mf.csv').decode('utf8', 'replace').splitlines()
+        out('C14 lines', code, len(txt))
+        titles = [i for i, l in enumerate(txt) if l.strip() and l == l.upper() and ',' not in l and not l[0].isdigit() and len(l) < 40]
+        out('C14 titles', code, [(i, txt[i]) for i in titles])
+        for i in titles:
+            out('C14 section', code, txt[i], 'line', i, [txt[j][:170] for j in range(i + 1, min(i + 4, len(txt)))])
+        data_at = [i for i in titles if txt[i].startswith('DATA') and 'TYPES' not in txt[i]]
+        for i in data_at[:1]:
+            out('C14 data block head', code, [txt[j][:200] for j in range(i, min(i + 6, len(txt)))])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1068,7 +1089,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14)):
         if name in which:
             try:
                 fn()
