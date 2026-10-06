@@ -10,6 +10,7 @@ import urllib.request
 
 import pandas as pd
 
+from . import store
 from .config import load_env
 
 load_env()
@@ -81,3 +82,30 @@ def changes(con, asof0, asof1, tol=1e-9):
     d = d[pd.Series([f'{s}\x01{k}' in have0 for s, k in zip(d.source, d.series)], index=d.index, dtype=bool)].copy()
     d['release'] = [label(con, s, k) for s, k in zip(d.source, d.series)]
     return d.reset_index(drop=True)
+
+
+def public_inputs_diff(con, asof0, asof1, tol=1e-9):
+    """Did the public inputs archived for `asof1` differ from those archived for `asof0`? Counts observations that are
+    new, gone or revised across every archived pull, plus downloaded files (raw_files) whose content changed.
+    Returns None when either day has no archive (cannot compare), else a dict of counts."""
+    n0 = con.execute('SELECT count(*) FROM raw_pulls WHERE as_of = ?', [asof0]).fetchone()[0]
+    n1 = con.execute('SELECT count(*) FROM raw_pulls WHERE as_of = ?', [asof1]).fetchone()[0]
+    if not n0 or not n1:
+        return None
+    q = """
+    SELECT sum(CASE WHEN a.value IS NULL THEN 1 ELSE 0 END) AS gone,
+           sum(CASE WHEN b.value IS NULL THEN 1 ELSE 0 END) AS new,
+           sum(CASE WHEN a.value IS NOT NULL AND b.value IS NOT NULL
+                     AND NOT (a.value = b.value OR abs(a.value - b.value) <= ? * greatest(1, abs(b.value))) THEN 1 ELSE 0 END) AS revised,
+           count(DISTINCT CASE WHEN a.value IS NULL OR b.value IS NULL OR NOT (a.value = b.value OR abs(a.value - b.value) <= ? * greatest(1, abs(b.value)))
+                               THEN coalesce(a.source, b.source) || chr(1) || coalesce(a.series, b.series) END) AS series
+    FROM (SELECT source, series, date, value FROM raw_pulls WHERE as_of = ?) a      -- a: asof1 (today)
+    FULL OUTER JOIN (SELECT source, series, date, value FROM raw_pulls WHERE as_of = ?) b   -- b: asof0 (before)
+      ON a.source = b.source AND a.series = b.series AND a.date = b.date"""
+    gone, new, rev, ser = con.execute(q, [tol, tol, asof1, asof0]).fetchone()
+    files = 0
+    if store.table_exists(con, 'raw_files'):
+        files = con.execute("""SELECT count(*) FROM (SELECT name, sha256 FROM raw_files WHERE as_of = ?) a
+                               FULL OUTER JOIN (SELECT name, sha256 FROM raw_files WHERE as_of = ?) b ON a.name = b.name
+                               WHERE a.sha256 IS DISTINCT FROM b.sha256""", [asof1, asof0]).fetchone()[0]
+    return dict(new=int(new or 0), gone=int(gone or 0), revised=int(rev or 0), series=int(ser or 0), files=int(files))

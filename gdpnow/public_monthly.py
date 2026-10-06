@@ -486,12 +486,14 @@ def bea_travel_monthly(cx):
     import io, re, urllib.request
     from pathlib import Path
     path = Path('data') / f'{cx.asof.replace("-", "")}_bea_trade_time_series.xlsx'
-    if not path.exists():
+    if not path.exists() or P.REFRESH:
         hdr = {'User-Agent': 'Mozilla/5.0'}
         page = urllib.request.urlopen(urllib.request.Request(
             'https://www.bea.gov/data/intl-trade-investment/international-trade-goods-and-services', headers=hdr), timeout=120).read().decode()
         link = re.search(r'href="([^"]*trad\d{4}-time-series\.xlsx)"', page).group(1)
-        path.write_bytes(urllib.request.urlopen(urllib.request.Request('https://www.bea.gov' + link, headers=hdr), timeout=300).read())
+        raw = urllib.request.urlopen(urllib.request.Request('https://www.bea.gov' + link, headers=hdr), timeout=300).read()
+        path.write_bytes(raw)
+        P.note_file(cx.con, cx.asof, 'bea_trade_time_series', raw)
     out = []
     for sheet in ('Table 2', 'Table 3'):                       # exports, imports of services by category
         d = pd.read_excel(path, sheet_name=sheet, header=None)
