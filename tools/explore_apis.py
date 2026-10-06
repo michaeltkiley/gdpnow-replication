@@ -2276,6 +2276,23 @@ def groupA_40():
     out('GA40', 'probe', res, 'wall seconds', round(time.time() - t1))
 
 
+def groupA_41():
+    """Header stability: repeated HEAD requests on the two files the probe test flagged as changed seconds after recording
+    (BLS CES file, Census advance trade table) and on a stable one, printing every header that could differ."""
+    import time
+    from gdpnow import bls_flat as BF, public_data as P
+    targets = [('BLS ce', 'https://download.bls.gov/pub/time.series/ce/ce.data.0.AllCESSeries', BF.headers()),
+               ('AEI tab1adv', 'https://www.census.gov/econ/indicators/tab1adv.xlsx', P.UA),
+               ('c30 fedsatime', 'https://www.census.gov/construction/c30/xlsx/fedsatime.xlsx', P.UA)]
+    for name, url, hdr in targets:
+        for k in range(6):
+            req = urllib.request.Request(url, method='HEAD', headers=hdr)
+            with urllib.request.urlopen(req, timeout=60) as r:
+                h = r.headers
+                out('GA41', name, k, {x: h.get(x) for x in ('Last-Modified', 'ETag', 'Content-Length', 'Content-Encoding', 'Age', 'Date', 'X-Cache', 'Server')})
+            time.sleep(1.5)
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -2283,7 +2300,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40), ('groupA_41', groupA_41)):
         if name in which:
             try:
                 fn()
