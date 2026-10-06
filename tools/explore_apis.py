@@ -993,6 +993,74 @@ def census12():
         out('C12 calendar', u, st, 'bytes', n, 'ctype', hdr.get('Content-Type'), '|', short(t, 220))
 
 
+def census13():
+    """Census bulk program zips from https://www.census.gov/econ_datasets/ (programCode links): the page's size/Last Updated table,
+    HEAD on each zip, zip contents and layout, and equality of the M3ADV/M3/MWTSADV/MRTS/MRTSADV/FTDADV contents with the EITS API."""
+    import io
+    import re
+    import zipfile
+    page = 'https://www.census.gov/econ_datasets/'
+    st, n, t, hdr, secs = call(page, maxb=3000000)
+    rows = re.findall(r'<tr>\s*<td>(.*?)</td>\s*<td><a href="([^"]+programCode=(\w+))[^"]*"[^>]*>([^<]+)</a></td>\s*<td[^>]*>([^<]+)</td>\s*<td>([^<]+)</td>', t, flags=re.S)
+    out('C13 page', page, st, 'bytes', n, 'rows parsed', len(rows), 'last-modified header', hdr.get('Last-Modified'), 'ctype', hdr.get('Content-Type'))
+    for name, url, code, fn, size, upd in rows:
+        out('C13 listing', code, '|', ' '.join(name.split()), '|', fn, size, upd)
+    want = ['M3ADV', 'M3', 'MWTSADV', 'MRTS', 'MRTSADV', 'FTDADV', 'VIP', 'RESCONST', 'RESSALES', 'MARTS', 'MWTS']
+    blobs = {}
+    for code in want:
+        url = f'https://www.census.gov/econ_getzippedfile/?programCode={code}'
+        out('C13 HEAD', code, *_head(url))
+        t0 = time.time()
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=300) as r:
+                body = r.read()
+                h = {k.lower(): v for k, v in dict(r.headers).items()}
+            out('C13 GET', code, 'status', r.status, 'bytes', len(body), 'secs', round(time.time() - t0, 1),
+                {k: h[k] for k in ('last-modified', 'content-type', 'content-disposition', 'etag') if k in h}, 'magic', body[:4])
+        except Exception as e:
+            out('C13 GET', code, 'ERR', str(e)[:120])
+            continue
+        try:
+            z = zipfile.ZipFile(io.BytesIO(body))
+        except Exception as e:
+            out('C13 zip', code, 'not a zip', str(e)[:80], short(body[:200].decode('utf8', 'replace'), 150))
+            continue
+        blobs[code] = z
+        for zi in z.infolist():
+            with z.open(zi) as f:
+                head = f.read(700).decode('utf8', 'replace')
+            out('C13 member', code, zi.filename, 'size', zi.file_size, 'date', zi.date_time, '|', short(head, 420))
+        time.sleep(1)
+    # layout-agnostic equality: find the member that carries values, compare to the EITS API
+    import pandas as pd
+    base = 'https://api.census.gov/data/timeseries/eits/'
+    k = f'&key={CENSUS_KEY}'
+    specs = [('M3ADV', 'advm3', 'MDM', 'TI'), ('M3ADV', 'advm3', 'NXA', 'VS'), ('M3', 'm3', 'MNM', 'TI'), ('M3', 'm3', 'MTM', 'VS'),
+             ('MWTSADV', 'mwtsadv', '42', 'IM'), ('MRTS', 'mrts', '4400A', 'IM'), ('MRTSADV', 'mrtsadv', '4400A', 'IM'), ('FTDADV', 'ftdadv', 'CBG', 'EXP')]
+    for code, ds, cat, dt in specs:
+        z = blobs.get(code)
+        if z is None:
+            continue
+        for zi in z.infolist():
+            if not zi.filename.lower().endswith(('.csv', '.txt')):
+                continue
+            try:
+                df = pd.read_csv(z.open(zi), dtype=str)
+            except Exception as e:
+                out('C13 parse', code, zi.filename, 'ERR', str(e)[:80])
+                continue
+            out('C13 columns', code, zi.filename, 'rows', len(df), list(df.columns)[:14])
+            cols = {c.lower(): c for c in df.columns}
+            cc = next((cols[c] for c in cols if 'cat' in c and 'code' in c), None)
+            dc = next((cols[c] for c in cols if 'data' in c and 'type' in c and 'code' in c), None)
+            sc = next((cols[c] for c in cols if 'seas' in c), None)
+            vc = next((cols[c] for c in cols if c in ('cell_value', 'val', 'value')), None)
+            tc = next((cols[c] for c in cols if c in ('per_name', 'time', 'period', 'per_idx', 'date')), None)
+            out('C13 guess', code, 'cat', cc, 'dt', dc, 'sa', sc, 'val', vc, 'time', tc)
+            break
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1000,7 +1068,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13)):
         if name in which:
             try:
                 fn()
