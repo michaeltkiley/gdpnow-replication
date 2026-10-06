@@ -42,7 +42,7 @@ BEA_MONTHLY = {'U20404': 'Personal Income and Outlays (BEA)', 'U20405': 'Persona
 BLS_RELEASE = {'ce': 'Employment Situation', 'ln': 'Employment Situation', 'cu': 'Consumer Price Index',
                'pc': 'Producer Price Index', 'wp': 'Producer Price Index', 'ei': 'U.S. Import and Export Price Indexes',
                'ci': 'Employment Cost Index'}
-FIXED = {'bls': 'Employment (BLS)', 'treasury': 'Monthly Treasury Statement', 'bea_ita': 'International Transactions (BEA)',
+FIXED = {'bea_vehicles': 'Supplemental Estimates, Motor Vehicles (BEA)', 'bls': 'Employment (BLS)', 'treasury': 'Monthly Treasury Statement', 'bea_ita': 'International Transactions (BEA)',
          'census_hist': 'Construction / housing price files (Census)'}
 
 
