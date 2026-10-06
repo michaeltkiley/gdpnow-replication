@@ -1,6 +1,6 @@
 {
  "asof": "2026-10-06",
- "ok": true,
- "message": "ok",
- "finished": "2026-10-06T14:20:00+00:00"
+ "ok": false,
+ "message": "run failed: probe request failed (GET_JSON https://apps.bea.gov/api/data?UserID={ENV:BEA_API_KEY}&method=GetData&DataSetName=NIUnderlyingDetail&TableName=U20405&Fr): HTTP Error 429: Too Many Requests",
+ "finished": "2026-10-06T14:29:47+00:00"
 }
