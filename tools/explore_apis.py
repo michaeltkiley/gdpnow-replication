@@ -1197,6 +1197,58 @@ def census15():
         out('C15 BEA HEAD', l, *_head('https://www.bea.gov' + l))
 
 
+def census16():
+    """AEI (Advance Economic Indicators) report: where it lives, whether non-PDF versions exist, what the PDF holds, and whether the
+    Census international trade API (intltrade) carries end-use data for the advance month."""
+    import re
+    import subprocess
+    ua = {'User-Agent': 'Mozilla/5.0'}
+    page = 'https://www.census.gov/econ/indicators/index.html'
+    st, n, t, hdr, _ = call(page, headers=ua, maxb=3000000)
+    links = sorted(set(re.findall(r'href="([^"#]+)"', t)))
+    keep = [l for l in links if re.search(r'indicators|advance|\.pdf|\.xlsx?|\.csv|\.zip|\.json|ftd|foreign', l, flags=re.I)]
+    out('C16 AEI page', page, st, 'bytes', n, 'links', len(links), 'relevant', keep[:80])
+    pdfs = [l for l in keep if l.lower().endswith('.pdf')]
+    for l in pdfs[:3]:
+        u = l if l.startswith('http') else 'https://www.census.gov' + l
+        out('C16 HEAD', u, *_head(u))
+        try:
+            req = urllib.request.Request(u, headers=ua)
+            blob = urllib.request.urlopen(req, timeout=120).read()
+            Path('/tmp/aei.pdf').write_bytes(blob)
+            txt = subprocess.run(['pdftotext', '-layout', '/tmp/aei.pdf', '-'], capture_output=True, text=True).stdout
+            out('C16 PDF', u, 'bytes', len(blob), 'text chars', len(txt))
+            for i, line in enumerate(txt.splitlines()[:140]):
+                if line.strip():
+                    out('C16 PDFTXT', i, line[:170])
+        except Exception as e:
+            out('C16 PDF', u, 'ERR', str(e)[:100])
+    # name variants of the file we use
+    for base_u in [u for u in [(l if l.startswith('http') else 'https://www.census.gov' + l) for l in pdfs[:1]]]:
+        stem = base_u.rsplit('.', 1)[0]
+        for ext in ('xlsx', 'xls', 'csv', 'zip', 'txt', 'json'):
+            out('C16 HEAD variant', stem + '.' + ext, *_head(stem + '.' + ext))
+        out('C16 HEAD control', stem + '_zzz_control.pdf', *_head(stem + '_zzz_control.pdf'))
+    # the international trade API
+    for u in ('https://api.census.gov/data/timeseries/intltrade.json', 'https://api.census.gov/data/timeseries/intltrade/exports/enduse.html',
+              'https://api.census.gov/data/timeseries/intltrade/imports/enduse.html', 'https://api.census.gov/data/timeseries/intltrade/exports/enduse/variables.json'):
+        st, n, t, hdr, _ = call(u, headers=ua, maxb=400000)
+        out('C16 intltrade', u, st, 'bytes', n, 'ctype', hdr.get('Content-Type'), '|', short(t, 260))
+    for flow in ('exports', 'imports'):
+        for tm in ('2026-08', '2026-07'):
+            q = f'get=E_COMMODITY,E_COMMODITY_LDESC,ALL_VAL_MO&time={tm}&COMM_LVL=EU1&key={CENSUS_KEY}' if flow == 'exports' else \
+                f'get=I_ENDUSE,I_ENDUSE_LDESC,GEN_VAL_MO&time={tm}&key={CENSUS_KEY}'
+            st, n, t, _, _ = call(f'https://api.census.gov/data/timeseries/intltrade/{flow}/enduse?' + q, headers=ua, maxb=200000)
+            out('C16 intltrade enduse', flow, tm, st, 'bytes', n, short(t, 240))
+    # EITS ftd program (full-month trade): which categories exist for end-use groups
+    st, n, t, _, _ = call('https://api.census.gov/data/timeseries/eits/ftd/variables.json', headers=ua, maxb=100000)
+    out('C16 eits ftd variables', st, n, short(t, 200))
+    st, n, t, _, _ = call(f'https://api.census.gov/data/timeseries/eits/ftd?get=category_code,data_type_code,cell_value&seasonally_adj=yes&time=2026-07&for=us:*&key={CENSUS_KEY}', headers=ua, maxb=400000)
+    out('C16 eits ftd Jul-2026 SA', st, n, short(t, 900))
+    st, n, t, _, _ = call(f'https://api.census.gov/data/timeseries/eits/ftdadv?get=category_code,data_type_code,cell_value&seasonally_adj=yes&time=2026-08&for=us:*&key={CENSUS_KEY}', headers=ua, maxb=400000)
+    out('C16 eits ftdadv Aug-2026 SA', st, n, short(t, 400))
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1204,7 +1256,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16)):
         if name in which:
             try:
                 fn()

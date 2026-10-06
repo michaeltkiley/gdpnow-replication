@@ -17,6 +17,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install duckdb pandas
+      - run: sudo apt-get install -y poppler-utils
       - uses: actions/cache/restore@v4
         with:
           path: data/gdpnow.duckdb
@@ -27,4 +28,4 @@ jobs:
           BEA_API_KEY: ${{ secrets.BEA_API_KEY }}
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
           BLS_CONTACT: ${{ secrets.BLS_CONTACT }}
-        run: python tools/explore_apis.py ${{ inputs.which || 'census15' }}
+        run: python tools/explore_apis.py ${{ inputs.which || 'census16' }}
