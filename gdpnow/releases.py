@@ -26,7 +26,8 @@ CENSUS_PROGRAMS = {'M3ADV': 'Advance Durable Goods (Census)', 'M3': "Manufacture
                    'MRTS': 'Monthly Retail Trade (Census)', 'MRTSADV': 'Advance Retail Inventories (Census)',
                    'MWTSADV': 'Advance Wholesale Inventories (Census)', 'FTDADV': 'Advance International Trade in Goods (Census)',
                    'RESCONST': 'New Residential Construction (Census)', 'RESSALES': 'New Residential Sales (Census)',
-                   'VIP': 'Construction Spending (Census)'}
+                   'VIP': 'Construction Spending (Census)', 'MARTS': 'Advance Retail Sales (Census)',
+                   'MWTS': 'Monthly Wholesale Trade (Census)'}
 # BEA table prefixes -> release (monthly consumption and inventory detail; everything quarterly is the GDP release)
 BEA_MONTHLY = {'U20404': 'Personal Income and Outlays (BEA)', 'U20405': 'Personal Income and Outlays (BEA)',
                'U20406': 'Personal Income and Outlays (BEA)', 'T20804': 'Personal Income and Outlays (BEA)',
