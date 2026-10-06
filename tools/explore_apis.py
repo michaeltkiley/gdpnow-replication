@@ -1082,6 +1082,121 @@ def census14():
             out('C14 data block head', code, [txt[j][:200] for j in range(i, min(i + 6, len(txt)))])
 
 
+def _census_zip(code):
+    import io
+    import zipfile
+    req = urllib.request.Request(f'https://www.census.gov/econ_getzippedfile/?programCode={code}', headers={'User-Agent': 'Mozilla/5.0'})
+    return zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(req, timeout=300).read()))
+
+
+def _census_parse(code):
+    """Section-aware parse of a programCode zip -> (frame with codes, updated-on string)."""
+    import csv
+    import io
+    import pandas as pd
+    lines = _census_zip(code).read(f'{code}-mf.csv').decode('utf8', 'replace').splitlines()
+    secs, cur = {}, None
+    for l in lines:
+        if l.strip() and l == l.upper() and ',' not in l and not l[0].isdigit() and len(l) < 40:
+            cur = l.strip()
+            secs[cur] = []
+        elif cur is not None:
+            secs[cur].append(l)
+
+    def tab(name):
+        rows = [r for r in csv.reader(secs.get(name, [])) if r]
+        return pd.DataFrame(rows[1:], columns=rows[0]) if rows else None
+    cats, dts, pers, geos = tab('CATEGORIES'), tab('DATA TYPES'), tab('TIME PERIODS'), tab('GEO LEVELS')
+    data = pd.read_csv(io.StringIO('\n'.join(secs['DATA'])))
+    d = data.merge(cats[['cat_idx', 'cat_code']].astype({'cat_idx': int}), on='cat_idx')
+    if 'et_idx' in d:
+        d = d[d.et_idx == 0]
+    d = d.merge(dts[['dt_idx', 'dt_code']].astype({'dt_idx': int}), on='dt_idx')
+    d = d.merge(pers.astype({'per_idx': int}), on='per_idx').merge(geos[['geo_idx', 'geo_code']].astype({'geo_idx': int}), on='geo_idx')
+    d['date'] = pd.to_datetime(d.per_name, format='%b-%Y', errors='coerce') + pd.offsets.MonthEnd(0)
+    d['val'] = pd.to_numeric(d.val, errors='coerce')
+    return d, ' '.join(secs.get('DATA UPDATED ON', [''])[:1]), cats, dts
+
+
+def census15():
+    """(1) values of the 14 EITS series in the bulk zips vs the API; (2) code tables of VIP/RESCONST/RESSALES and comparison of
+    candidate cells with FRED (HOUST, HOUST1F, HSN1F, ASPNHSUS, TLPBLCONS, PNRESCONS); (3) non-PDF sources of the AEI end-use table;
+    (4) change signals (HEAD) for BEA's IDS-0182 zips and trade workbook."""
+    import re
+    import pandas as pd
+    base = 'https://api.census.gov/data/timeseries/eits/'
+    k = f'&key={CENSUS_KEY}'
+    specs = [('M3ADV', 'advm3', 'MDM', 'TI'), ('M3ADV', 'advm3', 'MDM', 'VS'), ('M3ADV', 'advm3', 'MDM', 'NO'), ('M3ADV', 'advm3', 'NXA', 'VS'),
+             ('M3ADV', 'advm3', 'DEF', 'VS'), ('M3ADV', 'advm3', 'NAP', 'VS'), ('M3', 'm3', 'MNM', 'TI'), ('M3', 'm3', 'MNM', 'VS'),
+             ('M3', 'm3', 'MTM', 'VS'), ('M3', 'm3', 'MTM', 'TI'), ('MWTSADV', 'mwtsadv', '42', 'IM'), ('MRTS', 'mrts', '4400A', 'IM'),
+             ('MRTSADV', 'mrtsadv', '4400A', 'IM'), ('FTDADV', 'ftdadv', 'CBG', 'EXP')]
+    cache = {}
+    for code, ds, cat, dt in specs:
+        if code not in cache:
+            cache[code] = _census_parse(code)
+            out('C15 parsed', code, 'rows', len(cache[code][0]), 'updated on', cache[code][1])
+        d = cache[code][0]
+        bulk = d[(d.cat_code == cat) & (d.dt_code == dt) & (d.is_adj == 1) & (d.geo_code == 'US')].set_index('date').val
+        st, n, t, _, _ = call(base + f'{ds}?get=cell_value,time_slot_id&category_code={cat}&data_type_code={dt}&seasonally_adj=yes&time=from+1992&for=us:*' + k, timeout=300)
+        try:
+            j = json.loads(t)
+            h = j[0]
+            api = {pd.Period(r[h.index('time')], 'M').end_time.normalize(): float(r[h.index('cell_value')]) for r in j[1:] if r[h.index('cell_value')] not in ('', '(S)')}
+        except Exception:
+            out('C15 equal', code, cat, dt, 'API failed', st, short(t, 100))
+            continue
+        b = {ts.normalize(): v for ts, v in bulk.items() if pd.notna(v)}
+        diff = [kk for kk, v in api.items() if kk not in b or abs(b[kk] - v) > 1e-9 * max(1, abs(v))]
+        out('C15 equal', code, cat, dt, 'API', len(api), 'bulk', len(b), 'differ/missing in bulk', len(diff), 'only bulk', len(set(b) - set(api)), 'last', max(api), api[max(api)], b.get(max(api)))
+        time.sleep(0.5)
+    # (2) housing/construction mapping
+    fred_ids = {'HOUST': ('RESCONST', 'ASTARTS', 'TOTAL'), 'HOUST1F': ('RESCONST', 'ASTARTS', 'SINGLE'), 'HSN1F': ('RESSALES', 'ASOLD', 'TOTAL'),
+                'TLPBLCONS': ('VIP', None, None), 'PNRESCONS': ('VIP', None, None), 'ASPNHSUS': ('RESSALES', None, None)}
+    for code in ('RESCONST', 'RESSALES', 'VIP'):
+        if code not in cache:
+            cache[code] = _census_parse(code)
+        d, upd, cats, dts = cache[code]
+        out('C15 codes', code, 'updated', upd, 'rows', len(d), 'categories', list(cats.cat_code)[:70], 'data types', list(dts.dt_code)[:40], 'geos', sorted(d.geo_code.unique())[:12], 'is_adj', sorted(d.is_adj.unique()))
+    def fred_series(fid):
+        st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start=2024-01-01', timeout=120)
+        j = json.loads(t)
+        return {pd.Timestamp(o['date']) + pd.offsets.MonthEnd(0): float(o['value']) for o in j['observations'] if o['value'] != '.'}
+    for fid, (code, cat, dt) in fred_ids.items():
+        f = fred_series(fid)
+        d = cache[code][0]
+        best = []
+        recent = d[d.date >= '2024-01-31']
+        for (c_, t_, a_, g_), g in recent.groupby(['cat_code', 'dt_code', 'is_adj', 'geo_code']):
+            s = g.set_index('date').val
+            common = [x for x in f if x in s.index]
+            if len(common) >= 8:
+                err = max(abs(s[x] - f[x]) / max(1, abs(f[x])) for x in common)
+                best.append((round(err, 6), c_, t_, a_, g_, len(common)))
+        best.sort()
+        out('C15 FRED match', fid, 'FRED last', max(f), f[max(f)], 'best bulk cells (maxrel err, cat, dt, is_adj, geo, n)', best[:4])
+    # (3) non-PDF AEI sources
+    pages = ['https://www.census.gov/foreign-trade/Press-Release/current_press_release/index.html', 'https://www.census.gov/economic-indicators/',
+             'https://www.census.gov/foreign-trade/statistics/historical/index.html', 'https://www.census.gov/foreign-trade/data/index.html',
+             'https://www.census.gov/foreign-trade/Press-Release/current_press_release/exh1.pdf']
+    for u in pages:
+        st, n, t, hdr, _ = call(u, maxb=3000000)
+        links = sorted(set(re.findall(r'href="([^"]*(?:advance|exh|ftd|enduse|\.csv|\.xlsx?|\.zip|\.txt|\.json)[^"]*)"', t, flags=re.I)))
+        out('C15 AEI page', u, st, 'bytes', n, 'ctype', hdr.get('Content-Type'), 'links', len(links), links[:25])
+    st, n, t, _, _ = call(base + 'ftd?get=cell_value&category_code=*&data_type_code=*&time=2026-07&for=us:*' + k)
+    out('C15 eits ftd', st, short(t, 300))
+    st, n, t, _, _ = call('https://api.census.gov/data/timeseries/eits.json')
+    out('C15 eits catalog', st, n, short(t, 200))
+    # (4) BEA change signals
+    for u in ('https://apps.bea.gov/international/zip/IDS0182.zip', 'https://apps.bea.gov/international/zip/IDS0182-Hist.zip',
+              'https://apps.bea.gov/international/zip/zzz_control_nonexistent.zip'):
+        out('C15 BEA HEAD', u, *_head(u))
+    st, n, t, _, _ = call('https://www.bea.gov/data/intl-trade-investment/international-trade-goods-and-services', headers={'User-Agent': 'Mozilla/5.0'}, maxb=3000000)
+    links = sorted(set(re.findall(r'href="([^"]*time-series[^"]*\.xlsx)"', t)))
+    out('C15 BEA trade page', st, 'links', links)
+    for l in links[:3]:
+        out('C15 BEA HEAD', l, *_head('https://www.bea.gov' + l))
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1089,7 +1204,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15)):
         if name in which:
             try:
                 fn()
