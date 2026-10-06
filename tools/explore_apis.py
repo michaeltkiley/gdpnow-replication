@@ -1339,6 +1339,33 @@ def census17():
         out('C17 FRED match', fid, 'FRED last', max(f), f[max(f)], 'best (maxrel, program, cat, dt, adj, geo, n)', best[:3])
 
 
+def nipa18():
+    """public_nipa.build against the real BEA bulk files in a scratch DuckDB (no pipeline state touched)."""
+    import tempfile
+    import traceback
+    import duckdb
+    from gdpnow import bea_bulk, public_data, public_nipa
+    out('N18 register tables', len(bea_bulk.register()))
+    con = duckdb.connect(tempfile.mkdtemp() + '/scratch.duckdb')
+    try:
+        q = public_nipa.build(con, '2026-10-06')
+        out('N18 build ok', type(q).__name__, getattr(q, 'shape', None) or (list(q)[:6] if hasattr(q, '__iter__') else ''))
+    except Exception:
+        out('N18 build FAILED', traceback.format_exc()[-1500:].replace('\n', ' | '))
+    # description pairing: for every nominal -> quantity/price table pair in public_nipa, how many nominal lines have no match
+    pairs = dict(public_nipa.REAL)
+    pairs.update({'T31006': None})
+    for nom_t, q_t in public_nipa.REAL.items():
+        try:
+            nt = public_data.bea_table(con, 'NIUnderlyingDetail' if nom_t in public_nipa.UDT else 'NIPA', nom_t, 'Q', '2026-10-06')
+            qt = public_data.bea_table(con, 'NIUnderlyingDetail' if q_t in public_nipa.UDT else 'NIPA', q_t, 'Q', '2026-10-06')
+            qd = {c.split('|', 1)[1] for c in qt.columns}
+            miss = [c for c in nt.columns if c.split('|', 1)[1] not in qd]
+            out('N18 pair', nom_t, q_t, 'nominal lines', len(nt.columns), 'without match', len(miss), miss[:5])
+        except Exception as e:
+            out('N18 pair', nom_t, q_t, 'ERR', repr(e)[:150])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1346,7 +1373,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18)):
         if name in which:
             try:
                 fn()

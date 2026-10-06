@@ -25,6 +25,7 @@ FILES = {'Q': 'NipaDataQ.txt', 'M': 'NipaDataM.txt'}
 REGISTER = 'SeriesRegister.txt'
 _TEXT = {}
 _REG = {}
+_PRIORITY = {'Current Dollars': 0, 'Chained Dollars': 1}      # which metric's label names a concept
 
 
 def head(file):
@@ -57,16 +58,30 @@ def _text(file):
     return _TEXT[file]
 
 
+def stem(code):
+    """A BEA series code is a concept stem plus a final metric letter (A191RC current dollars, A191RX chained dollars, A191RJ
+    quantity index ...)."""
+    return code[:-1] if len(code) > 1 else code
+
+
 def register():
-    """{table id: {line number: (series code, label)}} from SeriesRegister.txt."""
+    """{table id: {line number: (series code, description)}} from SeriesRegister.txt. A series carries one label for all its
+    tables, and the labels of one concept differ by metric ('Equals: Gross national product' for its price index), while
+    code that pairs a nominal line with its quantity or price line (public_nipa._match) compares descriptions. So every series
+    of a concept stem gets the same description: the label of its current-dollar series, else its chained-dollar series,
+    else the first one in the file."""
     if not _REG:
-        for row in csv.reader(io.StringIO(_text(REGISTER))):
-            if len(row) < 6 or row[0].startswith('%'):
-                continue
-            for tl in row[5].split('|'):
+        rows = [r for r in csv.reader(io.StringIO(_text(REGISTER))) if len(r) >= 6 and not r[0].startswith('%')]
+        best = {}
+        for r in rows:
+            rank = _PRIORITY.get(r[2], 2)
+            if stem(r[0]) not in best or rank < best[stem(r[0])][0]:
+                best[stem(r[0])] = (rank, r[1])
+        for r in rows:
+            for tl in r[5].split('|'):
                 if ':' in tl:
                     tb, ln = tl.split(':', 1)
-                    _REG.setdefault(tb, {})[ln] = (row[0], row[1])
+                    _REG.setdefault(tb, {})[ln] = (r[0], best[stem(r[0])][1])
     return _REG
 
 

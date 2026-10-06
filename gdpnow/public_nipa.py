@@ -72,6 +72,9 @@ def _match(nom_tab, q_tab, n):
     """Line of q_tab matching line n of nom_tab by description (nearest line number if repeated)."""
     desc = [c for c in nom_tab.columns if c.split('|')[0] == str(n)][0].split('|', 1)[1]
     cands = [c for c in q_tab.columns if c.split('|', 1)[1] == desc]
+    if not cands:
+        near = sorted(q_tab.columns, key=lambda c: abs(int(c.split('|')[0]) - n))[:4]
+        raise RuntimeError(f'no line of the quantity/price table matches line {n} {desc!r} of the nominal table; nearest lines: {near}')
     best = min(cands, key=lambda c: abs(int(c.split('|')[0]) - n))
     return q_tab[best]
 
