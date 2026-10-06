@@ -1278,6 +1278,67 @@ def census16():
             st, n, t, _, _ = call(f'https://api.census.gov/data/timeseries/intltrade/{flow}/enduse?' + q, headers=ua, maxb=200000)
             out('C16 intltrade enduse', flow, tm, st, 'bytes', n, short(t, 240))
 
+def census17():
+    """(1) BEA SeriesRegister/NipaData layout (header, first rows, period formats, description field). (2) FRED ids that Census publishes:
+    best-matching cells in the M3, M3ADV, MARTS, MTIS, MWTS zips (value match over the last 30 months)."""
+    import csv
+    import io
+    import pandas as pd
+    ua = {'User-Agent': 'Mozilla/5.0'}
+    base = 'https://apps.bea.gov/national/Release/TXT/'
+    st, n, t, hdr, _ = call(base + 'SeriesRegister.txt', headers=ua, timeout=300)
+    lines = t.splitlines()
+    out('C17 register lines', len(lines), 'bytes', n)
+    for i, l in enumerate(lines[:6]):
+        out('C17 register head', i, l[:260])
+    rows = list(csv.reader(io.StringIO(t)))
+    for r in rows:
+        if len(r) >= 6 and 'T10105:1' in r[5].split('|'):
+            out('C17 register row T10105:1', r)
+            break
+    for r in rows:
+        if len(r) >= 6 and any(x.startswith('U20404:') for x in r[5].split('|')):
+            out('C17 register row U20404', r)
+            break
+    out('C17 register widths', Counter(len(r) for r in rows).most_common(5))
+    for fn in ('NipaDataQ.txt', 'NipaDataM.txt'):
+        st, n, t, hdr, _ = call(base + fn, headers=ua, timeout=600)
+        ls = t.splitlines()
+        out('C17 bulk head', fn, len(ls), [l[:100] for l in ls[:4]], 'last', ls[-1][:100])
+    # (2) Census FRED ids
+    want = ['AMDMTI', 'AMDMVS', 'AMNMTI', 'AMNMVS', 'AMTMTI', 'AMTMVS', 'ACRPVS', 'ADEFVS', 'ANAPVS', 'ANXAVS', 'DGORDER',
+            'RSAFS', 'RSBMGESD', 'RSEAS', 'RSFHFS', 'RSMVPD', 'RSXFS', 'WHLSLRIMSA', 'WHLSLRIRSA', 'WHLSLRSMSA']
+    frames = {}
+    for code in ('M3', 'M3ADV', 'MARTS', 'MTIS', 'MWTS'):
+        try:
+            frames[code] = _census_parse(code)[0]
+            out('C17 zip', code, 'rows', len(frames[code]))
+        except Exception as e:
+            out('C17 zip', code, 'ERR', str(e)[:100])
+
+    def fred_series(fid):
+        st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start=2023-01-01', timeout=120)
+        j = json.loads(t)
+        return {pd.Timestamp(o['date']) + pd.offsets.MonthEnd(0): float(o['value']) for o in j['observations'] if o['value'] != '.'}
+    for fid in want:
+        try:
+            f = fred_series(fid)
+        except Exception as e:
+            out('C17 FRED', fid, 'ERR', str(e)[:80])
+            continue
+        best = []
+        for code, d in frames.items():
+            recent = d[d.date >= '2023-06-30']
+            for (c_, t_, a_, g_), g in recent.groupby(['cat_code', 'dt_code', 'is_adj', 'geo_code']):
+                s = g.set_index('date').val
+                common = [x for x in f if x in s.index]
+                if len(common) >= 20:
+                    err = max(abs(s[x] - f[x]) / max(1, abs(f[x])) for x in common)
+                    best.append((round(err, 6), code, c_, t_, int(a_), g_, len(common)))
+        best.sort()
+        out('C17 FRED match', fid, 'FRED last', max(f), f[max(f)], 'best (maxrel, program, cat, dt, adj, geo, n)', best[:3])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -1285,7 +1346,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17)):
         if name in which:
             try:
                 fn()
