@@ -2183,6 +2183,31 @@ def groupA_37():
         out('GA37', 'other', key, n)
 
 
+def groupA_38():
+    """MRTSIM4400AUSS vs Census: differing months by year (count, mean and max difference) for MRTS 4400A IM adjusted and for the same category in
+    the advance-inventories program (MRTSADV), and the FRED release/observation dates for the series."""
+    import pandas as pd
+    from gdpnow import census_bulk as CB
+    st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id=MRTSIM4400AUSS&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+    f = pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(t)['observations'] if o['value'] != '.'}).sort_index()
+    st, n, t2, _, _ = call(f'https://api.stlouisfed.org/fred/series?series_id=MRTSIM4400AUSS&api_key={FRED_KEY}&file_type=json', timeout=60)
+    sr = json.loads(t2)['seriess'][0]
+    out('GA38', 'FRED', sr['title'], '| updated', sr['last_updated'], '| notes', (sr.get('notes') or '')[:300].replace('\n', ' '))
+    for prog in ('MRTS', 'MRTSADV'):
+        fr = CB._frame(prog)
+        out('GA38', prog, 'cats with IM adj US', sorted(set(fr[(fr.dt_code == 'IM') & (fr.is_adj == 1) & (fr.geo_code == 'US')].cat_code))[:30])
+        g = fr[(fr.geo_code == 'US') & (fr.cat_code == '4400A') & (fr.dt_code == 'IM') & (fr.is_adj == 1)]
+        if g.empty:
+            continue
+        b = pd.Series(g.val.to_numpy(), index=g.date.dt.to_period('M').dt.to_timestamp().to_numpy()).sort_index()
+        b = b[~b.index.duplicated()]
+        both = f.index.intersection(b.index)
+        dif = f[both] - b[both]
+        by = dif.groupby(dif.index.year).agg(lambda x: (int((x.abs() > 0.5).sum()), int(len(x)), round(float(x.mean()), 1), round(float(x.abs().max()), 1)))
+        out('GA38', prog, '4400A IM adj: by year (differing, months, mean diff, max abs)', dict(by))
+        out('GA38', prog, 'last 8', [(str(i)[:7], f.get(i), b.get(i)) for i in b.index[-8:]])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -2190,7 +2215,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38)):
         if name in which:
             try:
                 fn()
