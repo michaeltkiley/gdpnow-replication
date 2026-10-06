@@ -2055,6 +2055,75 @@ def g17_33():
             out('G33', 'file', u, 'ERR', repr(e)[:150])
 
 
+def groupA_35():
+    """The five FRED series that sit in sources already integrated: TCU (G.17 utl_sa.txt), CUSR0000SAH and CUSR0000SAN1D (BLS cu files),
+    RSFSDP (Census MARTS), MRTSIM4400AUSS (Census MRTS): each compared with FRED's full history against every candidate series in the source."""
+    import io
+    import re
+    import pandas as pd
+    from gdpnow import bls_flat as BF, census_bulk as CB
+
+    def fred_series(fid):
+        st, n, t, _, _ = call(f'https://api.stlouisfed.org/fred/series/observations?series_id={fid}&api_key={FRED_KEY}&file_type=json&observation_start=1900-01-01', timeout=120)
+        return pd.Series({pd.Timestamp(o['date']): float(o['value']) for o in json.loads(t)['observations'] if o['value'] != '.'}).sort_index()
+
+    def best(fid, f, cands, tol):
+        hits = []
+        for key, b in cands.items():
+            both = f.index.intersection(b.index)
+            if len(both) < 12:
+                continue
+            dif = (f[both] - b[both]).abs()
+            hits.append((float(dif.max()), key, len(both), str(b.index.min())[:7], str(b.index.max())[:7], int(f.index.difference(b.index).size), int(b.index.difference(f.index).size)))
+        hits.sort(key=lambda h: h[0])
+        out('GA35', fid, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], 'tol', tol, '| best', hits[:3])
+
+    # TCU: G.17 utilization file
+    base = 'https://www.federalreserve.gov/releases/g17/Current/ipdisk/'
+    raw = urllib.request.urlopen(urllib.request.Request(base + 'utl_sa.txt', headers={'User-Agent': 'Mozilla/5.0'}), timeout=120).read().decode('latin-1')
+    acc = {}
+    for line in raw.splitlines():
+        m = re.match(r'^"([^":]+)"\s+(\d{4})\s+(.*)$', line)
+        if m:
+            for i, v in enumerate(m.group(3).split()[:12]):
+                try:
+                    acc.setdefault(m.group(1), {})[pd.Timestamp(int(m.group(2)), i + 1, 1)] = float(v)
+                except ValueError:
+                    pass
+    best('TCU', fred_series('TCU'), {c: pd.Series(d).sort_index() for c, d in acc.items()}, 0)
+    # Census: every (category, data type, adjusted) of a program, US
+    for fid, prog in (('RSFSDP', 'MARTS'), ('MRTSIM4400AUSS', 'MRTS')):
+        fr = CB._frame(prog)
+        fr = fr[fr.geo_code == 'US']
+        cands = {}
+        for (cat, dt, adj), g in fr.groupby(['cat_code', 'dt_code', 'is_adj']):
+            s_ = pd.Series(g.val.to_numpy(), index=g.date.dt.to_period('M').dt.to_timestamp().to_numpy()).sort_index()
+            cands[(cat, dt, int(adj))] = s_[~s_.index.duplicated()]
+        best(fid, fred_series(fid), cands, 0)
+    # BLS CPI: scan the cu data files for the two ids
+    d = urllib.request.urlopen(urllib.request.Request('https://download.bls.gov/pub/time.series/cu/', headers=BF.headers()), timeout=120).read().decode('latin-1')
+    files = sorted(set(re.findall(r'cu\.data\.[^"<>\s]+', d)))
+    out('GA35', 'cu files', files)
+    want = {'CUSR0000SAH': fred_series('CUSR0000SAH'), 'CUSR0000SAN1D': fred_series('CUSR0000SAN1D')}
+    for fn in files:
+        try:
+            txt = urllib.request.urlopen(urllib.request.Request('https://download.bls.gov/pub/time.series/cu/' + fn, headers=BF.headers()), timeout=300).read().decode('latin-1')
+        except Exception as e:
+            out('GA35', fn, 'ERR', repr(e)[:80])
+            continue
+        for bid, f in want.items():
+            rows = {}
+            for line in txt.splitlines():
+                if line.startswith(bid):
+                    p_ = line.split('\t')
+                    if len(p_) >= 4 and p_[2].strip().startswith('M') and p_[2].strip() != 'M13':
+                        rows[pd.Timestamp(int(p_[1]), int(p_[2].strip()[1:]), 1)] = float(p_[3])
+            if rows:
+                b = pd.Series(rows).sort_index()
+                both = f.index.intersection(b.index)
+                out('GA35', bid, 'in', fn, 'FRED', len(f), str(f.index.min())[:7], str(f.index.max())[:7], '| file', len(b), str(b.index.min())[:7], str(b.index.max())[:7], '| common', len(both), 'max abs', float((f[both] - b[both]).abs().max()), 'onlyFRED', int(f.index.difference(b.index).size), 'onlyFile', int(b.index.difference(f.index).size))
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -2062,7 +2131,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35)):
         if name in which:
             try:
                 fn()
