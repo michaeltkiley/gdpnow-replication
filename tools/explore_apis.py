@@ -2326,6 +2326,40 @@ def groupA_42():
     out('GA42', 'stable files', stable, 'of', len(files))
 
 
+def vint1():
+    """Vintage-archive sizing from the restored state: raw_pulls rows and series per source for the newest as_of, parquet size (zstd) of
+    everything and per source, duplicate keys, and the retrieved_at spread."""
+    import os
+    import tempfile
+    import duckdb
+    con = duckdb.connect('data/gdpnow.duckdb', read_only=True)
+    asofs = [r[0] for r in con.execute('SELECT DISTINCT as_of FROM raw_pulls ORDER BY 1').fetchall()]
+    out('V1', 'as_of values', asofs)
+    asof = asofs[-1]
+    tot = con.execute('SELECT count(*), count(DISTINCT source || chr(1) || series) FROM raw_pulls WHERE as_of = ?', [asof]).fetchone()
+    out('V1', 'newest as_of', asof, 'rows', tot[0], 'series', tot[1])
+    d = tempfile.mkdtemp()
+    f = os.path.join(d, 'all.parquet')
+    con.execute(f"COPY (SELECT source, series, date, value, retrieved_at FROM raw_pulls WHERE as_of = '{asof}' ORDER BY source, series, date) TO '{f}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+    out('V1', 'parquet all bytes', os.path.getsize(f))
+    for src, n, ns in con.execute('SELECT source, count(*), count(DISTINCT series) FROM raw_pulls WHERE as_of = ? GROUP BY 1 ORDER BY 2 DESC', [asof]).fetchall():
+        g = os.path.join(d, f'{src}.parquet')
+        con.execute(f"COPY (SELECT source, series, date, value FROM raw_pulls WHERE as_of = '{asof}' AND source = '{src}' ORDER BY series, date) TO '{g}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+        out('V1', 'source', src, 'rows', n, 'series', ns, 'parquet bytes', os.path.getsize(g))
+    dup = con.execute('SELECT count(*) FROM (SELECT source, series, date FROM raw_pulls WHERE as_of = ? GROUP BY 1,2,3 HAVING count(*) > 1)', [asof]).fetchone()[0]
+    out('V1', 'duplicate keys', dup)
+    out('V1', 'value nulls', con.execute('SELECT count(*) FROM raw_pulls WHERE as_of = ? AND value IS NULL', [asof]).fetchone()[0])
+    out('V1', 'retrieved_at range', con.execute('SELECT min(retrieved_at), max(retrieved_at) FROM raw_pulls WHERE as_of = ?', [asof]).fetchone())
+    # day-over-day change volume between the two newest as_of dates, if there are two
+    if len(asofs) >= 2:
+        a0 = asofs[-2]
+        r = con.execute("""WITH a AS (SELECT source, series, date, value FROM raw_pulls WHERE as_of = ?),
+                           b AS (SELECT source, series, date, value FROM raw_pulls WHERE as_of = ?)
+                           SELECT sum(CASE WHEN a.value IS NULL THEN 1 ELSE 0 END), sum(CASE WHEN a.value IS NOT NULL AND abs(a.value - b.value) > 1e-9 * greatest(1, abs(a.value)) THEN 1 ELSE 0 END), count(*)
+                           FROM b LEFT JOIN a USING (source, series, date)""", [a0, asof]).fetchone()
+        out('V1', 'vs', a0, 'new rows', r[0], 'revised rows', r[1], 'of', r[2])
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -2333,7 +2367,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40), ('groupA_41', groupA_41), ('groupA_42', groupA_42)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40), ('groupA_41', groupA_41), ('groupA_42', groupA_42), ('vint1', vint1)):
         if name in which:
             try:
                 fn()
