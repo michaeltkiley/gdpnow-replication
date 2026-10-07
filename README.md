@@ -25,7 +25,7 @@ python scripts/06_verify.py --run L3_20261001 && python scripts/07_site.py
 ```
 
 Needs Python (pandas, numpy, scipy, statsmodels, duckdb, openpyxl), the Census X-13ARIMA-SEATS
-binary in `tools/x13/`, a free FRED API key in `.env` (not committed), and a contact string for BLS's User-Agent (`BLS_CONTACT`; a repository secret in the workflow). BEA, Census and BLS data come from public files and need no key. Every input value is also archived as first seen or revised on the `data` branch (see IMPLEMENTATION.md, section 6). Stages skip finished
+binary in `tools/x13/`, a free FRED API key in `.env` (not committed), and a contact string for BLS's User-Agent (`BLS_CONTACT`; a repository secret in the workflow). BEA, Census and BLS data come from public files and need no key. Every input value is also archived as first seen or revised on the `data` branch (see IMPLEMENTATION.md, section 6). A freshness check holds the daily run, and GitHub emails, when an input series disappears, shrinks or stops advancing. Stages skip finished
 work; `--force` redoes them.
 
 ## Contents

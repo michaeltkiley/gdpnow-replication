@@ -3,5 +3,4 @@
 "bea|NIPA:T50809A:Q|*" = "legacy private-inventories table (SIC basis) that ends in 1997; kept in the bulk file"
 "bea|NIUnderlyingDetail:U2040[45]:M|15[78]|*" = "rental-of-tenant-landlord lines that end in 2001"
 "census_bulk|MHS2|T|SP|0|US" = "manufactured-home placements: Census publishes them about 4 months after the month"
-"fred|MATISAMFRBDAL" = "Dallas Fed materials-inventory index ends December 2017 on FRED; regional_surveys() averages whatever districts are available"
 "fred|CFNAI" = "only read when the advance trade report is newer than the full release, so absent on most build days"
