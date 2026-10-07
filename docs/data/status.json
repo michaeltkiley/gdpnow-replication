@@ -1,7 +1,6 @@
 {
  "asof": "2026-10-07",
- "ok": false,
- "message": "held for review: input stale: fred|MATISAMFRBDAL last observation 2017-12-01 is 3232 days old (normal gap 31 days)",
- "finished": "2026-10-07T14:41:18+00:00",
- "held": true
+ "ok": true,
+ "message": "ok",
+ "finished": "2026-10-07T15:29:13+00:00"
 }
