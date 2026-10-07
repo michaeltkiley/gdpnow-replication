@@ -150,7 +150,7 @@ rows and logs a `store_reset`.
 **DD5. Data vintages.** The ~20 series still read from FRED are retrieved as known on the as-of date (ALFRED). Everything
 read from primary-source files (BLS flat files, Census program zips, BEA bulk files, trade and vehicle workbooks, the Fed's G.17
 files, BEA IDS-0182, Treasury) is **current vintage on the download date**, archived with the retrieval date (the archive keeps
-seven days; a durable vintage archive is planned). GDPNow uses the vintages its workbook held on its update date, so revisions
+seven days in the run's database; the durable vintage archive below keeps every value as first seen or revised). GDPNow uses the vintages its workbook held on its update date, so revisions
 published after that date can differ (for example Census book values for the prior month).
 
 **DD6. Prior-vintage travel data.** GDPNow's workbook keeps the previous vintage of the monthly travel-services
@@ -286,12 +286,22 @@ request (Content-Length is ignored: BLS sends it intermittently); Census program
 sends no ETag and a Last-Modified that differs between its servers, by a digest of the content; FRED by a digest of the
 response. A probe replays about 60 small requests in a few seconds.
 
+**Vintage archive (`gdpnow/vintage.py`, branch `data`).** After each successful daily run the workflow records every input
+value the model read (FRED, the bulk files, IDS-0182, the AEI advance trade table) as it was first seen and each time it changed,
+so the inputs as they stood on any past day can be rebuilt. The archive is a directory of Parquet files,
+`deltas/<as_of>_<timestamp>.parquet` (source, series, date, value, prior_value, seen_at, as_of), on the orphan `data` branch; the
+first file is the whole baseline, later files hold only new or revised observations (relative tolerance 1e-9) plus a row with a NULL
+value for each date that disappeared from a series pulled that day; unchanged days write nothing. The state on a day is the newest
+row per (source, series, date) among the files up to that day (`tools/vintage_asof.py`, or DuckDB over `deltas/*.parquet`). The step
+runs after the results commit, so a failure emails but cannot lose a result; it is idempotent. First production run (2026-10-07):
+3.5 MB baseline, 0.75 MB the next day, 37 KB for a day with few changes.
+
 ## 7. Repository map
 
 | Path | Contents |
 |---|---|
-| `gdpnow/` | library: data builders (`public_*.py`, `ids0182.py`, `history.py`), source readers (`bls_flat.py`, `census_bulk.py`, `bea_bulk.py`, `bea_trade.py`, `bea_vehicles.py`, `fed_g17.py`), change check (`probe.py`), estimation (`factor.py`, `faar.py`, `bridge.py`, `blend.py`, `bvar.py`, `estimate.py`, `inventory.py`, `trade_bvar.py`), assembly (`components.py`, `nowcast.py`, `aggregate.py`) |
-| `scripts/` | pipeline stages 01, 02, 04, 05, 06, 07 |
+| `gdpnow/` | library: data builders (`public_*.py`, `ids0182.py`, `history.py`), source readers (`bls_flat.py`, `census_bulk.py`, `bea_bulk.py`, `bea_trade.py`, `bea_vehicles.py`, `fed_g17.py`), change check (`probe.py`), vintage archive (`vintage.py`), estimation (`factor.py`, `faar.py`, `bridge.py`, `blend.py`, `bvar.py`, `estimate.py`, `inventory.py`, `trade_bvar.py`), assembly (`components.py`, `nowcast.py`, `aggregate.py`) |
+| `scripts/` | pipeline stages 01, 02, 04, 05, 06, 07, 12 (vintage archive; `archive_to_branch.sh` pushes it to `data`) |
 | `config/` | `spec.toml` (documented constants), `bridges.toml`, `transforms.toml`, `public_series.toml`, and the per-source series maps `bls_series.toml`, `census_series.toml`, `bea_series.toml`, `bea_windows.toml`, `g17_series.toml` |
 | `registry/` | `parameters.csv` (every non-data quantity), `inputs_used.csv`, `input_audit.csv` and `input_audit_all.csv` (public series vs workbook, per series), `workbook_history_prefix.csv` (DD4), `match_search.csv` |
 | `tools/` | `audit_inputs.py` (compare every public series with the workbook), `search_matches.py` (search all Census/BEA series for a match to a workbook series), workbook-audit utilities |
