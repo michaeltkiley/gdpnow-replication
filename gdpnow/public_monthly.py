@@ -535,7 +535,7 @@ def regional_surveys(cx):
     indexes averaged across available districts (D2/D3 substitutes for ISM components)."""
     f = cx.fred_opt
     comp = [f('GACDFSA066MSFRBPHI'), f('GACDISA066MSFRBNY'), f('BACTSAMFRBDAL')]
-    inv = [f('IVCDFSA066MSFRBPHI'), f('IVCDISA066MSFRBNY'), f('FGISAMFRBDAL'), f('MATISAMFRBDAL')]   # every district inventory index
+    inv = [f('IVCDFSA066MSFRBPHI'), f('IVCDISA066MSFRBNY'), f('FGISAMFRBDAL')]   # every live district inventory index (Dallas's materials index ends December 2017)
     prc = [f('PPCDFSA066MSFRBPHI'), f('PPCDISA066MSFRBNY'), f('PRMSAMFRBDAL')]
     avg = lambda xs: pd.concat([x for x in xs if x is not None], axis=1).mean(axis=1)
     return {'composite': avg(comp), 'inventories': avg(inv), 'prices': avg(prc),

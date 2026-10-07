@@ -116,7 +116,7 @@ ISM publishes them behind a login).
 *Here:* stand-ins built from the regional Federal Reserve manufacturing surveys on FRED, averaged and rescaled to
 the ISM convention (50 + x/2): composite = Philadelphia current activity, New York general business conditions,
 Dallas general business activity; prices = the three districts' prices-paid indexes; inventories = New York,
-Philadelphia and Dallas (finished goods, materials) inventory indexes. Uses: the composite is a factor-panel
+Philadelphia and Dallas (finished goods) inventory indexes (Dallas's materials index ended in December 2017 and is no longer used). Uses: the composite is a factor-panel
 input; the prices stand-in conditions the monthly price BVAR. **The ISM inventories stand-in is not used anywhere,
 and neither stand-in is used in the inventory models** (the core inventory BVAR runs on 14 instead of 16 variables
 and the block equations omit the two ISM terms; `ism_in_inventory_models` in `spec.toml`). The stand-ins track ISM's
@@ -296,13 +296,21 @@ row per (source, series, date) among the files up to that day (`tools/vintage_as
 runs after the results commit, so a failure emails but cannot lose a result; it is idempotent. First production run (2026-10-07):
 3.5 MB baseline, 0.75 MB the next day, 37 KB for a day with few changes.
 
+**Input freshness check (`gdpnow/freshness.py`).** On every day the inputs are rebuilt, after the build, the run compares each series
+in `raw_pulls` with the previous run date's and flags a series that disappeared (absent today under every source), shrank (fewer
+observations or an earlier last observation), or is stale (last observation older than 2.5 times its own median release gap plus
+45 days). A flag holds the run like the nowcast sanity checks: results are written, the page is not updated, the workflow fails
+and GitHub emails. Series that legitimately behave so are listed with a reason in `config/freshness.toml` (patterns `source|series`).
+Skip days (nothing new) are not checked. The first check after the move to primary-source files compares against a baseline
+built by the same code, so a flag on the first production day is a real finding or a missing ignore entry.
+
 ## 7. Repository map
 
 | Path | Contents |
 |---|---|
-| `gdpnow/` | library: data builders (`public_*.py`, `ids0182.py`, `history.py`), source readers (`bls_flat.py`, `census_bulk.py`, `bea_bulk.py`, `bea_trade.py`, `bea_vehicles.py`, `fed_g17.py`), change check (`probe.py`), vintage archive (`vintage.py`), estimation (`factor.py`, `faar.py`, `bridge.py`, `blend.py`, `bvar.py`, `estimate.py`, `inventory.py`, `trade_bvar.py`), assembly (`components.py`, `nowcast.py`, `aggregate.py`) |
+| `gdpnow/` | library: data builders (`public_*.py`, `ids0182.py`, `history.py`), source readers (`bls_flat.py`, `census_bulk.py`, `bea_bulk.py`, `bea_trade.py`, `bea_vehicles.py`, `fed_g17.py`), change check (`probe.py`), vintage archive (`vintage.py`), freshness check (`freshness.py`), estimation (`factor.py`, `faar.py`, `bridge.py`, `blend.py`, `bvar.py`, `estimate.py`, `inventory.py`, `trade_bvar.py`), assembly (`components.py`, `nowcast.py`, `aggregate.py`) |
 | `scripts/` | pipeline stages 01, 02, 04, 05, 06, 07, 12 (vintage archive; `archive_to_branch.sh` pushes it to `data`) |
-| `config/` | `spec.toml` (documented constants), `bridges.toml`, `transforms.toml`, `public_series.toml`, and the per-source series maps `bls_series.toml`, `census_series.toml`, `bea_series.toml`, `bea_windows.toml`, `g17_series.toml` |
+| `config/` | `spec.toml` (documented constants), `bridges.toml`, `transforms.toml`, `public_series.toml`, and the per-source series maps `bls_series.toml`, `census_series.toml`, `bea_series.toml`, `bea_windows.toml`, `g17_series.toml`, `freshness.toml` (ignore list of the freshness check) |
 | `registry/` | `parameters.csv` (every non-data quantity), `inputs_used.csv`, `input_audit.csv` and `input_audit_all.csv` (public series vs workbook, per series), `workbook_history_prefix.csv` (DD4), `match_search.csv` |
 | `tools/` | `audit_inputs.py` (compare every public series with the workbook), `search_matches.py` (search all Census/BEA series for a match to a workbook series), workbook-audit utilities |
 | `docs/report.html` | generated replication report |
