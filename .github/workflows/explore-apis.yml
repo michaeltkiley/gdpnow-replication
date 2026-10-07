@@ -28,4 +28,4 @@ jobs:
           BEA_API_KEY: ${{ secrets.BEA_API_KEY }}
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
           BLS_CONTACT: ${{ secrets.BLS_CONTACT }}
-        run: python tools/explore_apis.py ${{ inputs.which || 'groupA_40' }}
+        run: python tools/explore_apis.py ${{ inputs.which || 'vint2' }}

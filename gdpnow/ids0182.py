@@ -73,4 +73,6 @@ def series(cx, flow, code, basis='Census-based', sa='SA'):
     d = load(cx)[(flow, basis, sa)]
     full = ('X' if flow == 'exports' else 'M') + code
     s = d[d.code == full].set_index('date').v.sort_index()
-    return s.loc[:pd.Timestamp(cx.asof) - pd.offsets.MonthEnd(1)]
+    s = s.loc[:pd.Timestamp(cx.asof) - pd.offsets.MonthEnd(1)]
+    P._archive(cx.con, 'ids0182', f'{flow}|{basis}|{sa}|{code}', cx.asof, s)       # the vintage archive records what the model reads
+    return s

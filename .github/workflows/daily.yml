@@ -66,6 +66,9 @@ jobs:
           git diff --cached --quiet || git commit -m "Daily run $(date -u +%F): ${{ steps.run.outcome }}"
           git restore .        # discard other tracked files the run rewrote (e.g. registry/workbook_history_prefix.csv)
           git pull --rebase origin main && git push origin HEAD:main
+      - name: Vintage archive (every input value as first seen or revised, branch data)
+        if: steps.run.outcome == 'success'
+        run: scripts/archive_to_branch.sh vintage origin
       - name: Fail the job if the run failed or was held (GitHub emails on failure)
         if: steps.run.outcome != 'success'
         run: exit 1

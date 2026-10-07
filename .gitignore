@@ -4,3 +4,4 @@
 *.duckdb
 __pycache__/
 references/*.pdf
+/vintage/
