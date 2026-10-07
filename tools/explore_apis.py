@@ -2391,6 +2391,7 @@ def vint2():
     past = V.state(d, asof, 'fred', 'UMCSENT').sort_values('date')
     now = V.state(d, nxt, 'fred', 'UMCSENT').sort_values('date')
     out('V2', 'A past unchanged', bool((past.value.to_numpy() == st.value.to_numpy()).all()), 'new state rows', len(now), 'has 2099', bool((now.date == pd.Timestamp('2099-01-01')).any()))
+    con.close()
     # B: git mechanics
     base = tempfile.mkdtemp()
     bare, work = base + '/origin.git', base + '/work'
