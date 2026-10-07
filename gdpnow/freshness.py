@@ -1,10 +1,12 @@
 """Narrow input freshness check: flags series the model reads that went missing, got shorter, or stopped advancing.
 
-Compares the day's pulls in `raw_pulls` with the previous run date's (the database keeps seven days). A series is flagged when it
-  - disappeared: pulled on the previous run date, absent today under every source (a series that moved to another source is not);
-  - shrank: fewer observations, or an earlier last observation, than on the previous run date;
+Compares the day's pulls in `raw_pulls` with a baseline: the summary (observation count, last date) of each series as of the last run that
+passed this check, kept in table `freshness_baseline` (not the previous calendar day: a same-day rerun or an older code state must not
+serve as the baseline). The first run has no baseline and only gets the stale check. A series is flagged when it
+  - disappeared: in the baseline, absent today under every source (a series that moved to another source is not);
+  - shrank: fewer observations, or an earlier last observation, than in the baseline;
   - is stale: its last observation is older than 2.5 normal release gaps plus 45 days (the gap is the series' own median spacing).
-Series that legitimately behave so are listed in config/freshness.toml with the reason (keys are 'source|series' patterns, `*` allowed). Run only on days the inputs were rebuilt.
+Series that legitimately behave so are listed in config/freshness.toml with the reason (keys are 'source|series' patterns, `*` allowed). Run only on days the inputs were rebuilt. A day with problems leaves the baseline as it was, so a problem is not forgotten after one email.
 """
 import fnmatch
 import tomllib
@@ -12,6 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 
+TABLE = 'freshness_baseline'
 CONFIG = Path(__file__).resolve().parents[1] / 'config' / 'freshness.toml'
 SLACK_DAYS, GAPS = 45, 2.5
 
@@ -31,24 +34,38 @@ def summary(con, asof):
     return pd.DataFrame(rows, columns=['source', 'series', 'n', 'first', 'last', 'gap'])
 
 
-def findings(con, asof):
+def baseline(con):
+    """DataFrame(source, series, n, last) saved by the last passing check, or None."""
+    try:
+        return con.execute(f'SELECT source, series, n, "last" FROM {TABLE}').fetchdf().assign(last=lambda d: pd.to_datetime(d['last']))
+    except Exception:
+        return None
+
+
+def save_baseline(con, today):
+    con.register('_b', today[['source', 'series', 'n', 'last']])
+    con.execute(f'CREATE OR REPLACE TABLE {TABLE} AS SELECT * FROM _b')
+    con.unregister('_b')
+
+
+def findings(con, asof, today=None):
     """[(source, series, kind, detail)] for every flagged series, before the ignore list."""
-    today = summary(con, asof)
-    prev_asof = con.execute('SELECT max(as_of) FROM raw_pulls WHERE as_of < ?', [str(asof)]).fetchone()[0]
+    today = summary(con, asof) if today is None else today
+    base = baseline(con)
     out = []
-    if prev_asof is not None:
-        prev = summary(con, prev_asof).set_index(['source', 'series'])
+    if base is not None:
+        prev = base.set_index(['source', 'series'])
         t = today.set_index(['source', 'series'])
         now_series = set(today['series'])
         for key in prev.index.difference(t.index):
             if key[1] not in now_series:
-                out.append((*key, 'disappeared', f'pulled {prev_asof}, not {asof}'))
+                out.append((*key, 'disappeared', 'in the last passing check, not today'))
         for key in prev.index.intersection(t.index):
             p, c = prev.loc[key], t.loc[key]
             if c['n'] < p['n']:
-                out.append((*key, 'shrank', f'{int(p["n"])} -> {int(c["n"])} observations since {prev_asof}'))
+                out.append((*key, 'shrank', f'{int(p["n"])} -> {int(c["n"])} observations since the last passing check'))
             elif c['last'] < p['last']:
-                out.append((*key, 'shrank', f'last observation {p["last"].date()} -> {c["last"].date()} since {prev_asof}'))
+                out.append((*key, 'shrank', f'last observation {p["last"].date()} -> {c["last"].date()} since the last passing check'))
     now = pd.Timestamp(asof)
     for r in today.itertuples():
         if pd.notna(r.gap):
@@ -59,6 +76,10 @@ def findings(con, asof):
 
 
 def check(con, asof):
-    """Problem strings for the daily run (empty = fine)."""
+    """Problem strings for the daily run (empty = fine); a passing check becomes the new baseline."""
     skip = ignored()
-    return [f'input {k}: {s}|{x} {d}' for s, x, k, d in findings(con, asof) if not any(fnmatch.fnmatchcase(f'{s}|{x}', pat) for pat in skip)]
+    today = summary(con, asof)
+    problems = [f'input {k}: {s}|{x} {d}' for s, x, k, d in findings(con, asof, today) if not any(fnmatch.fnmatchcase(f'{s}|{x}', pat) for pat in skip)]
+    if not problems:
+        save_baseline(con, today)
+    return problems
