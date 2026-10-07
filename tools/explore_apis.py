@@ -2360,6 +2360,59 @@ def vint1():
         out('V1', 'vs', a0, 'new rows', r[0], 'revised rows', r[1], 'of', r[2])
 
 
+def vint2():
+    """Vintage archive test on the restored state. A: archive twice into a temp dir (second must write nothing), rebuild the state and compare
+    with raw_pulls, simulate a revision + removal + new observation on one series and rebuild the past. B: scripts/archive_to_branch.sh against a
+    throwaway local git remote: first run creates the orphan data branch and pushes, second run (fresh checkout) takes the fetch path."""
+    import os
+    import subprocess
+    import tempfile
+    import duckdb
+    import pandas as pd
+    from gdpnow import vintage as V
+    con = duckdb.connect('data/gdpnow.duckdb', read_only=True)
+    d = tempfile.mkdtemp()
+    out('V2', 'A first', V.archive(con, d))
+    out('V2', 'A second (expect zeros)', V.archive(con, d))
+    fs = sorted(os.listdir(d + '/deltas'))
+    out('V2', 'A files', [(f, os.path.getsize(d + '/deltas/' + f)) for f in fs])
+    asof = con.execute('SELECT max(as_of) FROM raw_pulls').fetchone()[0]
+    raw = con.execute("SELECT date, value FROM raw_pulls WHERE as_of = ? AND source = 'fred' AND series = 'UMCSENT' ORDER BY date", [asof]).fetchdf()
+    st = V.state(d, asof, 'fred', 'UMCSENT').sort_values('date')
+    out('V2', 'A state equals raw for fred/UMCSENT', len(raw), len(st), bool((raw.value.to_numpy() == st.value.to_numpy()).all()))
+    today = con.execute("SELECT source, series, date, value, retrieved_at AS seen_at FROM raw_pulls WHERE as_of = ? AND source = 'fred' AND series = 'UMCSENT'", [asof]).fetchdf()
+    t2 = today.sort_values('date').iloc[:-1].copy()                    # last date removed
+    t2.loc[t2.index[-1], 'value'] = t2.value.iloc[-1] * 1.01            # newest remaining value revised
+    t2 = pd.concat([t2, pd.DataFrame({'source': ['fred'], 'series': ['UMCSENT'], 'date': [pd.Timestamp('2099-01-01')], 'value': [1.0], 'seen_at': [pd.Timestamp.now()]})])
+    nxt = (pd.Timestamp(asof) + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
+    delta = V.compute_delta(t2, d, nxt)
+    out('V2', 'A simulated delta: new', int((delta.prior_value.isna() & delta.value.notna()).sum()), 'revised', int((delta.prior_value.notna() & delta.value.notna()).sum()), 'removed', int(delta.value.isna().sum()))
+    V.write_delta(delta, d, nxt)
+    past = V.state(d, asof, 'fred', 'UMCSENT').sort_values('date')
+    now = V.state(d, nxt, 'fred', 'UMCSENT').sort_values('date')
+    out('V2', 'A past unchanged', bool((past.value.to_numpy() == st.value.to_numpy()).all()), 'new state rows', len(now), 'has 2099', bool((now.date == pd.Timestamp('2099-01-01')).any()))
+    # B: git mechanics
+    base = tempfile.mkdtemp()
+    bare, work = base + '/origin.git', base + '/work'
+    sh = lambda args, cwd=None: subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True)
+    sh(['git', 'init', '--bare', '-b', 'main', bare])
+    sh(['git', 'init', '-b', 'main', work])
+    sh(['git', 'config', 'user.name', 't'], work)
+    sh(['git', 'config', 'user.email', 't@t'], work)
+    sh(['git', 'remote', 'add', 'origin', 'file://' + bare], work)
+    sh(['git', 'commit', '--allow-empty', '-m', 'init'], work)
+    sh(['git', 'push', 'origin', 'main'], work)
+    script = os.path.abspath('scripts/archive_to_branch.sh')
+    r = subprocess.run([script, 'vintage', 'origin'], cwd=work, capture_output=True, text=True)
+    out('V2', 'B first run rc', r.returncode, (r.stdout + r.stderr)[-400:].replace('\n', ' | '))
+    out('V2', 'B bare data branch', sh(['git', '--git-dir', bare, 'ls-tree', '-r', '--name-only', 'data']).stdout.split())
+    sh(['git', 'worktree', 'remove', '--force', 'vintage'], work)
+    sh(['git', 'branch', '-D', 'data'], work)
+    r = subprocess.run([script, 'vintage', 'origin'], cwd=work, capture_output=True, text=True)
+    out('V2', 'B second run rc', r.returncode, (r.stdout + r.stderr)[-400:].replace('\n', ' | '))
+    out('V2', 'B commits on data', sh(['git', '--git-dir', bare, 'log', '--oneline', 'data']).stdout.split('\n'))
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -2367,7 +2420,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40), ('groupA_41', groupA_41), ('groupA_42', groupA_42), ('vint1', vint1)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40), ('groupA_41', groupA_41), ('groupA_42', groupA_42), ('vint1', vint1), ('vint2', vint2)):
         if name in which:
             try:
                 fn()

@@ -63,6 +63,9 @@ def aei_table(cx, month):
             out[(flow, _LABEL[label.split(',')[0].split()[0]])] = vals
     if len(out) != 14:
         raise ValueError(f'AEI table not parsed ({len(out)} rows): {AEI_XLSX}')
+    months = [month - pd.offsets.MonthEnd(k) if k else month for k in range(3)]
+    for (flow_, cat_), vals_ in out.items():       # the vintage archive records what the model reads
+        P._archive(cx.con, 'aei', f'{flow_}|{cat_}', cx.asof, pd.Series(vals_, index=months))
     return out
 
 
