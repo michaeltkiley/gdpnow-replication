@@ -2414,6 +2414,21 @@ def vint2():
     out('V2', 'B commits on data', sh(['git', '--git-dir', bare, 'log', '--oneline', 'data']).stdout.split('\n'))
 
 
+def fresh1():
+    """Freshness check on the restored state: every finding for the newest and the previous run dates (before the ignore list)."""
+    import duckdb
+    from gdpnow import freshness as F
+    con = duckdb.connect('data/gdpnow.duckdb', read_only=True)
+    dates = [r[0] for r in con.execute('SELECT DISTINCT as_of FROM raw_pulls ORDER BY 1').fetchall()]
+    out('F1', 'as_of dates', dates)
+    for a in dates[1:]:
+        s = F.summary(con, a)
+        out('F1', a, 'series', len(s), 'median gap days', s.gap.median())
+        for f in F.findings(con, a):
+            out('F1', a, *f)
+    con.close()
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -2421,7 +2436,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40), ('groupA_41', groupA_41), ('groupA_42', groupA_42), ('vint1', vint1), ('vint2', vint2)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40), ('groupA_41', groupA_41), ('groupA_42', groupA_42), ('vint1', vint1), ('vint2', vint2), ('fresh1', fresh1)):
         if name in which:
             try:
                 fn()

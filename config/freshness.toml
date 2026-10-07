@@ -1,0 +1,2 @@
+# Series the freshness check (gdpnow/freshness.py) must not flag: "source|series" = reason. Filled from the first production run.
+[ignore]

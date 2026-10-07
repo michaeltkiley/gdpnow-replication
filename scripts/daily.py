@@ -29,7 +29,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from gdpnow import probe, public_data, store
+from gdpnow import freshness, probe, public_data, store
 
 KEEP_RUNS = 5          # recent L3 runs whose estimates stay in the store (older ones are dropped)
 KEEP_PULL_DAYS = 7     # archived raw pulls kept for this many days
@@ -174,6 +174,12 @@ def main():
             stamp(asof, code_hash=chash)
         housekeeping(asof)
         problems = sanity(asof, a.max_jump)
+        if not unchanged:                        # inputs were rebuilt today: check they did not go missing, shrink or go stale
+            con = store.connect()
+            try:
+                problems += freshness.check(con, asof)
+            finally:
+                con.close()
     except Exception as e:                       # includes failed stages (CalledProcessError)
         write(False, f'run failed: {e}')
         raise
