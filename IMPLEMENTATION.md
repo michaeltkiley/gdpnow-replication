@@ -297,12 +297,13 @@ runs after the results commit, so a failure emails but cannot lose a result; it 
 3.5 MB baseline, 0.75 MB the next day, 37 KB for a day with few changes.
 
 **Input freshness check (`gdpnow/freshness.py`).** On every day the inputs are rebuilt, after the build, the run compares each series
-in `raw_pulls` with the previous run date's and flags a series that disappeared (absent today under every source), shrank (fewer
-observations or an earlier last observation), or is stale (last observation older than 2.5 times its own median release gap plus
-45 days). A flag holds the run like the nowcast sanity checks: results are written, the page is not updated, the workflow fails
-and GitHub emails. Series that legitimately behave so are listed with a reason in `config/freshness.toml` (patterns `source|series`).
-Skip days (nothing new) are not checked. The first check after the move to primary-source files compares against a baseline
-built by the same code, so a flag on the first production day is a real finding or a missing ignore entry.
+in `raw_pulls` with a baseline (observation count and last date per series, table `freshness_baseline`, saved by the last run that
+passed the check) and flags a series that disappeared (absent today under every source), shrank (fewer observations or an earlier last
+observation), or is stale (last observation older than 2.5 times its own median release gap plus 45 days). A flag holds the run like
+the nowcast sanity checks: results are written, the page is not updated, the workflow fails and GitHub emails, and the baseline is left
+as it was so the problem is not forgotten after one email. Series that legitimately behave so are listed with a reason in
+`config/freshness.toml` (patterns `source|series`). Skip days (nothing new) are not checked; the first run has no baseline and gets
+only the stale check.
 
 ## 7. Repository map
 
