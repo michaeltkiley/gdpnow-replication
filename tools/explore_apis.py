@@ -2424,8 +2424,11 @@ def fresh1():
     for a in dates[1:]:
         s = F.summary(con, a)
         out('F1', a, 'series', len(s), 'median gap days', s.gap.median())
-        for f in F.findings(con, a):
-            out('F1', a, *f)
+        raw = F.findings(con, a)
+        left = F.check(con, a)
+        out('F1', a, 'findings', len(raw), 'after the ignore list', len(left))
+        for m in left:
+            out('F1', a, 'PROBLEM', m)
     con.close()
 
 

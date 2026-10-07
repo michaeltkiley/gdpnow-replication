@@ -1,11 +1,12 @@
 """Narrow input freshness check: flags series the model reads that went missing, got shorter, or stopped advancing.
 
 Compares the day's pulls in `raw_pulls` with the previous run date's (the database keeps seven days). A series is flagged when it
-  - disappeared: pulled on the previous run date, absent today;
+  - disappeared: pulled on the previous run date, absent today under every source (a series that moved to another source is not);
   - shrank: fewer observations, or an earlier last observation, than on the previous run date;
   - is stale: its last observation is older than 2.5 normal release gaps plus 45 days (the gap is the series' own median spacing).
-Series that legitimately behave so are listed in config/freshness.toml with the reason. Run only on days the inputs were rebuilt.
+Series that legitimately behave so are listed in config/freshness.toml with the reason (keys are 'source|series' patterns, `*` allowed). Run only on days the inputs were rebuilt.
 """
+import fnmatch
 import tomllib
 from pathlib import Path
 
@@ -16,7 +17,7 @@ SLACK_DAYS, GAPS = 45, 2.5
 
 
 def ignored():
-    return set(tomllib.loads(CONFIG.read_text()).get('ignore', {})) if CONFIG.exists() else set()
+    return list(tomllib.loads(CONFIG.read_text()).get('ignore', {})) if CONFIG.exists() else []
 
 
 def summary(con, asof):
@@ -38,8 +39,10 @@ def findings(con, asof):
     if prev_asof is not None:
         prev = summary(con, prev_asof).set_index(['source', 'series'])
         t = today.set_index(['source', 'series'])
+        now_series = set(today['series'])
         for key in prev.index.difference(t.index):
-            out.append((*key, 'disappeared', f'pulled {prev_asof}, not {asof}'))
+            if key[1] not in now_series:
+                out.append((*key, 'disappeared', f'pulled {prev_asof}, not {asof}'))
         for key in prev.index.intersection(t.index):
             p, c = prev.loc[key], t.loc[key]
             if c['n'] < p['n']:
@@ -58,4 +61,4 @@ def findings(con, asof):
 def check(con, asof):
     """Problem strings for the daily run (empty = fine)."""
     skip = ignored()
-    return [f'input {k}: {s}|{x} {d}' for s, x, k, d in findings(con, asof) if f'{s}|{x}' not in skip]
+    return [f'input {k}: {s}|{x} {d}' for s, x, k, d in findings(con, asof) if not any(fnmatch.fnmatchcase(f'{s}|{x}', pat) for pat in skip)]
