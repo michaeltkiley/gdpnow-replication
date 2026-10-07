@@ -4,3 +4,4 @@
 "bea|NIUnderlyingDetail:U2040[45]:M|15[78]|*" = "rental-of-tenant-landlord lines that end in 2001"
 "census_bulk|MHS2|T|SP|0|US" = "manufactured-home placements: Census publishes them about 4 months after the month"
 "fred|CFNAI" = "only read when the advance trade report is newer than the full release, so absent on most build days"
+"fred|MATISAMFRBDAL" = "Dallas materials-inventory index, discontinued December 2017 and no longer read; a same-day rerun can still find the old pull in the database"
