@@ -2432,6 +2432,21 @@ def fresh1():
     con.close()
 
 
+def fred400():
+    """Why did the probe get HTTP 400 from FRED for MEDCPIM158SFRBCLE at 01:09 UTC on 8 Oct (US date still 7 Oct)? FRED's real-time dates in the future (US Central)?"""
+    import datetime as dt
+    import urllib.parse
+    from zoneinfo import ZoneInfo
+    utc = dt.datetime.now(dt.timezone.utc)
+    chi = utc.astimezone(ZoneInfo('America/Chicago'))
+    out('F400', 'now utc', utc.isoformat(timespec='minutes'), 'chicago', chi.isoformat(timespec='minutes'))
+    for sid in ('MEDCPIM158SFRBCLE', 'UMCSENT'):
+        for label, d in (('chicago today', chi.date()), ('chicago today +1', chi.date() + dt.timedelta(days=1)), ('+2', chi.date() + dt.timedelta(days=2))):
+            q = dict(series_id=sid, api_key=FRED_KEY, file_type='json', realtime_start=str(d), realtime_end=str(d), observation_start='2026-01-01')
+            st, n, text, hdr, secs = call('https://api.stlouisfed.org/fred/series/observations?' + urllib.parse.urlencode(q))
+            out('F400', sid, label, d, st, n, text[:160].replace('\n', ' '))
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
@@ -2439,7 +2454,7 @@ if __name__ == '__main__':
     inv = inventory() if 'inventory' in which else {}
     for name, fn in (('fred', lambda: fred(inv)), ('bea', lambda: bea(inv)), ('census', census), ('bls', bls),
                      ('fred2', lambda: fred2(inv)), ('bea2', lambda: bea2(inv)), ('census2', census2), ('heads', lambda: heads(inv)),
-                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40), ('groupA_41', groupA_41), ('groupA_42', groupA_42), ('vint1', vint1), ('vint2', vint2), ('fresh1', fresh1)):
+                     ('bls3', bls3), ('bea3', bea3), ('fred3', fred3), ('bea4', bea4), ('fred4', fred4), ('bls5', bls5), ('blsmap', lambda: blsmap(inv)), ('bls7', bls7), ('bls8', bls8), ('bea9', bea9), ('bea10', bea10), ('bea11', bea11), ('census12', census12), ('census13', census13), ('census14', census14), ('census15', census15), ('census16', census16), ('census17', census17), ('nipa18', nipa18), ('bea19', bea19), ('tr20', tr20), ('match21', match21), ('pair22', pair22), ('bop23', bop23), ('nipa24', nipa24), ('hist25', hist25), ('veh26', veh26), ('veh27', veh27), ('veh28', veh28), ('g17_29', g17_29), ('g17_30', g17_30), ('g17_31', g17_31), ('g17_32', g17_32), ('g17_33', g17_33), ('groupA_35', groupA_35), ('groupA_36', groupA_36), ('groupA_37', groupA_37), ('groupA_38', groupA_38), ('groupA_39', groupA_39), ('groupA_40', groupA_40), ('groupA_41', groupA_41), ('groupA_42', groupA_42), ('vint1', vint1), ('vint2', vint2), ('fresh1', fresh1), ('fred400', fred400)):
         if name in which:
             try:
                 fn()
