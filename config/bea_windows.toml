@@ -1,28 +1,21 @@
-# The date window the BEA API served for tables whose bulk-file series carry more history. A bulk series is one series for all the
-# tables it appears on, so a table shows its series' whole history there, while the API (and GDPNow's workbook mechanism built on it: the
-# GDPNow-derived history prefix, docs/IMPLEMENTATION.md DD4) gives each table its own window. Restricting the bulk tables to the API windows
-# reproduces the configuration validated against GDPNow. Boundaries measured in exploration round 19 (API vs bulk, all 33 tables; every
-# value inside the window is identical). Periods: 'YYYYQn' for quarterly tables, 'YYYY-MM' for monthly ones.
-[T31006]
-first = "2007Q1"
-[T31103]
-first = "1972Q1"
-[T31105]
-first = "1972Q1"
-[T40205B]
-first = "1999Q1"
+# Date windows applied to BEA bulk tables (gdpnow/bea_bulk.py). A bulk series carries its whole history on every table it appears on, so by default a
+# table shows everything BEA has. A window is kept only where the extra history is not the same quantity as the table's own data:
+# the private-inventories-by-industry tables are on the NAICS basis from 1997, while the same series codes also carry the earlier SIC-basis history,
+# whose industry detail does not match GDPNow's workbook (exploration compare-history, 2026-10-08: growth correlation with the workbook 0.54 for
+# retail inventories excluding motor-vehicle dealers and 0.59 for construction/mining/utilities/other, against 1.00 for farm and total inventories).
+# `full_lines` are kept with their whole history (verified against the workbook: total and farm inventories, farm deflator, correlation 1.00).
+# Earlier history for the series built from the windowed lines comes from the GDPNow splice (DD4), as for the other series.
+# `last` on T50809A ends the old SIC-basis table where the spliced inventory price switches to table T50809B. Periods: 'YYYYQn' quarterly, 'YYYY-MM' monthly.
 [T50805B]
 first = "1996Q4"
 [T50806B]
 first = "1996Q4"
+full_lines = [1, 2]
 [T50809A]
 last = "1997Q4"
 [T50809B]
 first = "1996Q4"
-[T70203B]
-first = "1967Q1"
-[T70205B]
-first = "1967Q1"
+full_lines = [1, 2]
 [U50705BM3]
 first = "1997-01"
 [U50706BM]

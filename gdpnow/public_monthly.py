@@ -110,6 +110,12 @@ class Ctx:
             print(f'  splice skipped for {name}: {str(e)[:80]}')
             return live
 
+    def splice_quarterly(self, name, live, sheet):
+        """Durable long history for a quarterly level series (growth chained back from the live start; reference layer: the workbook sheet `sheet`).
+        Errors are not swallowed: the series is either extended or the run fails."""
+        live = live.dropna()
+        return H.splice(self.con, name, live, (), self.asof, 'log', reference=self.ref(sheet, name), ref_label=self.ref_vintage, freq='Q')[0]
+
     def ism(self, name, proxy):
         """ISM manufacturing index `name` (licensed; the ISM site is login-only). Core run (ism='public'): the
         regional-survey average rescaled to the ISM 50 = no-change convention. Sensitivity run (ism='seeded'):

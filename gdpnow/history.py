@@ -68,7 +68,7 @@ def _record_check_unguarded(con, name, layer, corr, n, window, accepted, asof, n
 
 
 def splice(con, name, live, proxies=(), asof='', kind='log', reference=None, ref_label='workbook',
-           min_corr=0.90, min_overlap=36):
+           min_corr=0.90, min_overlap=36, freq='M'):
     """Long monthly level series for `name`.
 
     live: current public series (levels, month-end index; may be short).
@@ -78,7 +78,7 @@ def splice(con, name, live, proxies=(), asof='', kind='log', reference=None, ref
     Quality gate: a proxy (and the reference) is used only if its growth rates correlate >= min_corr with the
     reference over >= min_overlap overlapping months; every check is logged in hist_splice_checks, including
     live-vs-reference agreement (a low value flags a broken public construction).
-    Returns (levels, info).
+    freq 'M' (month-end index, default) or 'Q' (quarter-end index; min_overlap then counts quarters). Returns (levels, info).
     """
     live = live.dropna()
     if len(live) == 0:
@@ -139,7 +139,7 @@ def splice(con, name, live, proxies=(), asof='', kind='log', reference=None, ref
         gd = combined.get(d)
         if gd is None or np.isnan(gd):
             break
-        p = d - pd.offsets.MonthEnd(1)
+        p = d - (pd.offsets.QuarterEnd(1) if freq == 'Q' else pd.offsets.MonthEnd(1))
         level[p] = level[d] / np.exp(gd) if kind == 'log' else level[d] - gd
         d = p
     level = level.sort_index()
