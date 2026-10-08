@@ -64,6 +64,11 @@ def raw_diff(before, after):
         out('RAWDIFF removed', src, ser, 'rows', len(g))
 
 
+def np_diff(x):
+    import numpy as np
+    return np.log(x.where(x > 0)).diff() if (x > 0).all() else x.diff()
+
+
 def run():
     from gdpnow import clock, public_data, store
     variant = os.environ['VARIANT']
@@ -93,6 +98,24 @@ def run():
     res['series'] = {t: info(getattr(inp, t)) for t in TABLES}
     res['series']['factor_panel'] = info(panel)
     res['series']['act'] = info(act)
+    try:
+        import numpy as np
+        from gdpnow import inputs
+        con = store.connect()
+        wbi = inputs.from_workbook(con, store.latest_vintage(con))
+        con.close()
+        res['wb_series'] = {t: info(getattr(wbi, t)) for t in TABLES}
+        keep = ['growth', 'levels', 'q_hist', 'nominal', 'nipa']
+        res['ours_tables'] = {t: getattr(inp, t) for t in keep}
+        res['wb_tables'] = {t: getattr(wbi, t) for t in keep}
+        eff = {}
+        for sname in ['SFZ_USNA', 'SNOZ_USNAqtrExtrap']:      # inventory.farm_other: AR(4) 'from 1985Q1 (P11)'
+            g = 400 * np.log(inp.nipa[sname] / inp.nipa[sname].shift(1))
+            d = pd.concat([g] + [g.shift(k) for k in range(1, 5)], axis=1).loc['1985-03-31':inp.T].dropna()
+            eff['farm_other AR(4) ' + sname] = (str(d.index.min())[:10], len(d))
+        res['eff'] = eff
+    except Exception as e:                  # exploration only: never lose the main results
+        out('WB-COMPARE-ERROR', repr(e)[:300])
     pickle.dump(res, open(DATA / f'compare_{variant}.pkl', 'wb'))
     out('RUN', variant, asof, 'GDP', res['agg'].get('GDP'))
 
@@ -131,6 +154,9 @@ def compare():
         out('estimates block', blk, 'changed', len(g), 'of', int((dm['block'] == blk).sum()), 'max abs change', f"{g['d'].abs().max():.5f}")
     for r in ch.reindex(ch['d'].abs().sort_values(ascending=False).index).head(14).itertuples():
         out('estimate', r.block, r.item, r.term, f'base={float(r.ours_b):.5f} full={float(r.ours_f):.5f}')
+    # effective samples of regressions with a documented start
+    for k in sorted(set(b.get('eff', {})) | set(f.get('eff', {}))):
+        out('effective sample', k, 'base', b.get('eff', {}).get(k), 'full', f.get('eff', {}).get(k))
     # input series coverage
     changed = []
     for t in b['series']:
@@ -145,7 +171,22 @@ def compare():
                 changed.append((t, c, 'missing', f['series'][t][c]))
     out('input series whose first date or count differs:', len(changed))
     for t, c, vb, vf in changed[:150]:
-        out('series', t, c, 'base', vb, 'full', vf)
+        wbi = f.get('wb_series', {}).get(t, {}).get(c)
+        line = ['series', t, c, 'base', vb, 'full', vf, '| workbook', wbi]
+        try:
+            if t in f.get('ours_tables', {}) and c in f['ours_tables'][t].columns and c in f['wb_tables'][t].columns:
+                o, w = f['ours_tables'][t][c].dropna(), f['wb_tables'][t][c].dropna()
+                if t in ('levels', 'nominal', 'nipa') or (o > 0).all() and (w > 0).all():
+                    go, gw = np_diff(o), np_diff(w)
+                else:
+                    go, gw = o.diff(), w.diff()
+                j = pd.concat([go, gw], axis=1, keys=['o', 'w']).dropna()
+                ext = j[j.index < pd.Timestamp(vb[0]) + pd.offsets.QuarterEnd(0)] if isinstance(vb, tuple) and vb[0] else j.iloc[0:0]
+                line += ['| overlap', len(j), 'corr', round(float(j.o.corr(j.w)), 4) if len(j) > 2 else None,
+                         '| extension part', len(ext), 'corr', round(float(ext.o.corr(ext.w)), 4) if len(ext) > 2 else None]
+        except Exception as e:
+            line += ['| overlap error', repr(e)[:80]]
+        out(*line)
 
 
 if __name__ == '__main__':
