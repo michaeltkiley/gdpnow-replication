@@ -161,6 +161,10 @@ def _splice(new, old):
 def _chain_level(g, nom):
     """Chained-dollar level consistent with growth g (400*dlog), anchored so the last-year average real
     level equals the average nominal level of the reference year 2017."""
+    # The level exists only from the quarter before the first growth rate: a table whose index reaches back further (because other lines of it
+    # have longer history) must not give this series a flat, invented history.
+    pos = g.index.get_loc(g.first_valid_index()) if g.first_valid_index() is not None else 0
+    g = g.iloc[max(pos - 1, 0):]
     lvl = np.exp(g.fillna(0).cumsum() / 400)
     ref = (nom.loc['2017'].mean() / lvl.loc['2017'].mean()) if len(nom.loc['2017']) else 1.0
     return lvl * ref

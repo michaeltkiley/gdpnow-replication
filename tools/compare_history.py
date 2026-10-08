@@ -114,6 +114,13 @@ def run():
             d = pd.concat([g] + [g.shift(k) for k in range(1, 5)], axis=1).loc['1985-03-31':inp.T].dropna()
             eff['farm_other AR(4) ' + sname] = (str(d.index.min())[:10], len(d))
         res['eff'] = eff
+        con = store.connect()
+        try:
+            chk = con.execute("SELECT name, layer, corr, n_overlap, accepted FROM hist_splice_checks WHERE name = 'SNOZ_USNAqtrExtrap' QUALIFY row_number() OVER (PARTITION BY layer ORDER BY as_of DESC) = 1").fetchall()
+        except Exception:
+            chk = []
+        con.close()
+        res['eff']['splice checks SNOZ_USNAqtrExtrap'] = str(chk)
     except Exception as e:                  # exploration only: never lose the main results
         out('WB-COMPARE-ERROR', repr(e)[:300])
     pickle.dump(res, open(DATA / f'compare_{variant}.pkl', 'wb'))
@@ -182,8 +189,9 @@ def compare():
                     go, gw = o.diff(), w.diff()
                 j = pd.concat([go, gw], axis=1, keys=['o', 'w']).dropna()
                 ext = j[j.index < pd.Timestamp(vb[0]) + pd.offsets.QuarterEnd(0)] if isinstance(vb, tuple) and vb[0] else j.iloc[0:0]
+                flat = len(ext) > 2 and (ext.o.std() == 0 or ext.w.std() == 0)
                 line += ['| overlap', len(j), 'corr', round(float(j.o.corr(j.w)), 4) if len(j) > 2 else None,
-                         '| extension part', len(ext), 'corr', round(float(ext.o.corr(ext.w)), 4) if len(ext) > 2 else None]
+                         '| extension part', len(ext), 'corr', 'FLAT (zero variance)' if flat else (round(float(ext.o.corr(ext.w)), 4) if len(ext) > 2 else None)]
         except Exception as e:
             line += ['| overlap error', repr(e)[:80]]
         out(*line)
