@@ -1,0 +1,53 @@
+name: compare-history
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  variant:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [base, full]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - uses: actions/cache/restore@v4
+        with:
+          path: data/gdpnow.duckdb
+          key: compare-none
+          restore-keys: state-
+      - name: Build, estimate and nowcast (nothing is recorded or cached)
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          BEA_API_KEY: ${{ secrets.BEA_API_KEY }}
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+          BLS_CONTACT: ${{ secrets.BLS_CONTACT }}
+          GDPNOW_REFRESH: '1'
+          GDPNOW_FULL_HISTORY: ${{ matrix.variant == 'full' && '1' || '0' }}
+          VARIANT: ${{ matrix.variant }}
+        run: python tools/compare_history.py run
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hist-${{ matrix.variant }}
+          path: data/compare_${{ matrix.variant }}.pkl
+  compare:
+    needs: variant
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pandas numpy
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: hist-*
+          path: data
+      - run: python tools/compare_history.py compare
