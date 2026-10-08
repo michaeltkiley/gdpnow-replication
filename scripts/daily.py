@@ -29,7 +29,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from gdpnow import freshness, probe, public_data, store
+from gdpnow import clock, freshness, probe, public_data, store
 
 KEEP_RUNS = 5          # recent L3 runs whose estimates stay in the store (older ones are dropped)
 KEEP_PULL_DAYS = 7     # archived raw pulls kept for this many days
@@ -121,7 +121,7 @@ def sanity(asof, max_jump):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('--asof', default=dt.date.today().isoformat())
+    ap.add_argument('--asof', default=clock.today().isoformat())
     ap.add_argument('--force', action='store_true')
     ap.add_argument('--max-jump', type=float, default=1.0, help='largest day-to-day nowcast change (pp) published without review')
     a = ap.parse_args()
