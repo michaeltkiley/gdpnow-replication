@@ -147,6 +147,25 @@ the workbook (production use after the first run) the stored history is used. If
 redefined, the store detects that its stored growth no longer agrees with the live source, drops the stored live
 rows and logs a `store_reset`.
 
+**DD7. History windows of the BEA files.** The previous build limited every BEA table to the dates the old API served. Now each table shows all the history
+BEA has (`config/bea_windows.toml`), with these exceptions and consequences (compare-history runs 6 to 10, 2026-10-08; nowcast before/after +0.081 pp on the
+data of that day, of which +0.048 pp inventories and +0.032 pp trade):
+- *Documented windows are unchanged* (bridge and blend from 1985Q1, quarterly BVAR from 1968Q1, monthly price and inventory BVARs from 1983-01, factor panel
+  from 1967-02); longer data only lets a regression reach its documented start. The one regression that was short is the AR(4) of farm and other-industries
+  real inventories (documented start 1985Q1): its sample was 114 quarters starting 1998 and is now 166 starting 1985Q1.
+- *Private inventories by industry* (tables 5.8.5B, 5.8.6B, 5.8.9B and the monthly underlying detail) stay on the NAICS basis from 1996Q4/1997: the same series
+  codes carry SIC-basis industry history that does not match the workbook (growth correlation 0.54 and 0.59). Total and farm inventory lines (full_lines) have
+  full history and match the workbook (1.00). The other-industries stock reaches 1959 through the quarterly GDPNow splice (DD4), the live series matching the
+  workbook at 0.99999999 over 118 quarters.
+- *Light-vehicle totals* stay at 1976, where the workbook's own series starts (the component sheets go back to 1967).
+- *Imports and exports by type of product (table 4.2.5B) have full history* by decision. Its nominal import shares weight the goods import price index, so the
+  index is built from the eight BLS end-use categories back to about 1990 rather than spliced to the all-imports index. Before 1999 this agrees less with the
+  workbook (growth correlation 0.89 against 0.98 for the price, 0.992 against 0.9998 for real goods imports); from 1999 on it is identical. The effect is on
+  the pre-1999 sample of the trade regressions and the monthly price model: 51 estimates move slightly (bridge coefficients by at most 0.0007, the inventory/trade
+  blend weight by 0.007) and the nowcast by +0.03 pp. The monthly splice check (planned) will report the agreement with the workbook.
+- The chained real level of a constructed stock now starts at its first growth rate, so a table with lines of different length cannot give another line a flat,
+  invented history.
+
 **DD5. Data vintages.** The ~20 series still read from FRED are retrieved as known on the as-of date (ALFRED). Everything
 read from primary-source files (BLS flat files, Census program zips, BEA bulk files, trade and vehicle workbooks, the Fed's G.17
 files, BEA IDS-0182, Treasury) is **current vintage on the download date**, archived with the retrieval date (the archive keeps
