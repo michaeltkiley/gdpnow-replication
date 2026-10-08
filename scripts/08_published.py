@@ -10,13 +10,13 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from gdpnow import published, store
+from gdpnow import clock, published, store
 from gdpnow.config import RAW, WORKBOOK_NAME
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('--date', default=dt.date.today().strftime('%Y%m%d'), help='workbook vintage YYYYMMDD')
+    ap.add_argument('--date', default=clock.today().strftime('%Y%m%d'), help='workbook vintage YYYYMMDD')
     ap.add_argument('--force', action='store_true')
     a = ap.parse_args()
     path = RAW / f'{a.date}_{WORKBOOK_NAME}'

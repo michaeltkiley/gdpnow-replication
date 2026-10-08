@@ -15,13 +15,13 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from gdpnow import inputs_public, public_data as P, store
+from gdpnow import clock, inputs_public, public_data as P, store
 from gdpnow.config import DATA
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('--asof', default=dt.date.today().isoformat())
+    ap.add_argument('--asof', default=clock.today().isoformat())
     ap.add_argument('--last-price-month', default='2026-08',
                     help='last month with published CPI/PPI/trade prices as of --asof')
     ap.add_argument('--ism', default='public', choices=['public', 'seeded'],

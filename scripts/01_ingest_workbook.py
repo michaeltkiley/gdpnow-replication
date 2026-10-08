@@ -15,7 +15,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from gdpnow import store, workbook
+from gdpnow import clock, store, workbook
 from gdpnow.config import RAW, WORKBOOK_NAME, WORKBOOK_URL
 
 
@@ -25,7 +25,7 @@ def sha256(path):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('--date', default=dt.date.today().strftime('%Y%m%d'), help='vintage date YYYYMMDD')
+    ap.add_argument('--date', default=clock.today().strftime('%Y%m%d'), help='vintage date YYYYMMDD')
     ap.add_argument('--file', help='use this local copy instead of downloading')
     ap.add_argument('--force', action='store_true')
     a = ap.parse_args()
