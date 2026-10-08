@@ -70,28 +70,34 @@ def compare():
     out('asof', b['asof'], f['asof'])
     out('GDP nowcast base', b['agg']['GDP'], 'full', f['agg']['GDP'], 'diff', f['agg']['GDP'] - b['agg']['GDP'])
     # components
-    keys = [c for c in b['comps'].columns if b['comps'][c].dtype == object and c != 'run_id']
-    num = [c for c in b['comps'].columns if c not in keys and c != 'run_id' and pd.api.types.is_numeric_dtype(b['comps'][c])]
+    cols = [c for c in b['comps'].columns if c != 'run_id']
+    num = [c for c in cols if pd.api.types.is_numeric_dtype(b['comps'][c])]
+    keys = [c for c in cols if c not in num]
     m = b['comps'].merge(f['comps'], on=keys, suffixes=('_b', '_f'))
     for c in num:
         m['d_' + c] = m[c + '_f'] - m[c + '_b']
     dcols = ['d_' + c for c in num]
     m['maxd'] = m[dcols].abs().max(axis=1)
-    out('components columns', keys, num[:8])
+    out('components: keys', keys, 'numeric', num, 'rows', len(m))
     for r in m.sort_values('maxd', ascending=False).head(14).itertuples():
-        out('component', *[getattr(r, k) for k in keys], 'maxabs', f'{r.maxd:.5f}', *[f'{c}={getattr(r, c):+.5f}' for c in dcols[:4]])
-    # estimation diagnostics
-    dm = b['diag'].merge(f['diag'], on=['block', 'item', 'term'], how='outer', suffixes=('_b', '_f'))
+        out('component', *[getattr(r, k) for k in keys], 'maxabs', f'{r.maxd:.5f}', *[f'{c}={getattr(r, c):+.5f}' for c in dcols])
+    # estimation diagnostics (blend_sample rows hold the blend regression sample: term = first date, ours = number of quarters)
+    bd, fd = b['diag'], f['diag']
+    bsb, bsf = bd[bd['block'] == 'blend_sample'], fd[fd['block'] == 'blend_sample']
+    bsm = bsb[['item', 'term', 'ours']].merge(bsf[['item', 'term', 'ours']], on='item', how='outer', suffixes=('_b', '_f'))
+    out('blend samples (component, start base -> full, n base -> full):', len(bsm), 'differing:', int(((bsm.term_b != bsm.term_f) | (bsm.ours_b != bsm.ours_f)).sum()))
+    for r in bsm.itertuples():
+        if r.term_b != r.term_f or r.ours_b != r.ours_f:
+            out('blend_sample', r.item, 'start', r.term_b, '->', r.term_f, 'n', r.ours_b, '->', r.ours_f)
+    bd, fd = bd[bd['block'] != 'blend_sample'], fd[fd['block'] != 'blend_sample']
+    dm = bd.merge(fd, on=['block', 'item', 'term'], how='outer', suffixes=('_b', '_f'))
     dm['d'] = pd.to_numeric(dm['ours_f'], errors='coerce') - pd.to_numeric(dm['ours_b'], errors='coerce')
-    out('diagnostics rows', len(dm), 'changed >1e-9:', int((dm['d'].abs() > 1e-9).sum()))
-    for blk, g in dm[dm['d'].abs() > 1e-9].groupby('block'):
-        out('diag block', blk, 'changed', len(g), 'max abs', f"{g['d'].abs().max():.5f}")
-    for r in dm[dm['d'].abs() > 1e-9].reindex(dm['d'].abs().sort_values(ascending=False).index).dropna(subset=['d']).head(12).itertuples():
-        out('diag top', r.block, r.item, r.term, f'base={r.ours_b:.5f} full={r.ours_f:.5f}')
-    bs = dm[dm['block'] == 'blend_sample']
-    out('blend_sample rows (start, n)', len(bs))
-    for r in bs.itertuples():
-        out('blend_sample', r.item, 'start', r.workbook_b if hasattr(r, 'workbook_b') else '', '|', r.term, 'n base', r.ours_b, 'n full', r.ours_f)
+    ch = dm[dm['d'].abs() > 1e-9]
+    out('estimates compared', len(dm), 'changed (>1e-9):', len(ch))
+    for blk, g in ch.groupby('block'):
+        out('estimates block', blk, 'changed', len(g), 'of', int((dm['block'] == blk).sum()), 'max abs change', f"{g['d'].abs().max():.5f}")
+    for r in ch.reindex(ch['d'].abs().sort_values(ascending=False).index).head(14).itertuples():
+        out('estimate', r.block, r.item, r.term, f'base={float(r.ours_b):.5f} full={float(r.ours_f):.5f}')
     # input series coverage
     changed = []
     for t in b['series']:
