@@ -317,6 +317,16 @@ GitHub issue titled "Monthly splice check YYYY-MM: passed" or "failed", mentioni
 change; also listed (informational, not a failure) are any live-vs-workbook agreements below the 0.90 gate, e.g. the ISM stand-ins. A failed check fails the job (email). It is a maintenance
 alert only: it does not hold the daily nowcast and does not refresh the stored history. Manual run: dispatch `splice-check`.
 
+**Refreshing the borrowed history (`gdpnow/splice_refresh.py`, `scripts/14_refresh_history.py`, workflow `refresh-history`).** When the monthly
+check reports a revision, the owner decides whether the stored history should follow the workbook. The workflow is manual and two-step:
+dispatch with `apply = false` (default) to list the series, number of values, dates and size of every revision that would be replaced
+(nothing is written); dispatch again with `apply = true` to replace them. Only stored borrowed growth that differs from the newest
+workbook is replaced, for dates the workbook still carries; vanished series or dates are reported and left alone. Each replaced value
+is logged (old and new value, vintage, time) in `hist_growth_refresh_log`, the state is saved under the cache key `state-refresh-<run id>`
+so the next daily run restores it, and the vintage archive records the change on that run (source `workbook_prefix`, with the prior
+value). The effect on the nowcast shows in that next daily run; the workflow shares the daily run's concurrency group. Nothing is applied
+automatically.
+
 **Vintage archive (`gdpnow/vintage.py`, branch `data`).** After each successful daily run the workflow records every input
 value the model read (FRED, the bulk files, IDS-0182, the AEI advance trade table) as it was first seen and each time it changed,
 so the inputs as they stood on any past day can be rebuilt. The archive is a directory of Parquet files,
