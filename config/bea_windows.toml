@@ -9,8 +9,6 @@
 # quarterly detail over the monthly BEA IDS-0182 data, which begin in 1999, and a longer quarterly input changes those monthly series and the nowcast
 # (+0.03 pp, compare-history run 9, 2026-10-08) without a documented GDPNow window behind it.
 # `last` on T50809A ends the old SIC-basis table where the spliced inventory price switches to table T50809B. Periods: 'YYYYQn' quarterly, 'YYYY-MM' monthly.
-[T40205B]
-first = "1999Q1"
 [T50805B]
 first = "1996Q4"
 [T50806B]

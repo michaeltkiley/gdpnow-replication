@@ -106,7 +106,7 @@ def run():
         wbi = inputs.from_workbook(con, store.latest_vintage(con))
         con.close()
         res['wb_series'] = {t: info(getattr(wbi, t)) for t in TABLES}
-        keep = ['growth', 'levels', 'q_hist', 'nominal', 'nipa']
+        keep = ['growth', 'levels', 'q_hist', 'nominal', 'nipa', 'monthly_prices', 'cons_growth', 'cons_levels', 'inv_raw', 'inv_deflators']
         res['ours_tables'] = {t: getattr(inp, t) for t in keep}
         res['wb_tables'] = {t: getattr(wbi, t) for t in keep}
         eff = {}
@@ -180,31 +180,35 @@ def compare():
     # effective samples of regressions with a documented start
     for k in sorted(set(b.get('eff', {})) | set(f.get('eff', {}))):
         out('effective sample', k, 'base', b.get('eff', {}).get(k), 'full', f.get('eff', {}).get(k))
-    # series whose VALUES differ on dates both variants have (the first-date/count check below cannot see these), judged against the workbook
+    # series whose VALUES differ on dates both variants have (the first-date/count check below cannot see these), judged against the workbook, before and after 1999
     try:
         import numpy as np
-        for t in ('q_hist', 'nominal', 'nipa'):
+        GROWTH_TYPE = ('q_hist', 'growth', 'cons_growth')
+        for t in ('q_hist', 'growth', 'cons_growth', 'nominal', 'nipa', 'levels', 'cons_levels', 'monthly_prices', 'inv_raw', 'inv_deflators'):
             ob, of_, w = b['ours_tables'][t], f['ours_tables'][t], f['wb_tables'][t]
+            tr = (lambda x: x) if t in GROWTH_TYPE else np_diff
             rows = []
             for c in ob.columns:
                 if c not in of_.columns:
                     continue
-                gb, gf = np_diff(ob[c].dropna()) if t != 'q_hist' else ob[c].dropna(), np_diff(of_[c].dropna()) if t != 'q_hist' else of_[c].dropna()
-                j = pd.concat([gb, gf], axis=1, keys=['b', 'f']).dropna()
+                gb, gf = tr(ob[c].dropna()), tr(of_[c].dropna())
+                j = pd.concat([gb, gf], axis=1, keys=['b', 'f'], sort=True).dropna()
                 if len(j) < 4 or (j.f - j.b).abs().max() < 1e-6:
                     continue
-                gw = (np_diff(w[c].dropna()) if t != 'q_hist' else w[c].dropna()) if c in w.columns else None
-                if gw is not None:
-                    k = pd.concat([gb, gf, gw], axis=1, keys=['b', 'f', 'w']).dropna()
-                    mb, mf = float((k.b - k.w).abs().mean()), float((k.f - k.w).abs().mean())
-                    cb, cf = float(k.b.corr(k.w)), float(k.f.corr(k.w))
-                    rec = (f'vs workbook over {len(k)} dates: mean abs diff base {mb:.4f} full {mf:.4f}; corr base {cb:.4f} full {cf:.4f}')
-                else:
-                    rec = 'no workbook series'
-                rows.append((float((j.f - j.b).abs().max()), c, len(j), rec))
+                rec = 'no workbook series'
+                if c in w.columns:
+                    k = pd.concat([gb, gf, tr(w[c].dropna())], axis=1, keys=['b', 'f', 'w'], sort=True).dropna()
+                    parts = []
+                    for lab, kk in (('before 1999', k[k.index < '1999-01-01']), ('1999 on', k[k.index >= '1999-01-01'])):
+                        if len(kk) > 3:
+                            parts.append(f'{lab} n={len(kk)} mean abs diff vs workbook base {float((kk.b - kk.w).abs().mean()):.5f} full {float((kk.f - kk.w).abs().mean()):.5f}'
+                                         f' corr base {float(kk.b.corr(kk.w)):.4f} full {float(kk.f.corr(kk.w)):.4f}')
+                    rec = ' ; '.join(parts) if parts else 'no common dates with workbook'
+                dd = j.index[(j.f - j.b).abs() > 1e-6]
+                rows.append((float((j.f - j.b).abs().max()), c, len(j), str(dd.min())[:10], str(dd.max())[:10], rec))
             out('values differing at common dates in', t, ':', len(rows))
-            for mx, c, n, rec in sorted(rows, reverse=True)[:25]:
-                out('valuediff', t, c, 'max abs', f'{mx:.5f}', 'n', n, '|', rec)
+            for mx, c, n, d0, d1, rec in sorted(rows, reverse=True)[:25]:
+                out('valuediff', t, c, 'max abs', f'{mx:.5f}', 'differs between', d0, 'and', d1, '|', rec)
     except Exception as e:
         out('valuediff error', repr(e)[:200])
     # input series coverage
