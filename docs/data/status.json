@@ -1,6 +1,6 @@
 {
  "asof": "2026-10-08",
- "ok": false,
- "message": "run failed: probe request failed (GET_JSON https://api.stlouisfed.org/fred/series/observations?series_id=MEDCPIM158SFRBCLE&api_key={ENV:FRED_API_KEY}&file_type=jso): HTTP Error 400: Bad Request",
- "finished": "2026-10-08T01:09:40+00:00"
+ "ok": true,
+ "message": "ok",
+ "finished": "2026-10-08T12:10:00+00:00"
 }
