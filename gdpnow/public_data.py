@@ -353,7 +353,7 @@ def bea_table(con, dataset, table, frequency, asof, refresh=False):
             return w.sort_index()
     from . import bea_bulk
     df = bea_bulk.table(table, frequency)
-    if dataset != 'NIPA':          # the API path asked underlying-detail tables from 1959 on
+    if dataset != 'NIPA' and os.environ.get('GDPNOW_FULL_HISTORY') != '1':          # the API path asked underlying-detail tables from 1959 on
         df = df[df.date >= '1959-01-01']
     df = df.drop_duplicates(['series', 'date'])
     for ser, g in df.groupby('series'):

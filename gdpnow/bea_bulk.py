@@ -15,6 +15,7 @@ probe. BEA answers any made-up file name with HTTP 200 and an HTML page (no Last
 """
 import csv
 import io
+import os
 import tomllib
 import urllib.request
 
@@ -32,7 +33,7 @@ _SER = tomllib.load(open(CONFIG / 'bea_series.toml', 'rb'))['series']
 MAP = {fid: (v[0], float(v[1])) for fid, v in _SER.items()}         # FRED id -> (BEA series code, divisor)
 _INDEX = {}                                                         # frequency -> {series code: [(period, value string)]}
 _MONTHLY = {}                                                       # BEA code -> Series, filled when NipaDataM is read in this process
-WINDOWS = tomllib.load(open(CONFIG / 'bea_windows.toml', 'rb'))     # table -> {first, last}: the API's date window (see the file)
+WINDOWS = {} if os.environ.get('GDPNOW_FULL_HISTORY') == '1' else tomllib.load(open(CONFIG / 'bea_windows.toml', 'rb'))     # table -> {first, last}: the API's date window (see the file)
 _PRIORITY = {'Current Dollars': 0, 'Chained Dollars': 1}      # which metric's label names a concept
 
 
