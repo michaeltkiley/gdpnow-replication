@@ -179,6 +179,33 @@ def compare():
     # effective samples of regressions with a documented start
     for k in sorted(set(b.get('eff', {})) | set(f.get('eff', {}))):
         out('effective sample', k, 'base', b.get('eff', {}).get(k), 'full', f.get('eff', {}).get(k))
+    # series whose VALUES differ on dates both variants have (the first-date/count check below cannot see these), judged against the workbook
+    try:
+        import numpy as np
+        for t in ('q_hist', 'nominal', 'nipa'):
+            ob, of_, w = b['ours_tables'][t], f['ours_tables'][t], f['wb_tables'][t]
+            rows = []
+            for c in ob.columns:
+                if c not in of_.columns:
+                    continue
+                gb, gf = np_diff(ob[c].dropna()) if t != 'q_hist' else ob[c].dropna(), np_diff(of_[c].dropna()) if t != 'q_hist' else of_[c].dropna()
+                j = pd.concat([gb, gf], axis=1, keys=['b', 'f']).dropna()
+                if len(j) < 4 or (j.f - j.b).abs().max() < 1e-6:
+                    continue
+                gw = (np_diff(w[c].dropna()) if t != 'q_hist' else w[c].dropna()) if c in w.columns else None
+                if gw is not None:
+                    k = pd.concat([gb, gf, gw], axis=1, keys=['b', 'f', 'w']).dropna()
+                    mb, mf = float((k.b - k.w).abs().mean()), float((k.f - k.w).abs().mean())
+                    cb, cf = float(k.b.corr(k.w)), float(k.f.corr(k.w))
+                    rec = (f'vs workbook over {len(k)} dates: mean abs diff base {mb:.4f} full {mf:.4f}; corr base {cb:.4f} full {cf:.4f}')
+                else:
+                    rec = 'no workbook series'
+                rows.append((float((j.f - j.b).abs().max()), c, len(j), rec))
+            out('values differing at common dates in', t, ':', len(rows))
+            for mx, c, n, rec in sorted(rows, reverse=True)[:25]:
+                out('valuediff', t, c, 'max abs', f'{mx:.5f}', 'n', n, '|', rec)
+    except Exception as e:
+        out('valuediff error', repr(e)[:200])
     # input series coverage
     changed = []
     for t in b['series']:
