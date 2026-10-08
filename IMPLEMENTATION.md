@@ -314,7 +314,7 @@ GDPNow workbook (the prefix before each spliced series' public data begin, plus 
 cannot erase it. On the first weekday of each month (Central time) the workflow downloads the newest workbook, compares each stored
 growth with the same series' growth in it (absolute tolerance 1e-6; log or difference, whichever reproduces the stored rows), and opens a
 GitHub issue titled "Monthly splice check YYYY-MM: passed" or "failed", mentioning the owner, with the series, months and size of each
-change; also listed are any live-vs-workbook agreements below the 0.90 gate. A failed check fails the job (email). It is a maintenance
+change; also listed (informational, not a failure) are any live-vs-workbook agreements below the 0.90 gate, e.g. the ISM stand-ins. A failed check fails the job (email). It is a maintenance
 alert only: it does not hold the daily nowcast and does not refresh the stored history. Manual run: dispatch `splice-check`.
 
 **Vintage archive (`gdpnow/vintage.py`, branch `data`).** After each successful daily run the workflow records every input
