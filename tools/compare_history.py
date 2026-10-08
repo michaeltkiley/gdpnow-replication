@@ -45,8 +45,8 @@ def run():
     sh('01_ingest_workbook.py', '--date', vint)
     sh('08_published.py', '--date', vint)
     sh('02_build_public.py', '--asof', asof, '--last-price-month', lpm, '--ism', 'public', '--tag', tag)
-    sh('04_estimate.py', '--level', 'L3', '--asof', asof, '--tag', tag)
-    sh('05_nowcast.py', '--level', 'L3', '--asof', asof, '--tag', tag)
+    sh('04_estimate.py', '--level', 'L3', '--asof', asof, '--tag', tag, '--force')   # --force: the restored state already holds today's untagged L3 estimates
+    sh('05_nowcast.py', '--level', 'L3', '--asof', asof, '--tag', tag, '--force')
     stem = vint + tag
     run_id = f'L3_{stem}'
     con = store.connect()
