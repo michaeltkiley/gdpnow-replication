@@ -278,6 +278,9 @@ Every file source has the same contract: one download per file per run, each ser
 against FRED's over their full history before they replaced it (`tools/explore_apis.py`), and **no fallback**: a failed
 download or a missing series fails the run (the workflow emails the failure).
 
+**As-of date.** The run's date is the US Central date (`gdpnow/clock.py`), not the runner's UTC date: FRED rejects a real-time date after its own
+current date (HTTP 400), and GitHub can start the scheduled run hours late, past midnight UTC.
+
 **Daily change check (`gdpnow/probe.py`).** Before building, the daily run repeats the cheap signal of every request logged by the
 last production build and skips the build when none changed (and the code, config, month and last run are as before). The signal
 is chosen per source: BLS, BEA, Fed and file downloads whose server sends Last-Modified and an ETag are checked by a header-only
