@@ -16,6 +16,7 @@ probe. BEA answers any made-up file name with HTTP 200 and an HTML page (no Last
 import csv
 import io
 import tomllib
+from pathlib import Path
 import urllib.request
 
 import pandas as pd
@@ -32,7 +33,8 @@ _SER = tomllib.load(open(CONFIG / 'bea_series.toml', 'rb'))['series']
 MAP = {fid: (v[0], float(v[1])) for fid, v in _SER.items()}         # FRED id -> (BEA series code, divisor)
 _INDEX = {}                                                         # frequency -> {series code: [(period, value string)]}
 _MONTHLY = {}                                                       # BEA code -> Series, filled when NipaDataM is read in this process
-WINDOWS = tomllib.load(open(CONFIG / 'bea_windows.toml', 'rb'))     # table -> {first, last}: the API's date window (see the file)
+# table -> {first, last, full_lines}: the date window kept for the table (config/bea_windows.toml)
+WINDOWS = tomllib.load(open(CONFIG / 'bea_windows.toml', 'rb'))
 _PRIORITY = {'Current Dollars': 0, 'Chained Dollars': 1}      # which metric's label names a concept
 
 
@@ -129,8 +131,9 @@ def table(table_id, frequency):
         raise RuntimeError(f'BEA table {table_id} ({frequency}): no data in {FILES[frequency]}')
     df = pd.DataFrame(recs, columns=['series', 'date', 'value'])
     w = WINDOWS.get(table_id, {})
+    full = df.series.str.split('|').str[0].isin([str(x) for x in w.get('full_lines', [])])      # lines kept with their whole history
     if 'first' in w:
-        df = df[df.date >= pd.Period(w['first'], frequency).end_time.normalize()]
+        df = df[full | (df.date >= pd.Period(w['first'], frequency).end_time.normalize())]
     if 'last' in w:
         df = df[df.date <= pd.Period(w['last'], frequency).end_time.normalize()]
     return df

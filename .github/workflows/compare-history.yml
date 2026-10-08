@@ -13,6 +13,11 @@ jobs:
         variant: [base, full]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Base variant runs main's code and config (full runs the dispatched branch)
+        if: matrix.variant == 'base'
+        run: git checkout origin/main -- gdpnow scripts config
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -30,7 +35,6 @@ jobs:
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
           BLS_CONTACT: ${{ secrets.BLS_CONTACT }}
           GDPNOW_REFRESH: '1'
-          GDPNOW_FULL_HISTORY: ${{ matrix.variant == 'full' && '1' || '0' }}
           VARIANT: ${{ matrix.variant }}
         run: python tools/compare_history.py run
       - uses: actions/upload-artifact@v4
