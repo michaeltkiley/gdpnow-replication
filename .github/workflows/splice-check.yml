@@ -1,0 +1,65 @@
+name: splice-check
+
+on:
+  schedule:
+    - cron: '30 14 * * 1-5'    # every weekday; the guard step keeps only the first weekday of the month
+  workflow_dispatch:
+
+concurrency:
+  group: splice-check
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: First weekday of the month only (scheduled runs)
+        id: gate
+        run: |
+          d=$(TZ=America/Chicago date +%-d); w=$(TZ=America/Chicago date +%u)
+          go=false
+          [ "${{ github.event_name }}" = "workflow_dispatch" ] && go=true
+          [ "$d" = 1 ] && [ "$w" -le 5 ] && go=true        # the 1st, when it is a weekday
+          [ "$w" = 1 ] && [ "$d" -le 3 ] && go=true        # else the Monday that follows (the 2nd or 3rd)
+          echo "run=$go" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.run == 'true'
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          python-version: '3.12'
+          cache: pip
+      - if: steps.gate.outputs.run == 'true'
+        run: pip install -r requirements.txt
+      - name: Restore state (the stored borrowed history)
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: data/gdpnow.duckdb
+          key: state-none
+          restore-keys: state-
+      - name: Download the newest workbook and check
+        if: steps.gate.outputs.run == 'true'
+        id: check
+        continue-on-error: true
+        run: |
+          python scripts/01_ingest_workbook.py --date "$(TZ=America/Chicago date +%Y%m%d)"
+          python scripts/13_splice_check.py --out splice_check.md
+      - name: Open the month's issue (passed or failed)
+        if: steps.gate.outputs.run == 'true' && always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          m=$(TZ=America/Chicago date +%Y-%m)
+          if [ "${{ steps.check.outcome }}" = "success" ]; then res=passed; else res=failed; fi
+          [ -f splice_check.md ] || echo "The check did not produce a report (see the run log): ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > splice_check.md
+          { cat splice_check.md; echo; echo "@michaeltkiley"; echo; echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; } > body.md
+          gh issue create --title "Monthly splice check $m: $res" --body-file body.md
+      - name: Fail the job if the check failed (GitHub emails on failure)
+        if: steps.gate.outputs.run == 'true' && steps.check.outcome != 'success'
+        run: exit 1

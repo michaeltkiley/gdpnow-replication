@@ -91,6 +91,18 @@ def write_delta(delta, d, as_of):
     return str(path)
 
 
+def prefix_rows(con, seen_at):
+    """The borrowed history (growth rates of the spliced series taken from the GDPNow workbook, table hist_growth) as archive rows:
+    source 'workbook_prefix', series = series name. Archived so a lost cache cannot erase the reference the monthly splice check compares against."""
+    try:
+        df = con.execute("SELECT name AS series, date, growth AS value FROM hist_growth WHERE source LIKE 'workbook%'").fetchdf()
+    except Exception:                      # no splice store yet (first run)
+        return pd.DataFrame(columns=['source', 'series', 'date', 'value', 'seen_at'])
+    df.insert(0, 'source', 'workbook_prefix')
+    df['seen_at'] = seen_at
+    return df[['source', 'series', 'date', 'value', 'seen_at']]
+
+
 def archive(con, d):
     """Archive every run date in raw_pulls from the newest already archived onward (oldest first). Returns [(as_of, new, revised, removed)]; idempotent: a date whose values
     are already archived writes nothing."""
@@ -101,8 +113,11 @@ def archive(con, d):
     res = []
     done = [Path(f).stem.split('_')[0] for f in _files(d)]
     newest = max(done) if done else ''          # older run dates still in raw_pulls are already in the archive: skip them
-    for (as_of,) in con.execute('SELECT DISTINCT as_of FROM raw_pulls WHERE as_of >= ? ORDER BY 1', [newest]).fetchall():
+    dates = [r[0] for r in con.execute('SELECT DISTINCT as_of FROM raw_pulls WHERE as_of >= ? ORDER BY 1', [newest]).fetchall()]
+    for as_of in dates:
         today = con.execute('SELECT source, series, date, value, retrieved_at AS seen_at FROM raw_pulls WHERE as_of = ?', [as_of]).fetchdf()
+        if as_of == dates[-1]:             # the store holds only the current borrowed history: archive it with the newest run
+            today = pd.concat([today, prefix_rows(con, dt.datetime.now())], ignore_index=True)
         delta = compute_delta(today, d, as_of)
         if len(delta):
             write_delta(delta, d, as_of)

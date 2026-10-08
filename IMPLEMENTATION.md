@@ -308,6 +308,15 @@ request (Content-Length is ignored: BLS sends it intermittently); Census program
 sends no ETag and a Last-Modified that differs between its servers, by a digest of the content; FRED by a digest of the
 response. A probe replays about 60 small requests in a few seconds.
 
+**Monthly splice check (`gdpnow/splice_check.py`, `scripts/13_splice_check.py`, workflow `splice-check`).** The history borrowed from the
+GDPNow workbook (the prefix before each spliced series' public data begin, plus `SNOZ_USNAqtrExtrap` quarterly) is stored as growth rates
+(`hist_growth`, source `workbook:*`) and is also written to the vintage archive as source `workbook_prefix` (series = name), so a lost cache
+cannot erase it. On the first weekday of each month (Central time) the workflow downloads the newest workbook, compares each stored
+growth with the same series' growth in it (absolute tolerance 1e-6; log or difference, whichever reproduces the stored rows), and opens a
+GitHub issue titled "Monthly splice check YYYY-MM: passed" or "failed", mentioning the owner, with the series, months and size of each
+change; also listed are any live-vs-workbook agreements below the 0.90 gate. A failed check fails the job (email). It is a maintenance
+alert only: it does not hold the daily nowcast and does not refresh the stored history. Manual run: dispatch `splice-check`.
+
 **Vintage archive (`gdpnow/vintage.py`, branch `data`).** After each successful daily run the workflow records every input
 value the model read (FRED, the bulk files, IDS-0182, the AEI advance trade table) as it was first seen and each time it changed,
 so the inputs as they stood on any past day can be rebuilt. The archive is a directory of Parquet files,
@@ -332,7 +341,7 @@ only the stale check.
 | Path | Contents |
 |---|---|
 | `gdpnow/` | library: data builders (`public_*.py`, `ids0182.py`, `history.py`), source readers (`bls_flat.py`, `census_bulk.py`, `bea_bulk.py`, `bea_trade.py`, `bea_vehicles.py`, `fed_g17.py`), change check (`probe.py`), vintage archive (`vintage.py`), freshness check (`freshness.py`), estimation (`factor.py`, `faar.py`, `bridge.py`, `blend.py`, `bvar.py`, `estimate.py`, `inventory.py`, `trade_bvar.py`), assembly (`components.py`, `nowcast.py`, `aggregate.py`) |
-| `scripts/` | pipeline stages 01, 02, 04, 05, 06, 07, 12 (vintage archive; `archive_to_branch.sh` pushes it to `data`) |
+| `scripts/` | pipeline stages 01, 02, 04, 05, 06, 07, 12 (vintage archive; `archive_to_branch.sh` pushes it to `data`), 13 (monthly splice check) |
 | `config/` | `spec.toml` (documented constants), `bridges.toml`, `transforms.toml`, `public_series.toml`, and the per-source series maps `bls_series.toml`, `census_series.toml`, `bea_series.toml`, `bea_windows.toml`, `g17_series.toml`, `freshness.toml` (ignore list of the freshness check) |
 | `registry/` | `parameters.csv` (every non-data quantity), `inputs_used.csv`, `input_audit.csv` and `input_audit_all.csv` (public series vs workbook, per series), `workbook_history_prefix.csv` (DD4), `match_search.csv` |
 | `tools/` | `audit_inputs.py` (compare every public series with the workbook), `search_matches.py` (search all Census/BEA series for a match to a workbook series), workbook-audit utilities |
