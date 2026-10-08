@@ -15,7 +15,6 @@ probe. BEA answers any made-up file name with HTTP 200 and an HTML page (no Last
 """
 import csv
 import io
-import os
 import tomllib
 from pathlib import Path
 import urllib.request
@@ -34,12 +33,8 @@ _SER = tomllib.load(open(CONFIG / 'bea_series.toml', 'rb'))['series']
 MAP = {fid: (v[0], float(v[1])) for fid, v in _SER.items()}         # FRED id -> (BEA series code, divisor)
 _INDEX = {}                                                         # frequency -> {series code: [(period, value string)]}
 _MONTHLY = {}                                                       # BEA code -> Series, filled when NipaDataM is read in this process
-# table -> {first, last, full_lines}: the date window kept for the table (see the file). GDPNOW_LEGACY_HISTORY=1 (before/after comparison only)
-# restores the previous windows, which were the API's start dates for every table.
-_ROOT = Path(__file__).resolve().parents[1]
-_WIN_FILE = (_ROOT / os.environ['GDPNOW_WINDOWS_FILE'] if os.environ.get('GDPNOW_WINDOWS_FILE')
-             else _ROOT / 'tools' / 'legacy_bea_windows.toml' if os.environ.get('GDPNOW_LEGACY_HISTORY') == '1' else CONFIG / 'bea_windows.toml')
-WINDOWS = tomllib.load(open(_WIN_FILE, 'rb'))
+# table -> {first, last, full_lines}: the date window kept for the table (config/bea_windows.toml)
+WINDOWS = tomllib.load(open(CONFIG / 'bea_windows.toml', 'rb'))
 _PRIORITY = {'Current Dollars': 0, 'Chained Dollars': 1}      # which metric's label names a concept
 
 

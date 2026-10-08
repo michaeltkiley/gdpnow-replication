@@ -1,6 +1,7 @@
-"""Before/after exploration for 'full history from the current sources' (GDPNOW_FULL_HISTORY=1 drops the BEA table windows, the vehicle-totals start and
-the 1959 cut). `run` builds, estimates and nowcasts one variant on a copy of the restored state (tagged, nothing recorded); `compare` prints what differs.
-Prints lines prefixed 'X|'. Not part of the pipeline."""
+"""Before/after run of a change to the model's data or code (workflow compare-history, dispatched on the branch that holds the change). Two jobs build,
+estimate and nowcast on a copy of the restored state, nothing is recorded or cached: `base` with main's gdpnow/, scripts/ and config/, `full` with the
+branch's. `compare` prints what differs: nowcast and components, estimates, effective samples of regressions with a documented start, series whose
+first date or length differ, and the agreement of extended history with the GDPNow workbook. Lines are prefixed 'X|'. Not part of the pipeline."""
 import glob
 import os
 import pickle

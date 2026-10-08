@@ -1,6 +1,5 @@
 """L3: assemble the Inputs bundle from public data only (decisions D2, D3, D5). Data fields come from
 public_nipa / public_monthly; parameter fields are placeholders that stage 04 replaces with estimates."""
-import os
 import numpy as np
 import pandas as pd
 
@@ -51,10 +50,9 @@ def build(con, asof, last_price_month, ref_vintage='latest', ism='public'):
     panel['MICHIGAN'] = reg['michigan'].diff()
     panel = panel.loc['1967-02-28':]
     nipa = q['nipa']
-    if os.environ.get('GDPNOW_LEGACY_HISTORY') != '1':
-        # Other-industries real inventories: BEA's industry detail is NAICS-basis from 1996Q4 and its earlier history does not match GDPNow's, so the AR(4)
-        # of farm_other (documented start 1985Q1) reaches back through the GDPNow splice (DD4), as the other short series do.
-        nipa['SNOZ_USNAqtrExtrap'] = cx.splice_quarterly('SNOZ_USNAqtrExtrap', nipa['SNOZ_USNAqtrExtrap'], 'QtrlyGDPData')
+    # Other-industries real inventories: BEA's industry detail is NAICS-basis from 1996Q4 and its earlier history does not match GDPNow's, so the AR(4)
+    # of farm_other (documented start 1985Q1) reaches back through the GDPNow splice (DD4), as the other short series do.
+    nipa['SNOZ_USNAqtrExtrap'] = cx.splice_quarterly('SNOZ_USNAqtrExtrap', nipa['SNOZ_USNAqtrExtrap'], 'QtrlyGDPData')
     qp = q['prices']
     comp = lambda d, t: {k.replace('_USNAqtr', ''): v for k, v in d.loc[t].dropna().items()}
     inv_defl = nipa[['DSNMD_USNA', 'DSNMN_USNA', 'DSNWM_USNA', 'DSNWW_USNA', 'DSNRDV_USNA', 'priceRETINVexautoSplice']].copy()

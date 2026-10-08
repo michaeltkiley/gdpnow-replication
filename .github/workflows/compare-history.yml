@@ -10,15 +10,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - {variant: base, legacy: '1', windows: ''}
-          - {variant: full, legacy: '0', windows: ''}
-          - {variant: inv, legacy: '0', windows: 'tools/win_inv.toml'}
-          - {variant: noT31, legacy: '0', windows: 'tools/win_noT31.toml'}
-          - {variant: noT40, legacy: '0', windows: 'tools/win_noT40.toml'}
-          - {variant: noT70, legacy: '0', windows: 'tools/win_noT70.toml'}
+        variant: [base, full]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Base variant runs main's code and config (full runs the dispatched branch)
+        if: matrix.variant == 'base'
+        run: git checkout origin/main -- gdpnow scripts config
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -36,8 +35,6 @@ jobs:
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
           BLS_CONTACT: ${{ secrets.BLS_CONTACT }}
           GDPNOW_REFRESH: '1'
-          GDPNOW_LEGACY_HISTORY: ${{ matrix.legacy }}
-          GDPNOW_WINDOWS_FILE: ${{ matrix.windows }}
           VARIANT: ${{ matrix.variant }}
         run: python tools/compare_history.py run
       - uses: actions/upload-artifact@v4

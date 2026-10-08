@@ -5,7 +5,12 @@
 # retail inventories excluding motor-vehicle dealers and 0.59 for construction/mining/utilities/other, against 1.00 for farm and total inventories).
 # `full_lines` are kept with their whole history (verified against the workbook: total and farm inventories, farm deflator, correlation 1.00).
 # Earlier history for the series built from the windowed lines comes from the GDPNow splice (DD4), as for the other series.
+# T40205B (exports and imports of goods and services by type of product) keeps its 1999Q1 start: the monthly trade series are built by spreading this
+# quarterly detail over the monthly BEA IDS-0182 data, which begin in 1999, and a longer quarterly input changes those monthly series and the nowcast
+# (+0.03 pp, compare-history run 9, 2026-10-08) without a documented GDPNow window behind it.
 # `last` on T50809A ends the old SIC-basis table where the spliced inventory price switches to table T50809B. Periods: 'YYYYQn' quarterly, 'YYYY-MM' monthly.
+[T40205B]
+first = "1999Q1"
 [T50805B]
 first = "1996Q4"
 [T50806B]
