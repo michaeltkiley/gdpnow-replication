@@ -2432,6 +2432,26 @@ def fresh1():
     con.close()
 
 
+def align1():
+    """Scope of the start-date alignment, from the restored state: per series in the workbook-prefix list, months by source layer in hist_growth,
+    first live month, and the live-vs-workbook splice checks."""
+    import duckdb
+    import pandas as pd
+    con = duckdb.connect('data/gdpnow.duckdb', read_only=True)
+    names = pd.read_csv('registry/workbook_history_prefix.csv')
+    h = con.execute("SELECT name, CASE WHEN source LIKE 'workbook%' THEN 'workbook' ELSE source END AS src, count(*) n, min(date) lo, max(date) hi FROM hist_growth GROUP BY 1, 2").fetchdf()
+    out('A1', 'hist_growth names', h['name'].nunique(), 'sources', sorted(h['src'].unique()))
+    c = con.execute("SELECT name, layer, corr, n_overlap, accepted, as_of FROM hist_splice_checks QUALIFY row_number() OVER (PARTITION BY name, layer ORDER BY as_of DESC) = 1").fetchdf()
+    out('A1', 'splice checks', len(c))
+    for r in names.itertuples():
+        g = h[h['name'] == r.series]
+        parts = ' '.join(f"{x.src}:{x.n}[{str(x.lo)[:7]}..{str(x.hi)[:7]}]" for x in g.itertuples())
+        k = c[c['name'] == r.series]
+        ks = ' '.join(f"{x.layer}:corr={x.corr:.2f}/n={x.n_overlap}/{'ok' if x.accepted else 'rej'}" for x in k.itertuples() if x.corr == x.corr)
+        out('A1', r.series, 'prefix', r.prefix_months, 'public_start', r.public_data_start, '|', parts, '|', ks)
+    con.close()
+
+
 if __name__ == '__main__':
     which = sys.argv[1:] or ['inventory', 'fred', 'bea', 'census', 'bls']
     if 'inventory' not in which and any(w.endswith('2') or w in ('heads', 'fred4', 'blsmap') for w in which):
