@@ -1,0 +1,19 @@
+# exploration variant (compare-history)
+[T70203B]
+first = "1967Q1"
+[T70205B]
+first = "1967Q1"
+[T50805B]
+first = "1996Q4"
+[T50806B]
+first = "1996Q4"
+full_lines = [1, 2]
+[T50809A]
+last = "1997Q4"
+[T50809B]
+first = "1996Q4"
+full_lines = [1, 2]
+[U50705BM3]
+first = "1997-01"
+[U50706BM]
+first = "1997-01"

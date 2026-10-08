@@ -36,7 +36,9 @@ _INDEX = {}                                                         # frequency 
 _MONTHLY = {}                                                       # BEA code -> Series, filled when NipaDataM is read in this process
 # table -> {first, last, full_lines}: the date window kept for the table (see the file). GDPNOW_LEGACY_HISTORY=1 (before/after comparison only)
 # restores the previous windows, which were the API's start dates for every table.
-_WIN_FILE = Path(__file__).resolve().parents[1] / 'tools' / 'legacy_bea_windows.toml' if os.environ.get('GDPNOW_LEGACY_HISTORY') == '1' else CONFIG / 'bea_windows.toml'
+_ROOT = Path(__file__).resolve().parents[1]
+_WIN_FILE = (_ROOT / os.environ['GDPNOW_WINDOWS_FILE'] if os.environ.get('GDPNOW_WINDOWS_FILE')
+             else _ROOT / 'tools' / 'legacy_bea_windows.toml' if os.environ.get('GDPNOW_LEGACY_HISTORY') == '1' else CONFIG / 'bea_windows.toml')
 WINDOWS = tomllib.load(open(_WIN_FILE, 'rb'))
 _PRIORITY = {'Current Dollars': 0, 'Chained Dollars': 1}      # which metric's label names a concept
 

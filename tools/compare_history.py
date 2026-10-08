@@ -127,8 +127,23 @@ def run():
     out('RUN', variant, asof, 'GDP', res['agg'].get('GDP'))
 
 
+def variants_summary(b):
+    """One line per extra variant: nowcast and component contributions against base, and how many estimates moved."""
+    for path in sorted(glob.glob(str(DATA / '**/compare_*.pkl'), recursive=True)):
+        v = pickle.load(open(path, 'rb'))
+        if v['variant'] in ('base', 'full'):
+            continue
+        keys = [c for c in b['comps'].columns if c not in ('run_id', 'growth_pct', 'contribution')]
+        m = b['comps'].merge(v['comps'], on=keys, suffixes=('_b', '_v'))
+        d = ' '.join(f"{r.id}={r.contribution_v - r.contribution_b:+.4f}" for r in m.itertuples() if abs(r.contribution_v - r.contribution_b) > 5e-4)
+        dm = b['diag'].merge(v['diag'], on=['block', 'item', 'term'], how='outer', suffixes=('_b', '_v'))
+        n = int((pd.to_numeric(dm['ours_v'], errors='coerce') - pd.to_numeric(dm['ours_b'], errors='coerce')).abs().gt(1e-9).sum())
+        out('VARIANT', v['variant'], 'GDP', round(v['agg']['GDP'], 5), 'diff vs base', f"{v['agg']['GDP'] - b['agg']['GDP']:+.5f}", '| contributions moving >0.0005:', d, '| estimates changed', n)
+
+
 def compare():
     b = pickle.load(open(glob.glob(str(DATA / '**/compare_base.pkl'), recursive=True)[0], 'rb'))
+    variants_summary(b)
     f = pickle.load(open(glob.glob(str(DATA / '**/compare_full.pkl'), recursive=True)[0], 'rb'))
     out('asof', b['asof'], f['asof'])
     out('GDP nowcast base', b['agg']['GDP'], 'full', f['agg']['GDP'], 'diff', f['agg']['GDP'] - b['agg']['GDP'])

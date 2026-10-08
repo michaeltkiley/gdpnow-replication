@@ -10,7 +10,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [base, full]
+        include:
+          - {variant: base, legacy: '1', windows: ''}
+          - {variant: full, legacy: '0', windows: ''}
+          - {variant: inv, legacy: '0', windows: 'tools/win_inv.toml'}
+          - {variant: noT31, legacy: '0', windows: 'tools/win_noT31.toml'}
+          - {variant: noT40, legacy: '0', windows: 'tools/win_noT40.toml'}
+          - {variant: noT70, legacy: '0', windows: 'tools/win_noT70.toml'}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,7 +36,8 @@ jobs:
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
           BLS_CONTACT: ${{ secrets.BLS_CONTACT }}
           GDPNOW_REFRESH: '1'
-          GDPNOW_LEGACY_HISTORY: ${{ matrix.variant == 'base' && '1' || '0' }}
+          GDPNOW_LEGACY_HISTORY: ${{ matrix.legacy }}
+          GDPNOW_WINDOWS_FILE: ${{ matrix.windows }}
           VARIANT: ${{ matrix.variant }}
         run: python tools/compare_history.py run
       - uses: actions/upload-artifact@v4
