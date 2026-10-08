@@ -33,6 +33,37 @@ def info(df):
     return rows
 
 
+def snap(asof):
+    from gdpnow import store
+    con = store.connect()
+    df = con.execute('SELECT source, series, date, value FROM raw_pulls WHERE as_of = ?', [asof]).fetchdf()
+    con.close()
+    df['date'] = pd.to_datetime(df['date'])
+    return df
+
+
+def raw_diff(before, after):
+    """What the fresh pulls changed against the pulls in the restored state (taken when the production run of the day ran)."""
+    m = before.merge(after, on=['source', 'series', 'date'], how='outer', suffixes=('_0', '_1'), indicator=True)
+    both = m[m['_merge'] == 'both']
+    rel = (both['value_1'] - both['value_0']).abs() / both['value_0'].abs().clip(lower=1.0)
+    ch = both[rel > 1e-9].assign(rel=rel[rel > 1e-9])
+    out('RAWDIFF rows before', len(before), 'after', len(after), 'changed', len(ch), 'new', int((m['_merge'] == 'right_only').sum()), 'removed', int((m['_merge'] == 'left_only').sum()))
+    for src, g in m.groupby('source'):
+        n_ch = int(((g['_merge'] == 'both') & ((g['value_1'] - g['value_0']).abs() / g['value_0'].abs().clip(lower=1.0) > 1e-9)).sum())
+        n_new, n_rm = int((g['_merge'] == 'right_only').sum()), int((g['_merge'] == 'left_only').sum())
+        if n_ch or n_new or n_rm:
+            out('RAWDIFF source', src, 'changed', n_ch, 'new', n_new, 'removed', n_rm)
+    for (src, ser), g in ch.groupby(['source', 'series']):
+        out('RAWDIFF changed', src, ser, 'rows', len(g), 'max rel', f"{g['rel'].max():.4g}", 'first', str(g['date'].min())[:10], 'last', str(g['date'].max())[:10])
+    nw = m[m['_merge'] == 'right_only']
+    for (src, ser), g in nw.groupby(['source', 'series']):
+        out('RAWDIFF new', src, ser, 'rows', len(g), 'dates', str(g['date'].min())[:10], str(g['date'].max())[:10])
+    rm = m[m['_merge'] == 'left_only']
+    for (src, ser), g in rm.groupby(['source', 'series']):
+        out('RAWDIFF removed', src, ser, 'rows', len(g))
+
+
 def run():
     from gdpnow import clock, public_data, store
     variant = os.environ['VARIANT']
@@ -44,7 +75,9 @@ def run():
     tag = f'_{variant}'
     sh('01_ingest_workbook.py', '--date', vint)
     sh('08_published.py', '--date', vint)
+    before = snap(asof)
     sh('02_build_public.py', '--asof', asof, '--last-price-month', lpm, '--ism', 'public', '--tag', tag)
+    raw_diff(before, snap(asof))
     sh('04_estimate.py', '--level', 'L3', '--asof', asof, '--tag', tag, '--force')   # --force: the restored state already holds today's untagged L3 estimates
     sh('05_nowcast.py', '--level', 'L3', '--asof', asof, '--tag', tag, '--force')
     stem = vint + tag
