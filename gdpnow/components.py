@@ -247,7 +247,9 @@ def trade(kind, inp, mon):
     win = pd.date_range(mon.start, inp.T1, freq='ME')
     ex_g, im_g, c = mon.growth(s['exp']), mon.growth(s['imp']), mon.growth(s['contrib'])
     released = inp.growth[s['exp']].reindex(win).notna()
-    px, pm = inp.monthly_prices[s['pexp']], inp.monthly_prices[s['pimp']]
+    # Trade price series outside the monthly price BVAR panel stop at their last release. They enter only the nominal weights of the consistency adjustment for
+    # later unreleased months (not the real growth), which a one-month-ahead production quarter never needs; a chained next-quarter run does, so they are held flat.
+    px, pm = (inp.monthly_prices[s[k]].reindex(win).ffill() for k in ('pexp', 'pimp'))
     gdp = inp.monthly_prices['MGDPN_USECONsplicefr']
     nom_x = mon.level(s['exp']) * px
     nom_m = mon.level(s['imp']) * pm
