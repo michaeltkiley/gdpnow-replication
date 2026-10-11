@@ -308,6 +308,8 @@ request (Content-Length is ignored: BLS sends it intermittently); Census program
 sends no ETag and a Last-Modified that differs between its servers, by a digest of the content; FRED by a digest of the
 response. A probe replays about 60 small requests in a few seconds.
 
+**The page (`docs/index.html`).** Laid out like the GDPNow page and styled like the other trackers on michaeltkiley.github.io: a latest-estimate headline in GDPNow's wording (quarter, date, change since the previous run, and the published GDPNow figure), a "How this was tested" card linking to `report.html` (the L1/L2/L3 test on the Atlanta Fed's own data), the evolution of the estimate for a chosen quarter (replication against published GDPNow, direct end labels, crosshair tooltip, table view), contributions to the estimate by six spending categories over the quarter's runs (colors validated for colour-vision deficiency in light and dark; table view of all 13 components), the next-quarter card while it applies, and the breakdown of what moved the estimate. Charts size to the screen and redraw on resize; a missing GDPNow value shows as a dash.
+
 **Next quarter (chained; `gdpnow/chain.py`, stage 05 `--emit-pseudo`, stage 02 `--pseudo`, stage 09 `--next`).** While the production quarter has ended but BEA has
 not yet published its advance estimate (the production quarter's last day is before the as-of date), the daily run also nowcasts the following quarter:
 the production nowcast is entered as if it were the published estimate (one pseudo-actual row for the production quarter in each quarterly table: levels,
