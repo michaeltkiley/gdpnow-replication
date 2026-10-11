@@ -133,6 +133,10 @@ BLOCK_CORE = {'dur': ['IPMDG', 'LADURGA', 'RealNMSDG', 'NAPMII', 'NAPMC'],
               'mv': ['IAU', 'Autos'], 'nonmerch': ['IPMFG', 'LAWTRDA', 'RealNMSDG', 'RealNMSNG', 'RealNWSH', 'RealNRSXM']}
 
 
+class InsufficientSample(ValueError):
+    """The core BVAR has too few complete months to be estimated (residual degrees of freedom of its AR(p) prior scale <= 0)."""
+
+
 def core_forecast(raw, T1, lam, lags, use_ism=True):
     """Core BVAR (6 lags, from 1983, documented lambda) with conditional forecasts through T1 given every
     core value already released."""
@@ -141,6 +145,8 @@ def core_forecast(raw, T1, lam, lags, use_ism=True):
     complete = core.dropna().index.max()
     hist = core.loc[:complete].dropna()
     Y = hist.to_numpy()
+    if len(Y) <= 2 * lags + 1:
+        raise InsufficientSample(f'core BVAR: {len(Y)} complete months for {lags} lags')
     B = bvar.fit(Y, lags, lam, np.zeros(Y.shape[1]), sum_coef=False)
     future = pd.date_range(complete + pd.offsets.MonthEnd(1), T1, freq='ME')
     known = core.reindex(future).to_numpy()
@@ -254,6 +260,18 @@ def mask_like(df, T1, q):
     return out
 
 
+def check_leading_gap(model):
+    """The quarters without a monthly-model value must be a block at the start of the history (monthly data too short); a gap later is an error.
+    Prints the block once."""
+    na = model.isna()
+    first_ok = int(np.argmax(~na.to_numpy())) if (~na).any() else len(na)
+    if na.iloc[first_ok:].any():
+        raise RuntimeError(f'inventory model history has missing quarters after its first value: {list(model.index[na].to_period("Q").astype(str))}')
+    if first_ok:
+        print(f'inventory blend history: no monthly-model value for the first {first_ok} quarters '
+              f'({model.index[0]:%Y-%m} to {model.index[first_ok - 1]:%Y-%m}); the weight regression starts {model.index[first_ok]:%Y-%m}')
+
+
 def inventory_blend(inp, monthly_prices, bvar_hist_v):
     """Blend weight for inventories (P05; WP eq. 19; Mods Jan-2023): restricted WLS on the contribution of
     the change in real CIPI, monthly model rebuilt for each past quarter with the nowcast quarter's data
@@ -271,9 +289,10 @@ def inventory_blend(inp, monthly_prices, bvar_hist_v):
             q_inp = dataclasses.replace(q_inp, nipa=nipa.loc[:q], **est)
             _, out = C.inventories(q_inp)
             model[q] = out['cipi_monthly_model']
-        except Exception:
+        except InsufficientSample:           # the monthly data are too short to estimate the model in the earliest quarters; any other error fails the run
             model[q] = np.nan
     model = pd.Series(model)
+    check_leading_gap(model)
     gdp_prev = nipa['GDPZ_USNA'].shift(1) / 1000
     prev = nipa['VZ_USNA'].shift(1) / 1000
     contrib = lambda c: (c - prev) / gdp_prev
