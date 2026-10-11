@@ -32,7 +32,10 @@ def main():
     if cur.empty:
         sys.exit(f'{a.asof} not in history.csv: run stage 09 first')
     q = cur['quarter'].iloc[0]
-    prev = a.prev or (hist[(hist['asof'] < a.asof) & (hist['quarter'] == q)]['asof'].max() if len(hist[(hist['asof'] < a.asof) & (hist['quarter'] == q)]) else None)
+    # The previous run is the latest earlier one of the same quarter that was actually estimated: a day with no new data is carried forward (flagged
+    # `unchanged`) and has no estimates to compare with.
+    earlier = hist[(hist['asof'] < a.asof) & (hist['quarter'] == q) & (hist['unchanged'].astype(str).str.lower() != 'true')]
+    prev = a.prev or (earlier['asof'].max() if len(earlier) else None)
     if not prev or pd.isna(prev):
         print(f'{a.asof}: first run of {q}, nothing to compare with')
         return
