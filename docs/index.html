@@ -71,7 +71,7 @@
   .caption { font-size: 12.5px; color: var(--ink-muted); }
   .sub { color: var(--ink-muted); font-size: 12.5px; margin: 6px 0; }
 
-  .top { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 22px; align-items: stretch; }
+  .top { display: block; }
   .headline .lead { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-muted); }
   .headline .big { font-family: "Newsreader", Georgia, serif; font-weight: 500; font-size: clamp(44px, 7vw, 64px); line-height: 1.05; letter-spacing: -0.02em; }
   .headline .big small { font-size: 0.38em; font-weight: 400; letter-spacing: 0; color: var(--ink-secondary); margin-left: 6px; }
@@ -107,6 +107,7 @@
   .pos { color: var(--series-rep); } .neg { color: var(--series-gdpnow); }
   #tip { position: fixed; pointer-events: none; background: var(--surface-card); color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: 5px 9px; font-size: 12px; display: none; z-index: 9; box-shadow: var(--shadow); line-height: 1.45; }
   .methodology { display: flex; flex-direction: column; gap: 8px; padding: 18px 0 0; border-top: 1px solid var(--rule); font-size: 12.5px; line-height: 1.65; color: var(--ink-muted); }
+  .methodology .disclaimer { font-style: italic; }
   .methodology b { color: var(--ink-secondary); font-weight: 600; }
   body.embed .site-nav, body.embed .masthead, body.embed .methodology { display: none; }
   body.embed .page { padding: 8px; }
@@ -143,11 +144,6 @@
 
   <section class="top">
     <div class="card headline" id="headline"><p class="lead">Loading…</p></div>
-    <aside class="card about" id="about">
-      <h2>How this was tested</h2>
-      <p>Before it ran daily, the code was tested on the Atlanta Fed's own data (the 3 October 2026 workbook). Given GDPNow's inputs and parameters, it reproduces the published nowcast to 1.5&times;10<sup>&minus;7</sup> percentage point, with all 13 components and contributions matching. The report then re-estimates every parameter and rebuilds the data from public sources, and shows where each gap comes from.</p>
-      <p>Details of the testing, and of the method, code and data behind the tracker, are available on request.</p>
-    </aside>
   </section>
 
   <div id="nextq"></div>
@@ -190,6 +186,8 @@
   <footer class="methodology">
     <p><b>About.</b> The Real GDP Tracker is an independent replication of the Atlanta Fed's GDPNow model and is not affiliated with the Federal Reserve Bank of Atlanta; GDPNow is the Atlanta Fed's model, and the published GDPNow figures shown here are read from the workbook it posts. The replication re-estimates the model's parameters each day from public data (BEA, Census, BLS, Federal Reserve Board and others); it does not use the Atlanta Fed's data or parameters except in the test that checks the code.</p>
     <p>The quarter after the one being estimated appears while the latest quarter has ended but BEA has not published its advance estimate; no GDPNow figure exists for it.</p>
+    <p><b>How this was tested.</b> Before it ran daily, the code was tested on the Atlanta Fed&rsquo;s own data (the 3 October 2026 workbook). Given GDPNow&rsquo;s inputs and parameters, it reproduces the published nowcast to 1.5&times;10<sup>&minus;7</sup> percentage point, with all 13 components and contributions matching. The test then re-estimates every parameter and rebuilds the data from public sources, and shows where each gap comes from. Details of the testing, and of the method, code and data behind the tracker, are available on request.</p>
+    <p class="disclaimer">For informational purposes only. This is the author&rsquo;s own estimate. All downloads and calculations are the author&rsquo;s own and may contain errors &mdash; don&rsquo;t rely on this for decisions or conclusions. Verify independently with your own data and calculations before using it for any purpose. The analysis and views presented are the author&rsquo;s own and do not reflect the views of any institution with which he is affiliated.</p>
   </footer>
 </div>
 <div id="tip"></div>
