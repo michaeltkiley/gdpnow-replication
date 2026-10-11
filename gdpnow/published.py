@@ -57,8 +57,12 @@ def read_published(path):
                 v = r[j]
                 if isinstance(v, (int, float)):
                     out.append((d.date().isoformat(), kind, key, float(v)))
+    if quarter is None:
+        raise ValueError('quarter label not found in the TrackingHistory/ContribHistory sheets: the workbook layout changed')
     df = pd.DataFrame(out, columns=['date', 'kind', 'key', 'value'])
     # TrackingHistory's 'Change in inventory investment' row is in $bn; contributions are only used from ContribHistory.
     df = df[~((df.kind == 'growth') & (df.key == 'V'))]
     df['quarter'] = quarter
-    return df.drop_duplicates(['date', 'kind', 'key'], keep='last')
+    df = df.drop_duplicates(['date', 'kind', 'key'], keep='last')
+    df.attrs['quarter'] = quarter
+    return df

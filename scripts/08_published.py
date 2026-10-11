@@ -23,6 +23,9 @@ def main():
     if not path.exists():
         sys.exit(f'{path.name} not found: run 01_ingest_workbook.py --date {a.date} first')
     df = published.read_published(path)
+    if df.empty:     # the Atlanta Fed rolled the workbook to a new quarter and has not posted a nowcast for it yet: nothing to store, not an error
+        print(f'{path.name}: no published nowcast dates in the tracking sheets (quarter {df.attrs.get("quarter")}); GDPNow benchmark stays as stored')
+        return
     q = df.quarter.iloc[0]
     con = store.connect()
     if store.table_exists(con, 'gdpnow_published') and not a.force:

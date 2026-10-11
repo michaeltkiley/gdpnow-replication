@@ -47,7 +47,7 @@ body.embed h1,body.embed .sub,body.embed footer{display:none}body.embed main{pad
 <div id="tip"></div>
 </main>
 <script>
-const $=id=>document.getElementById(id), f2=x=>x==null||isNaN(x)?'–':(+x).toFixed(2), sg=x=>(x>=0?'+':'')+(+x).toFixed(3);
+const $=id=>document.getElementById(id), miss=x=>x==null||x===''||isNaN(x), f2=x=>miss(x)?'–':(+x).toFixed(2), sg=x=>miss(x)?'–':(x>=0?'+':'')+(+x).toFixed(3);
 if(location.search.includes('embed=1'))document.body.classList.add('embed');
 const tip=$('tip');
 function hover(el,txt){el.addEventListener('mousemove',e=>{tip.textContent=txt;tip.style.display='block';tip.style.left=e.clientX+12+'px';tip.style.top=e.clientY+12+'px'});el.addEventListener('mouseleave',()=>tip.style.display='none')}
@@ -66,7 +66,7 @@ let H=[];
   if(!H.length){$('hero').textContent='No runs yet.';return}
   const L=H[H.length-1];
   $('hero').innerHTML=`<div class="tile"><b>${f2(L.nowcast)}%</b><span>This replication, ${L.quarter} (SAAR), as of ${L.asof}</span></div>
-   <div class="tile"><b>${f2(L.gdpnow)}%</b><span>Published GDPNow, ${L.gdpnow_date}</span></div>
+   <div class="tile"><b>${miss(L.gdpnow)?'–':f2(L.gdpnow)+'%'}</b><span>${miss(L.gdpnow)?'GDPNow has not published '+L.quarter+' yet':'Published GDPNow, '+L.gdpnow_date}</span></div>
    <div class="tile"><b>${sg(L.diff)}</b><span>Difference (pp)</span></div>`;
   const qs=[...new Set(H.map(r=>r.quarter))];
   $('qsel').innerHTML=qs.map(q=>`<option>${q}</option>`).join('');$('qsel').value=L.quarter;
@@ -79,14 +79,14 @@ function drawHist(){
   const q=$('qsel').value,R=H.filter(r=>r.quarter==q),s=$('hist');s.innerHTML='';
   const d=r=>new Date(r.asof).getTime(),W=720,Ht=280,m={l:48,r:20,t:14,b:30};
   const pts=[['nowcast',s=>s.nowcast,'var(--s1)','asof'],['gdpnow',s=>s.gdpnow,'var(--s2)','gdpnow_date']];
-  const ys=R.flatMap(r=>[+r.nowcast,+r.gdpnow]).filter(v=>!isNaN(v));
+  const ys=R.flatMap(r=>[r.nowcast,r.gdpnow]).filter(v=>!miss(v)).map(Number);
   const lo=Math.floor(Math.min(...ys)-.3),hi=Math.ceil(Math.max(...ys)+.3);
   const xs=R.map(d),x0=Math.min(...xs),x1=Math.max(...xs,x0+864e5);
   const X=t=>m.l+(t-x0)/(x1-x0)*(W-m.l-m.r),Y=v=>Ht-m.b-(v-lo)/(hi-lo)*(Ht-m.t-m.b);
   for(let v=lo;v<=hi;v+=(hi-lo>6?2:1)){NS('line',{x1:m.l,x2:W-m.r,y1:Y(v),y2:Y(v),class:'grid'},s);NS('text',{x:m.l-6,y:Y(v)+4,'text-anchor':'end'},s).textContent=v}
   const nt=Math.min(R.length,6);for(let i=0;i<nt;i++){const r=R[Math.round(i*(R.length-1)/Math.max(nt-1,1))];NS('text',{x:X(d(r)),y:Ht-10,'text-anchor':'middle'},s).textContent=r.asof.slice(5)}
   [['nowcast','var(--s1)'],['gdpnow','var(--s2)']].forEach(([k,c])=>{
-    const P=R.map(r=>[X(d(r)),Y(+r[k]),r]);
+    const P=R.filter(r=>!miss(r[k])).map(r=>[X(d(r)),Y(+r[k]),r]);
     if(P.length>1)NS('polyline',{points:P.map(p=>p.slice(0,2).join(',')).join(' '),fill:'none',stroke:c,'stroke-width':2,'stroke-linejoin':'round'},s);
     P.forEach(([x,y,r])=>{NS('circle',{cx:x,cy:y,r:4,fill:c,stroke:'var(--surface)','stroke-width':2},s);
       const h=NS('circle',{cx:x,cy:y,r:10,fill:'transparent'},s);hover(h,`${k=='nowcast'?'Replication':'GDPNow'}, ${r.asof}: ${f2(r[k])}`)})});
@@ -98,7 +98,7 @@ function drawHist(){
 
 function drawComp(L){
   $('comp').innerHTML='<tr><th>Component</th><th class="num">Replication contrib. (pp)</th><th class="num">GDPNow contrib. (pp)</th><th class="num">Difference</th><th class="num">Replication growth (%)</th></tr>'+
-  KEYS.map(k=>{const a=+L['c_'+k],g=+L['cd_'+k];return `<tr><td>${LABEL[k]}</td><td class="num">${f2(a)}</td><td class="num">${f2(g)}</td><td class="num">${sg(a-g)}</td><td class="num">${k=='V'?'–':f2(L['g_'+k])}</td></tr>`}).join('');
+  KEYS.map(k=>{const num=v=>miss(v)?NaN:+v,a=num(L['c_'+k]),g=num(L['cd_'+k]);return `<tr><td>${LABEL[k]}</td><td class="num">${f2(a)}</td><td class="num">${f2(g)}</td><td class="num">${sg(a-g)}</td><td class="num">${k=='V'?'–':f2(L['g_'+k])}</td></tr>`}).join('');
 }
 
 async function showRun(a){
