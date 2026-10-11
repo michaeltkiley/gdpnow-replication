@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GDPNow Replication — Michael T. Kiley</title>
-<meta name="description" content="An independent re-implementation of the Atlanta Fed's GDPNow model, re-estimated daily from public data.">
+<title>Real GDP Tracker — Michael T. Kiley</title>
+<meta name="description" content="A daily nowcast of U.S. real GDP growth: an independent re-implementation of the Atlanta Fed's GDPNow model, re-estimated from public data.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Michael T. Kiley">
-<meta property="og:title" content="GDPNow Replication">
-<meta property="og:description" content="An independent re-implementation of the Atlanta Fed's GDPNow model, re-estimated daily from public data.">
+<meta property="og:title" content="Real GDP Tracker">
+<meta property="og:description" content="A daily nowcast of U.S. real GDP growth: an independent re-implementation of the Atlanta Fed's GDPNow model, re-estimated from public data.">
 <meta property="og:url" content="https://michaeltkiley.github.io/gdpnow-replication/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -127,7 +127,7 @@
       <a href="https://michaeltkiley.github.io/equilibrium_rate/">Equilibrium Real Interest Rate (r*)</a>
       <a href="https://michaeltkiley.github.io/resource_utilization/">Resource Utilization and Risk</a>
       <a href="https://michaeltkiley.github.io/termprem/">Yield Curve Tracker</a>
-      <a href="https://michaeltkiley.github.io/gdpnow-replication/" class="active">GDPNow</a>
+      <a href="https://michaeltkiley.github.io/gdpnow-replication/" class="active">Real GDP</a>
     </nav>
   </div>
 </div>
@@ -135,8 +135,8 @@
 <div class="page">
   <header class="masthead">
     <p class="eyebrow">U.S. Real GDP Growth Nowcast</p>
-    <h1>GDPNow Replication</h1>
-    <p class="subtitle">An independent re-implementation of the Atlanta Fed's GDPNow model, re-estimated every day from public data and compared with the published GDPNow estimate.</p>
+    <h1>Real GDP Tracker</h1>
+    <p class="subtitle">A daily nowcast of U.S. real GDP growth: an independent re-implementation of the Atlanta Fed's GDPNow model, re-estimated every day from public data and compared with the published GDPNow estimate.</p>
     <p class="asof" id="asof">Loading…</p>
   </header>
   <div id="banner" class="banner" style="display:none"></div>
@@ -193,7 +193,7 @@
   </section>
 
   <footer class="methodology">
-    <p><b>About.</b> This page is an independent replication and is not affiliated with the Federal Reserve Bank of Atlanta; GDPNow is the Atlanta Fed's model, and the published GDPNow figures shown here are read from the workbook it posts. The replication re-estimates the model's parameters each day from public data (BEA, Census, BLS, Federal Reserve Board and others); it does not use the Atlanta Fed's data or parameters except in the test that checks the code.</p>
+    <p><b>About.</b> The Real GDP Tracker is an independent replication of the Atlanta Fed's GDPNow model and is not affiliated with the Federal Reserve Bank of Atlanta; GDPNow is the Atlanta Fed's model, and the published GDPNow figures shown here are read from the workbook it posts. The replication re-estimates the model's parameters each day from public data (BEA, Census, BLS, Federal Reserve Board and others); it does not use the Atlanta Fed's data or parameters except in the test that checks the code.</p>
     <p>The quarter after the one being estimated appears while the latest quarter has ended but BEA has not published its advance estimate; no GDPNow figure exists for it. See the <a href="report.html">report</a> and the <a href="https://github.com/michaeltkiley/gdpnow-replication/blob/main/IMPLEMENTATION.md">implementation notes</a>. Embed: <code>&lt;iframe src="https://michaeltkiley.github.io/gdpnow-replication/?embed=1" width="100%" height="1400"&gt;</code>. Data files in <a href="data/">data/</a>.</p>
   </footer>
 </div>
