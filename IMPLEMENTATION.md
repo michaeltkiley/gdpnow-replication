@@ -70,7 +70,7 @@ python scripts/02_build_public.py --asof YYYY-MM-DD --last-price-month YYYY-MM  
 python scripts/04_estimate.py --level L3 --asof YYYY-MM-DD                        # estimate all parameters
 python scripts/05_nowcast.py --level L3 --asof YYYY-MM-DD                         # nowcast + contributions
 python scripts/06_verify.py --run L3_YYYYMMDD                                    # compare with published values
-python scripts/07_site.py                                                         # HTML report -> docs/report.html
+python scripts/07_site.py                                                         # local HTML report -> report_local/ (not deployed)
 ```
 
 * Each stage skips work that is already done; `--force` redoes it. A full L3 run takes about ten minutes.
@@ -308,7 +308,7 @@ request (Content-Length is ignored: BLS sends it intermittently); Census program
 sends no ETag and a Last-Modified that differs between its servers, by a digest of the content; FRED by a digest of the
 response. A probe replays about 60 small requests in a few seconds.
 
-**The page (`docs/index.html`).** Laid out like the GDPNow page and styled like the other trackers on michaeltkiley.github.io: a latest-estimate headline in GDPNow's wording (quarter, date, change since the previous run, and the published GDPNow figure), a "How this was tested" card linking to `report.html` (the L1/L2/L3 test on the Atlanta Fed's own data), the evolution of the estimate for a chosen quarter (replication against published GDPNow, direct end labels, crosshair tooltip, table view), contributions to the estimate by six spending categories over the quarter's runs (colors validated for colour-vision deficiency in light and dark; table view of all 13 components), the next-quarter card while it applies, and the breakdown of what moved the estimate. Charts size to the screen and redraw on resize; a missing GDPNow value shows as a dash.
+**The page (`docs/index.html`).** Laid out like the GDPNow page and styled like the other trackers on michaeltkiley.github.io: a latest-estimate headline in GDPNow's wording (quarter, date, change since the previous run, and the published GDPNow figure), a "How this was tested" note at the foot (the L1/L2/L3 test on the Atlanta Fed's own data; no links, details on request) followed by the author's disclaimer, the evolution of the estimate for a chosen quarter (replication against published GDPNow, direct end labels, crosshair tooltip, table view), contributions to the estimate by six spending categories over the quarter's runs (colors validated for colour-vision deficiency in light and dark; table view of all 13 components), the next-quarter card while it applies, and the breakdown of what moved the estimate. Charts size to the screen and redraw on resize; a missing GDPNow value shows as a dash.
 
 **Next quarter (chained; `gdpnow/chain.py`, stage 05 `--emit-pseudo`, stage 02 `--pseudo`, stage 09 `--next`).** While the production quarter has ended but BEA has
 not yet published its advance estimate (the production quarter's last day is before the as-of date), the daily run also nowcasts the following quarter:
@@ -379,7 +379,6 @@ only the stale check.
 | `config/` | `spec.toml` (documented constants), `bridges.toml`, `transforms.toml`, `public_series.toml`, and the per-source series maps `bls_series.toml`, `census_series.toml`, `bea_series.toml`, `bea_windows.toml`, `g17_series.toml`, `freshness.toml` (ignore list of the freshness check) |
 | `registry/` | `parameters.csv` (every non-data quantity), `inputs_used.csv`, `input_audit.csv` and `input_audit_all.csv` (public series vs workbook, per series), `workbook_history_prefix.csv` (DD4), `match_search.csv` |
 | `tools/` | `audit_inputs.py` (compare every public series with the workbook), `search_matches.py` (search all Census/BEA series for a match to a workbook series), workbook-audit utilities |
-| `docs/report.html` | generated replication report |
 | `docs/index.html` | live dashboard (static; reads `docs/data/`) |
 | `DESIGN.md` | chronological development notes (background; superseded by this guide where they differ) |
 

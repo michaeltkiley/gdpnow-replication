@@ -1,4 +1,4 @@
-"""Stage 07: write the replication report as a static HTML site (docs/report.html, GitHub Pages ready).
+"""Stage 07: write the replication report as a static HTML site (report_local/report.html; local only, not deployed).
 
 Reads stored results (DuckDB), diagnostics CSVs and the L3 estimates; no model is re-estimated here.
 Usage: python scripts/07_site.py [--l3 L3_20261001] [--l2 L2_20261003] [--l1 L1_20261003]
@@ -278,7 +278,7 @@ def main():
     ap.add_argument('--l3', default='L3_20261001')
     a = ap.parse_args()
     body = build(a)
-    out = ROOT / 'docs'
+    out = ROOT / 'report_local'
     out.mkdir(exist_ok=True)
     page = (f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>GDPNow Replication</title><style>{CSS}</style></head><body><main>{body}</main></body></html>')
