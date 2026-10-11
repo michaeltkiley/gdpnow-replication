@@ -84,4 +84,4 @@ jobs:
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
           BLS_CONTACT: ${{ secrets.BLS_CONTACT }}
           GDPNOW_REFRESH: '1'
-        run: CHAIN_STAGES=c0,c3 python tools/chain_check.py
+        run: CHAIN_STAGES=c0,c3,c1 python tools/chain_check.py
