@@ -330,7 +330,7 @@ automatically.
 **Vintage archive (`gdpnow/vintage.py`, branch `data`).** After each successful daily run the workflow records every input
 value the model read (FRED, the bulk files, IDS-0182, the AEI advance trade table) as it was first seen and each time it changed,
 so the inputs as they stood on any past day can be rebuilt. The archive is a directory of Parquet files,
-`deltas/<as_of>_<timestamp>.parquet` (source, series, date, value, prior_value, seen_at, as_of), on the orphan `data` branch; the
+`deltas/<as_of>_<UTC write time>.parquet` (source, series, date, value, prior_value, seen_at, as_of), on the orphan `data` branch; the
 first file is the whole baseline, later files hold only new or revised observations (relative tolerance 1e-9) plus a row with a NULL
 value for each date that disappeared from a series pulled that day; unchanged days write nothing. The state on a day is the newest
 row per (source, series, date) among the files up to that day (`tools/vintage_asof.py`, or DuckDB over `deltas/*.parquet`). The step

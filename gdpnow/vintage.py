@@ -5,7 +5,7 @@ sources overwrite their history when they revise (no vintages, unlike ALFRED). T
 observation when it was first seen and every time its value changed, so the data as it stood on any past day can be rebuilt.
 
 Layout (a directory, in production the `data` branch of the repository):
-    deltas/<as_of>_<write timestamp>.parquet   columns: source, series, date, value, prior_value, seen_at, as_of
+    deltas/<as_of>_<UTC write time YYYYMMDDHHMMSSffffff>.parquet   columns: source, series, date, value, prior_value, seen_at, as_of
     README.md
 A delta file holds the observations that are new or revised since the archive's current state (prior_value NULL = new), plus a row
 with value NULL for each date that disappeared from a series pulled that day. The first file is therefore the whole baseline.
@@ -22,7 +22,7 @@ README = """# Vintage archive
 
 Every raw input value the GDPNow replication reads, recorded when first seen and each time it changed (forward from the first file).
 
-`deltas/<as_of>_<timestamp>.parquet`: source, series, date (observation), value, prior_value (NULL = new observation), seen_at
+`deltas/<as_of>_<UTC write time YYYYMMDDHHMMSSffffff>.parquet`: source, series, date (observation), value, prior_value (NULL = new observation), seen_at
 (when the pipeline retrieved it), as_of (the run date). A row with value NULL marks a date that disappeared from a series.
 The state on a day is the newest row per (source, series, date) among the files up to that day. Written by `scripts/12_archive.py`;
 read with `tools/vintage_asof.py` or DuckDB: `SELECT * FROM read_parquet('deltas/*.parquet')`.
@@ -84,7 +84,7 @@ def write_delta(delta, d, as_of):
     """Write a delta to `d`/deltas; returns the path."""
     p = Path(d) / 'deltas'
     p.mkdir(parents=True, exist_ok=True)
-    path = p / f'{as_of}_{dt.datetime.now(dt.timezone.utc).strftime("%H%M%S%f")}.parquet'
+    path = p / f'{as_of}_{dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d%H%M%S%f")}.parquet'
     db = duckdb.connect()
     db.register('x', delta)
     db.execute(f"COPY (SELECT * FROM x ORDER BY source, series, date) TO '{path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
