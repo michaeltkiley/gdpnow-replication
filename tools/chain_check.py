@@ -2,8 +2,8 @@
 that archive) it runs:
   c0  production: nowcast for T1 (the model as run daily), also writing the pseudo-actual rows for T1
   c3  chained: the same data with c0's rows entered as T1's estimate, nowcasting T1 + 1
-  c1  plumbing: data truncated one quarter back, the published values of T (restricted to chain.COLUMNS) entered; must reproduce c0 exactly
-  c2a/c2b  chain error: data truncated two quarters back, the model's own nowcast of T entered; compared with c0.
+  c1  plumbing: data truncated one quarter back, the published values of T (restricted to chain.COLUMNS) entered; must reproduce c0 exactly.
+Env CHAIN_STAGES (default 'c0,c3,c1') limits the run.
 Lines are prefixed 'X|'."""
 import os
 import pickle
@@ -53,8 +53,38 @@ def compare(name, a, b):
         out(f'  {name} {i:4s} growth {a["comps"].growth_pct[i]:9.4f} vs {b["comps"].growth_pct[i]:9.4f} contrib {a["comps"].contribution[i]:8.4f} vs {b["comps"].contribution[i]:8.4f}')
 
 
+def diagnose(vint, tag):
+    """Which inputs of the trade and inventory blocks are missing in a run (X| lines)."""
+    from gdpnow import components as C, params, store
+    con = store.connect()
+    base = pickle.load(open(DATA / f'{vint}{tag}_public_inputs.pkl', 'rb'))['bundle'][0]
+    inp = params.overlay(con, f'L3_{vint}{tag}', base)
+    con.close()
+    out('diag T', str(inp.T)[:10], 'T1', str(inp.T1)[:10])
+    mon = C.Monthly(inp, inp.growth, inp.levels, inp.faar)
+    for kind, s in C.TRADE.items():
+        for k in ('exp', 'imp', 'contrib'):
+            g = mon.growth(s[k]).tail(8)
+            out(f'diag {kind} growth {s[k]}:', {str(i)[:7]: (None if pd.isna(v) else round(float(v), 2)) for i, v in g.items()})
+        for k in ('pexp', 'pimp'):
+            out(f'diag {kind} price {s[k]}:', {str(i)[:7]: (None if pd.isna(v) else round(float(v), 2)) for i, v in inp.monthly_prices[s[k]].tail(6).items()})
+        out(f'diag {kind} blend', inp.blend[s['blend']], 'bvar', inp.bvar[s['bx']], inp.bvar[s['bm']])
+    out('diag MGDP', {str(i)[:7]: (None if pd.isna(v) else round(float(v), 1)) for i, v in inp.monthly_prices['MGDPN_USECONsplicefr'].tail(6).items()})
+    out('diag inventories: blend PTVH', inp.blend['PTVH'], 'bvar VZ', inp.bvar['VZ'])
+    for d in C.CENSUS_INV + C.REAL_PATH_INV:
+        cp = inp.cipi_paths[d['cipi']]
+        out(f'diag cipi_path {d["cipi"]}:', {str(i)[:7]: (None if pd.isna(v) else round(float(v), 1)) for i, v in cp.items()})
+    out('diag inv_deflators tail', inp.inv_deflators.tail(2).round(2).to_dict('records'))
+    try:
+        cipi, o = C.inventories(inp)
+        out('diag cipi', cipi, {k: v for k, v in o.items() if isinstance(v, (int, float))})
+    except Exception as e:
+        out('diag inventories raised', repr(e))
+
+
 def main():
     from gdpnow import chain, clock, public_data, store
+    stages = os.environ.get('CHAIN_STAGES', 'c0,c3,c1').split(',')
     asof = clock.today().isoformat()
     vint = asof.replace('-', '')
     con = store.connect()
@@ -69,6 +99,9 @@ def main():
     out('c3 chained: T', str(c3['T'])[:10], 'T1', str(c3['T1'])[:10], 'GDP', c3['gdp'])
     for i, r in c3['comps'].iterrows():
         out(f'  c3 {i:4s} growth {r.growth_pct:9.4f} contribution {r.contribution:8.4f}')
+    diagnose(vint, '_c3')
+    if 'c1' not in stages:
+        return
     # plumbing: the published values of T entered into data truncated at T - 1q
     inp, panel, act, qprices = pickle.load(open(DATA / f'{vint}_c0_public_inputs.pkl', 'rb'))['bundle']
     frames = {'nipa': inp.nipa, 'nominal': inp.nominal, 'q_hist': inp.q_hist, 'prices': qprices, 'actual': act}
@@ -78,15 +111,6 @@ def main():
     Tm = T - pd.offsets.QuarterEnd(1)
     c1 = stage(asof, vint, lpm, '_c1', ['--truncate-to', str(Tm.date()), '--pseudo', str(p1)])
     compare('c1 plumbing (true values of T entered)', c1, c0)
-    # chain error: nowcast of T made on data truncated at T - 1q, entered, then nowcast T1
-    Tm2 = Tm
-    c2a = stage(asof, vint, lpm, '_c2a', ['--truncate-to', str(Tm2.date())], emit=True)
-    out('c2a model nowcast of T on data through T-1q: GDP', c2a['gdp'], 'T1', str(c2a['T1'])[:10])
-    c2b = stage(asof, vint, lpm, '_c2b', ['--truncate-to', str(Tm2.date()), '--pseudo', str(DATA / f'{vint}_c2a_pseudo.pkl')])
-    compare('c2 chain error (own nowcast of T entered)', c2b, c0)
-    out('actual vs nowcast growth of T, % SAAR: see c2a comps below')
-    for i, r in c2a['comps'].iterrows():
-        out(f'  c2a {i:4s} growth {r.growth_pct:9.4f}')
 
 
 if __name__ == '__main__':
