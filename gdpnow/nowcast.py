@@ -7,8 +7,9 @@ from .aggregate import aggregate
 BRIDGE_IDS = ['FNEZ', 'FNPZ', 'FNSZ', 'FRZ', 'GFZ', 'GSZ']
 
 
-def run(inp):
-    """Returns (components DataFrame, aggregates dict, intermediates DataFrame)."""
+def run(inp, details=None):
+    """Returns (components DataFrame, aggregates dict, intermediates DataFrame). `details` (a dict, optional) receives each block's raw output
+    dict (bridge components by id, inventories as 'INV'), which includes values the intermediates table leaves out (arrays)."""
     mon = C.Monthly(inp, inp.growth, inp.levels, inp.faar)
     growth, rows = {}, []
 
@@ -20,6 +21,8 @@ def run(inp):
     for cid in BRIDGE_IDS:
         growth[cid[:-1]], out = C.bridge_component(cid, inp, mon)
         keep(cid, out)
+        if details is not None:
+            details[cid] = out
         rows.append((cid, 'total', growth[cid[:-1]]))
     (growth['CTG'], growth['CS']), out = C.consumption(inp, mon)
     for k, v in zip(['core_retail', 'new_mv', 'used_mv', 'gasoline'], out['goods_q']):
@@ -37,6 +40,8 @@ def run(inp):
         rows += [(f'TRADE_{kind}', 'exports', growth[x]), (f'TRADE_{kind}', 'imports', growth[mm])]
     cipi, out = C.inventories(inp)
     keep('INV', out)
+    if details is not None:
+        details['INV'] = out
     rows.append(('INV', 'cipi', cipi))
     comps, agg = aggregate(inp, growth, cipi)
     return comps, agg, pd.DataFrame(rows, columns=['block', 'key', 'value'])

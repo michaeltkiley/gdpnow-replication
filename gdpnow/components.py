@@ -318,12 +318,12 @@ def inventories(inp):
         real = {q: 100 * np.mean([cipi[t] for t in q_months(q)]) / p[i + 1] for i, q in enumerate([T, T1])}
         s0 = nipa[d['stock']][Q0] / 1000
         s = [s0, s0 + real[T] / 4, s0 + real[T] / 4 + real[T1] / 4]
-        stocks.append(s); prices.append(p); out[f'inv:{d["stock"]}'] = s
+        stocks.append(s); prices.append(p); out[f'inv:{d["stock"]}'] = s; out[f'invp:{d["stock"]}'] = p
     for d in REAL_PATH_INV:
         s1 = nipa[d['stock']][T] / 1000
         s = [nipa[d['stock']][Q0] / 1000, s1, s1 + inp.cipi_paths[d['cipi']].reindex(q_months(T1)).sum() / 12 / 1000]
         p = [nipa[d['price']][Q0], nipa[d['price']][T], inp.inv_deflators[d['price']][T1]]
-        stocks.append(s); prices.append(p); out[f'inv:{d["stock"]}'] = s
+        stocks.append(s); prices.append(p); out[f'inv:{d["stock"]}'] = s; out[f'invp:{d["stock"]}'] = p
     for d in AR_INV:
         lvl = nipa[d['stock']]
         g = 400 * np.log(lvl / lvl.shift(1))
@@ -332,7 +332,7 @@ def inventories(inp):
         pr = nipa[d['price']]
         p2 = pr[T] * np.exp(np.log(pr[T] / pr[T - pd.offsets.QuarterEnd(12)]) / 12)   # 12-quarter average growth
         s = [lvl[Q0] / 1000, lvl[T] / 1000, lvl[T] / 1000 * np.exp(g1 / 400)]
-        stocks.append(s); prices.append([pr[Q0], pr[T], p2]); out[f'inv:{d["stock"]}'] = s
+        stocks.append(s); prices.append([pr[Q0], pr[T], p2]); out[f'inv:{d["stock"]}'] = s; out[f'invp:{d["stock"]}'] = [pr[Q0], pr[T], p2]
     S, P = np.array(stocks), np.array(prices) / 100
     fisher = lambda a, b: np.sqrt((S[:, b] @ P[:, b] / (S[:, a] @ P[:, b])) * (S[:, b] @ P[:, a] / (S[:, a] @ P[:, a])))
     total0 = nipa['SZ_USNA'][Q0] / 1000
@@ -340,6 +340,7 @@ def inventories(inp):
     total2 = total1 * fisher(1, 2)
     cipi_model = 4 * (total2 - total1)
     w1, w2 = inp.blend['PTVH']
+    out['inv_total'] = [total0, total1, total2]
     out.update({'cipi_monthly_model': cipi_model, 'cipi_bvar': inp.bvar['VZ'] / 1000, 'w_monthly': w1, 'w_bvar': w2})
     return w1 * cipi_model + w2 * inp.bvar['VZ'] / 1000, out
 

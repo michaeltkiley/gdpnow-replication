@@ -3,7 +3,7 @@ public_nipa / public_monthly; parameter fields are placeholders that stage 04 re
 import numpy as np
 import pandas as pd
 
-from . import estimate, public_monthly as PM, public_nipa as PN
+from . import chain, estimate, public_monthly as PM, public_nipa as PN
 from .config import load_toml
 from .inputs import Inputs, FIELD_REGISTRY
 
@@ -19,13 +19,20 @@ def transform(levels):
     return pd.DataFrame(out).replace([np.inf, -np.inf], np.nan)
 
 
-def build(con, asof, last_price_month, ref_vintage='latest', ism='public'):
-    """Returns (Inputs with public data, factor panel, actual component growth, quarterly deflators)."""
+def build(con, asof, last_price_month, ref_vintage='latest', ism='public', pseudo=None, truncate_to=None):
+    """Returns (Inputs with public data, factor panel, actual component growth, quarterly deflators).
+
+    `pseudo` (rows from gdpnow.chain) enters the production quarter's nowcast as the latest actual quarter, so the bundle nowcasts the quarter after it;
+    `truncate_to` (a quarter-end date) first drops later quarters from the quarterly tables (tests of that machinery)."""
     from . import store
     if ref_vintage == 'latest':
         ref_vintage = store.latest_vintage(con) if store.table_exists(con, 'wb_vintage') else None
     cx = PM.Ctx(con, asof, ref_vintage, ism)
     q = PN.build(con, asof)
+    if truncate_to is not None:
+        q = chain.truncate(q, pd.Timestamp(truncate_to))
+    if pseudo is not None:
+        q = chain.extend(q, pseudo)
     T = q['nipa']['GDPZ_USNA'].dropna().index.max()
     T1 = T + pd.offsets.QuarterEnd(1)
     prices = PM.build_prices(cx)
