@@ -308,6 +308,14 @@ request (Content-Length is ignored: BLS sends it intermittently); Census program
 sends no ETag and a Last-Modified that differs between its servers, by a digest of the content; FRED by a digest of the
 response. A probe replays about 60 small requests in a few seconds.
 
+**Quarter rollover.** The replication's target quarter is the quarter after the latest quarter with real GDP in BEA's bulk NIPA file, so it rolls
+over on the day BEA publishes the advance estimate (the daily rebuild sees the BEA change). GDPNow's quarter is whatever its workbook's tracking
+sheets are labelled with, and it rolls on its own schedule; the two can differ for a day or more. Neither order may stop a run or mislead the page:
+GDPNow rows for the target quarter that do not exist yet leave the benchmark and the difference blank (the page shows a dash and says GDPNow has
+not published that quarter); a workbook rolled to a new quarter with no dated nowcast yet is skipped by stage 08 with a log line; the L1 integrity
+check (our code on the workbook's inputs) is compared with GDPNow's published value for the quarter the L1 run itself nowcasts, never with ours;
+and the day-to-day jump check compares only runs of the same quarter. The first run of a quarter has no decomposition.
+
 **Monthly splice check (`gdpnow/splice_check.py`, `scripts/13_splice_check.py`, workflow `splice-check`).** The history borrowed from the
 GDPNow workbook (the prefix before each spliced series' public data begin, plus `SNOZ_USNAqtrExtrap` quarterly) is stored as growth rates
 (`hist_growth`, source `workbook:*`) and is also written to the vintage archive as source `workbook_prefix` (series = name), so a lost cache

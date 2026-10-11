@@ -32,11 +32,22 @@ def published_on(con, quarter, asof):
     return d, {k: dict(zip(g.key, g.value)) for k, g in x.groupby('kind')}
 
 
+def l1_integrity(con, vintage):
+    """The L1 run (our code on the workbook's own inputs) and GDPNow's latest published GDP growth for the quarter that run nowcasts, as
+    ((l1 gdp,) or None, published or None). The L1 quarter is the workbook's quarter, which differs from the replication's target quarter
+    whenever GDPNow and BEA roll over on different days; comparing across quarters would be meaningless."""
+    l1 = con.execute('SELECT gdp, T1 FROM runs WHERE run_id = ?', [f'L1_{vintage}']).fetchone()
+    if l1 is None:
+        return None, None
+    t1 = pd.Timestamp(l1[1])
+    pub = published_on(con, f'{t1.year}Q{(t1.month - 1) // 3 + 1}', '9999-12-31')[1].get('growth', {}).get('GDP')
+    return (l1[0],), pub
+
+
 def benchmark(con, quarter, asof, gdp, vintage):
     """GDPNow's published numbers as of `asof` and the L1 integrity line, as (gdpnow, integrity, row fields)."""
     pdate, pub = published_on(con, quarter, asof)
-    l1 = con.execute('SELECT gdp FROM runs WHERE run_id = ?', [f'L1_{vintage}']).fetchone()
-    l1_pub = published_on(con, quarter, '9999-12-31')[1].get('growth', {}).get('GDP') if l1 else None
+    l1, l1_pub = l1_integrity(con, vintage)
     gdpnow = {'date': pdate, 'gdp': pub.get('growth', {}).get('GDP'),
               'growth': {k: pub.get('growth', {}).get(k) for k in KEYS},
               'contribution': {k: pub.get('contribution', {}).get(k) for k in KEYS + ['V']}} if pdate else None
@@ -47,8 +58,8 @@ def benchmark(con, quarter, asof, gdp, vintage):
     row['diff'] = (gdp - row['gdpnow']) if row['gdpnow'] is not None else None
     if pdate:
         for k in KEYS:
-            row[f'gd_{k}'], row[f'cd_{k}'] = pub['growth'].get(k), pub['contribution'].get(k)
-        row['cd_V'] = pub['contribution'].get('V')
+            row[f'gd_{k}'], row[f'cd_{k}'] = pub.get('growth', {}).get(k), pub.get('contribution', {}).get(k)
+        row['cd_V'] = pub.get('contribution', {}).get('V')
     return gdpnow, integrity, row
 
 
@@ -97,8 +108,7 @@ def main():
     agg = dict(con.execute('SELECT key, value FROM nowcast_aggregates WHERE run_id = ?', [run_id]).fetchall())
     pdate, pub = published_on(con, quarter, asof)
     vintage = a.vintage or store.latest_vintage(con)
-    l1 = con.execute('SELECT gdp FROM runs WHERE run_id = ?', [f'L1_{vintage}']).fetchone()
-    l1_pub = published_on(con, quarter, '9999-12-31')[1].get('growth', {}).get('GDP') if l1 else None
+    l1, l1_pub = l1_integrity(con, vintage)
     rec = {
         'asof': asof, 'quarter': quarter, 'last_actual_quarter': str(T),
         'nowcast': {'gdp': gdp, 'aggregates': agg,
@@ -122,8 +132,8 @@ def main():
         row[f'g_{r.id}'], row[f'c_{r.id}'] = r.growth_pct, r.contribution
     if pdate:
         for k in KEYS:
-            row[f'gd_{k}'], row[f'cd_{k}'] = pub['growth'].get(k), pub['contribution'].get(k)
-        row['cd_V'] = pub['contribution'].get('V')
+            row[f'gd_{k}'], row[f'cd_{k}'] = pub.get('growth', {}).get(k), pub.get('contribution', {}).get(k)
+        row['cd_V'] = pub.get('contribution', {}).get('V')
     hist = OUT / 'history.csv'
     df = pd.read_csv(hist) if hist.exists() else pd.DataFrame(columns=['asof'])
     df = pd.concat([df[df['asof'] != asof], pd.DataFrame([row])], ignore_index=True).sort_values('asof')
