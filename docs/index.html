@@ -146,12 +146,7 @@
     <aside class="card about" id="about">
       <h2>How this was tested</h2>
       <p>Before it ran daily, the code was tested on the Atlanta Fed's own data (the 3 October 2026 workbook). Given GDPNow's inputs and parameters, it reproduces the published nowcast to 1.5&times;10<sup>&minus;7</sup> percentage point, with all 13 components and contributions matching. The report then re-estimates every parameter and rebuilds the data from public sources, and shows where each gap comes from.</p>
-      <a class="btn" href="report.html">Test and replication report &rarr;</a>
-      <ul>
-        <li><a href="https://github.com/michaeltkiley/gdpnow-replication">Code and documentation</a> (GitHub)</li>
-        <li><a href="https://github.com/michaeltkiley/gdpnow-replication/blob/main/DESIGN.md">Design decisions</a></li>
-        <li><a href="data/history.csv">Daily history (CSV)</a></li>
-      </ul>
+      <p>Details of the testing, and of the method, code and data behind the tracker, are available on request.</p>
     </aside>
   </section>
 
@@ -194,7 +189,7 @@
 
   <footer class="methodology">
     <p><b>About.</b> The Real GDP Tracker is an independent replication of the Atlanta Fed's GDPNow model and is not affiliated with the Federal Reserve Bank of Atlanta; GDPNow is the Atlanta Fed's model, and the published GDPNow figures shown here are read from the workbook it posts. The replication re-estimates the model's parameters each day from public data (BEA, Census, BLS, Federal Reserve Board and others); it does not use the Atlanta Fed's data or parameters except in the test that checks the code.</p>
-    <p>The quarter after the one being estimated appears while the latest quarter has ended but BEA has not published its advance estimate; no GDPNow figure exists for it. See the <a href="report.html">report</a> and the <a href="https://github.com/michaeltkiley/gdpnow-replication/blob/main/IMPLEMENTATION.md">implementation notes</a>. Embed: <code>&lt;iframe src="https://michaeltkiley.github.io/gdpnow-replication/?embed=1" width="100%" height="1400"&gt;</code>. Data files in <a href="data/">data/</a>.</p>
+    <p>The quarter after the one being estimated appears while the latest quarter has ended but BEA has not published its advance estimate; no GDPNow figure exists for it.</p>
   </footer>
 </div>
 <div id="tip"></div>

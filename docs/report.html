@@ -75,5 +75,5 @@ python scripts/04_estimate.py --level L3 --asof 2026-10-01
 python scripts/05_nowcast.py --level L3 --asof 2026-10-01 &amp;&amp; python scripts/06_verify.py --run L3_20261001
 python scripts/07_site.py</code></pre></details>
 <p>For production use, run stages 02–05 with today's date: <code>--asof</code> defaults to today and every pull is archived with its retrieval date. API keys (FRED, BEA, Census) go in <code>.env</code>.
-Design decisions, the audit of the workbook, and every deviation are in <a href="https://github.com/michaeltkiley/gdpnow-replication/blob/main/DESIGN.md">DESIGN.md</a> in the repository.</p>
+Design decisions, the audit of the workbook, and every deviation are in the design notes (available on request).</p>
 <p class="sub">Sources: Higgins (2014), FRBA Working Paper 2014-7; “Modifications to GDPNow Model” (FRBA, 2017–2025); GDPNow model workbook (not redistributed: contains Haver Analytics data).</p></main></body></html>
