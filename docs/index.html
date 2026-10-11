@@ -211,6 +211,7 @@ if (location.search.includes('embed=1')) document.body.classList.add('embed');
 
 const QN = ['first', 'second', 'third', 'fourth'];
 const qname = q => `${QN[+q[5] - 1]} quarter of ${q.slice(0, 4)}`;
+const qshort = q => `Q${q[5]} ${q.slice(0, 4)}`;
 const fd = s => new Date(s + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 const fs = s => new Date(s + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
@@ -262,15 +263,15 @@ function renderHeadline(L) {
   if (P) { const d = +L.nowcast - +P.nowcast; move = Math.abs(d) < 0.005 ? `, unchanged from ${fd(P.asof)}` : `, ${d > 0 ? 'up' : 'down'} from ${f2(P.nowcast)} percent on ${fd(P.asof)}`; }
   const gn = miss(L.gdpnow) ? null : +L.gdpnow;
   $('headline').innerHTML = `
-    <p class="lead">Latest estimate</p>
+    <p class="lead">${qshort(L.quarter)} &middot; latest estimate</p>
     <div class="big">${f2(L.nowcast)}<small>percent</small></div>
-    <div class="when">${fd(L.asof)}</div>
-    <p class="lede">The replication's model estimate for real GDP growth (seasonally adjusted annual rate) in the ${qname(L.quarter)} is ${f2(L.nowcast)} percent on ${fd(L.asof)}${move}.
-      ${gn == null ? `GDPNow has not published an estimate for this quarter yet.` : `The Atlanta Fed's published GDPNow estimate is ${f2(gn)} percent (${fd(L.gdpnow_date)}).`}</p>
+    <div class="when">Real GDP growth, ${qname(L.quarter)} (seasonally adjusted annual rate), as of ${fd(L.asof)}</div>
+    <p class="lede">The replication's model estimate for real GDP growth in the ${qname(L.quarter)} is ${f2(L.nowcast)} percent${move}.
+      ${gn == null ? `GDPNow has not published an estimate for this quarter yet.` : `The Atlanta Fed's published GDPNow estimate for the same quarter is ${f2(gn)} percent (${fd(L.gdpnow_date)}).`}</p>
     <div class="tiles">
-      <div class="tile"><b>${f2(L.nowcast)}%</b><span>This replication</span></div>
-      <div class="tile"><b>${gn == null ? '–' : f2(gn) + '%'}</b><span>${gn == null ? 'GDPNow: not yet published' : 'Published GDPNow, ' + fs(L.gdpnow_date)}</span></div>
-      <div class="tile"><b>${sg2(L.diff)}</b><span>Difference (pp)</span></div>
+      <div class="tile"><b>${f2(L.nowcast)}%</b><span>${qshort(L.quarter)}: this replication</span></div>
+      <div class="tile"><b>${gn == null ? '–' : f2(gn) + '%'}</b><span>${gn == null ? qshort(L.quarter) + ': GDPNow not yet published' : qshort(L.quarter) + ': published GDPNow, ' + fs(L.gdpnow_date)}</span></div>
+      <div class="tile"><b>${sg2(L.diff)}</b><span>${qshort(L.quarter)}: difference (pp)</span></div>
     </div>`;
 }
 
@@ -279,12 +280,11 @@ function showNext(L) {
   const n = NX.slice().sort((a, b) => a.asof < b.asof ? -1 : 1).pop();
   if (!n || n.asof !== L.asof) return;       // shown only while the production quarter has ended and BEA has not published it
   el.innerHTML = `<section class="card">
-    <div class="head"><h2>Next quarter: ${qname(n.quarter)} <span class="caption">experimental</span></h2><span class="caption">as of ${fd(n.asof)}</span></div>
-    <div class="tiles" style="grid-template-columns:repeat(2,minmax(0,1fr));max-width:520px;margin-top:4px">
-      <div class="tile"><b>${f2(n.nowcast)}%</b><span>This replication, ${n.quarter}</span></div>
-      <div class="tile"><b>${f2(n.production_nowcast)}%</b><span>${n.production_quarter}, awaiting BEA's first estimate</span></div></div>
-    <p class="sub">GDPNow publishes no figure for the ${qname(n.quarter)} until BEA's advance estimate for the ${qname(n.production_quarter)}. This runs the model one quarter ahead, entering the replication's own ${n.production_quarter} nowcast as if it were the published estimate, so it carries that nowcast's error.${n.unchanged == 'true' ? ' No new data since the last run.' : ''}</p>
-    <details><summary>By component</summary><div class="tablewrap"><table><tr><th>Component</th><th class="num">Contribution (pp)</th><th class="num">Growth (%)</th></tr>` +
+    <div class="head"><h2>Next quarter: ${qshort(n.quarter)} <span class="caption">experimental</span></h2><span class="caption">as of ${fd(n.asof)}</span></div>
+    <div class="tiles" style="grid-template-columns:minmax(0,1fr);max-width:300px;margin-top:4px">
+      <div class="tile"><b>${f2(n.nowcast)}%</b><span>${qshort(n.quarter)} real GDP growth: this replication</span></div></div>
+    <p class="sub">The ${qshort(n.production_quarter)} estimate above is still waiting for BEA's first estimate, and GDPNow publishes nothing for ${qshort(n.quarter)} until then. This figure runs the model one quarter ahead, entering the ${qshort(n.production_quarter)} estimate (${f2(n.production_nowcast)}%) as if it were the published number, so it carries that estimate's error.${n.unchanged == 'true' ? ' No new data since the last run.' : ''}</p>
+    <details><summary>${qshort(n.quarter)} by component</summary><div class="tablewrap"><table><tr><th>Component</th><th class="num">Contribution (pp)</th><th class="num">Growth (%)</th></tr>` +
     KEYS.map(k => `<tr><td>${LABEL[k]}</td><td class="num">${f2(n['c_' + k])}</td><td class="num">${k == 'V' ? '–' : f2(n['g_' + k])}</td></tr>`).join('') + `</table></div></details></section>`;
 }
 
@@ -369,6 +369,7 @@ async function showRun(a) {
   const el = $('chg'); el.innerHTML = '';
   let D; try { D = await j(`data/decomp/${a}.json`); } catch (e) { el.innerHTML = '<p class="sub">No breakdown for this run (no new data since the last run, first run of a quarter, or no earlier run to compare to).</p>'; return; }
   const h = D.layer1.headline, dr = D.layer1.drivers;
+  if (Math.abs(h.delta) < 0.0005 && !(D.data_changes || []).length) { el.innerHTML = `<p>${fd(D.previous)} → ${fd(a)}: no new data, so the estimate is unchanged at <b>${f2(h.to)}</b> percent.</p>`; return; }
   el.innerHTML = `<p>${fd(D.previous)} → ${fd(a)}: <b>${f2(h.from_)}</b> → <b>${f2(h.to)}</b> percent (<b class="${h.delta >= 0 ? 'pos' : 'neg'}">${sg(h.delta)} pp</b>). Contributions of each model piece, in GDP growth points; they sum to the change.</p><svg id="drv" class="chart" role="img" aria-label="Contribution of each model piece to the change in the estimate"></svg><div id="l2"></div><h3>Data released since the previous run</h3><div class="tablewrap"><table id="rel"></table></div><h3>By component</h3><div id="cmp"></div>`;
   const rows = dr.filter(x => Math.abs(x.pp) >= 0.001).slice(0, 12), rh = 24, Ht = rows.length * rh + 30, s = $('drv');
   const W = wOf(s), lx = Math.min(260, Math.round(W * 0.46)), half = (W - lx - 16) / 2, cx = lx + 10 + half;
