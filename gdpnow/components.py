@@ -241,15 +241,32 @@ TRADE = {
 }
 
 
+TRADE_PRICE_EXT = 'trend'     # 'trend' (default) or 'flat'; the choice is compared in tools/chain_check.py
+
+
+def extend_price(series, win):
+    """Monthly trade price over `win`, continued after its last release at its mean monthly log change of the last six months ('flat': held). These series are
+    outside the monthly price BVAR panel and stop at their last release. They enter only the nominal weights of the consistency adjustment for later
+    unreleased months (not the real growth), which a one-month-ahead production quarter never needs; a chained next-quarter run, with four unreleased
+    months, does."""
+    s = series.reindex(win)
+    last = s.last_valid_index()
+    if last is None or last == win[-1]:
+        return s
+    lg = np.log(s.dropna())
+    g = (lg.iloc[-1] - lg.iloc[-7]) / 6 if TRADE_PRICE_EXT == 'trend' and len(lg) > 6 else 0.0
+    for t in win[win > last]:
+        s[t] = s[t - pd.offsets.MonthEnd(1)] * np.exp(g)
+    return s
+
+
 def trade(kind, inp, mon):
     """Real exports and imports (Higgins 2014 step 5, eqs. 9-13). Returns ((exports, imports), out)."""
     s = TRADE[kind]
     win = pd.date_range(mon.start, inp.T1, freq='ME')
     ex_g, im_g, c = mon.growth(s['exp']), mon.growth(s['imp']), mon.growth(s['contrib'])
     released = inp.growth[s['exp']].reindex(win).notna()
-    # Trade price series outside the monthly price BVAR panel stop at their last release. They enter only the nominal weights of the consistency adjustment for
-    # later unreleased months (not the real growth), which a one-month-ahead production quarter never needs; a chained next-quarter run does, so they are held flat.
-    px, pm = (inp.monthly_prices[s[k]].reindex(win).ffill() for k in ('pexp', 'pimp'))
+    px, pm = (extend_price(inp.monthly_prices[s[k]], win) for k in ('pexp', 'pimp'))
     gdp = inp.monthly_prices['MGDPN_USECONsplicefr']
     nom_x = mon.level(s['exp']) * px
     nom_m = mon.level(s['imp']) * pm

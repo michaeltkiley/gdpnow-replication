@@ -75,6 +75,16 @@ def diagnose(vint, tag):
         cp = inp.cipi_paths[d['cipi']]
         out(f'diag cipi_path {d["cipi"]}:', {str(i)[:7]: (None if pd.isna(v) else round(float(v), 1)) for i, v in cp.items()})
     out('diag inv_deflators tail', inp.inv_deflators.tail(2).round(2).to_dict('records'))
+    from gdpnow import nowcast
+    res = {}
+    for ext in ('trend', 'flat'):
+        C.TRADE_PRICE_EXT = ext
+        comps, agg, _ = nowcast.run(inp)
+        res[ext] = (comps.set_index('id'), agg['GDP'])
+        out(f'diag trade price extension {ext}: GDP {agg["GDP"]:.5f}', {i: round(float(r.growth_pct), 3) for i, r in res[ext][0].iterrows() if i in ('XM', 'XS', 'MM', 'MS')})
+    C.TRADE_PRICE_EXT = 'trend'
+    out(f'diag trend minus flat: GDP {res["trend"][1] - res["flat"][1]:+.5f}, components',
+        {i: round(float(res['trend'][0].growth_pct[i] - res['flat'][0].growth_pct[i]), 4) for i in ('XM', 'XS', 'MM', 'MS')})
     try:
         cipi, o = C.inventories(inp)
         out('diag cipi', cipi, {k: v for k, v in o.items() if isinstance(v, (int, float))})
