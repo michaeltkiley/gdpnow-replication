@@ -1,7 +1,6 @@
 {
- "asof": "2026-10-09",
- "ok": true,
- "message": "no new data: nowcast unchanged",
- "finished": "2026-10-10T01:03:55+00:00",
- "unchanged": true
+ "asof": "2026-10-11",
+ "ok": false,
+ "message": "run failed: Command '['/opt/hostedtoolcache/Python/3.12.15/x64/bin/python', '/home/runner/work/gdpnow-replication/gdpnow-replication/scripts/10_decompose.py', '--asof', '2026-10-11', '--force']' returned non-zero exit status 1.",
+ "finished": "2026-10-11T21:13:31+00:00"
 }
