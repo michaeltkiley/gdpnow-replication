@@ -266,13 +266,19 @@ def inventory_blend(inp, monthly_prices, bvar_hist_v):
         raw_q = mask_like(inp.inv_raw, T1, q)
         q_inp = dataclasses.replace(inp, T=q - pd.offsets.QuarterEnd(1), T1=q, inv_raw=raw_q,
                                     nipa=nipa.loc[:q - pd.offsets.QuarterEnd(1)])
-        try:
-            est, _ = estimate(q_inp, monthly_prices.loc[:q])
-            q_inp = dataclasses.replace(q_inp, nipa=nipa.loc[:q], **est)
-            _, out = C.inventories(q_inp)
-            model[q] = out['cipi_monthly_model']
-        except Exception:
-            model[q] = np.nan
+        import warnings   # DIAGNOSTIC (temporary)
+        with warnings.catch_warnings(record=True) as wl:
+            warnings.simplefilter('always')
+            try:
+                est, _ = estimate(q_inp, monthly_prices.loc[:q])
+                q_inp = dataclasses.replace(q_inp, nipa=nipa.loc[:q], **est)
+                _, out = C.inventories(q_inp)
+                model[q] = out['cipi_monthly_model']
+            except Exception as e:
+                print(f'X|INVMODEL fail {q.date()} {type(e).__name__}: {str(e)[:120]}', flush=True)
+                model[q] = np.nan
+        if wl:
+            print(f'X|INVMODEL warnings {q.date()} {len(wl)}: {sorted({str(w.message)[:60] for w in wl})}', flush=True)
     model = pd.Series(model)
     gdp_prev = nipa['GDPZ_USNA'].shift(1) / 1000
     prev = nipa['VZ_USNA'].shift(1) / 1000
