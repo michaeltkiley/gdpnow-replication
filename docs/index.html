@@ -34,6 +34,7 @@ body.embed h1,body.embed .sub,body.embed footer{display:none}body.embed main{pad
 <label class="sub">Quarter <select id="qsel"></select></label>
 <div class="legend"><span><i style="background:var(--s1)"></i>This replication</span><span><i style="background:var(--s2)"></i>Published GDPNow</span></div>
 <svg id="hist" class="chart" viewBox="0 0 720 280" role="img" aria-label="Nowcast history"></svg>
+<p class="sub" id="chainnote" style="display:none">Open markers: before BEA published the preceding quarter, this quarter was the next quarter and the figure comes from the chained run (our own nowcast of the preceding quarter entered as if published). GDPNow's line starts when it begins publishing this quarter.</p>
 <div class="tablewrap"><table id="histtab"></table></div>
 <p class="sub"><a href="data/history.csv">history.csv</a> (one row per run, components included)</p>
 
@@ -57,10 +58,13 @@ async function j(u){const r=await fetch(u);if(!r.ok)throw new Error(u);return r.
 function csv(t){const L=t.trim().split('\n'),H=L[0].split(',');return L.slice(1).map(l=>{const c=l.split(',');return Object.fromEntries(H.map((h,i)=>[h,c[i]]))})}
 const KEYS=['CTG','CS','FNE','FNP','FNS','FR','GF','GS','XM','XS','MM','MS','V'];
 const LABEL={CTG:'PCE goods',CS:'PCE services',FNE:'Equipment',FNP:'Intellectual property',FNS:'Structures',FR:'Residential',GF:'Federal govt',GS:'State/local govt',XM:'Exports of goods',XS:'Exports of services',MM:'Imports of goods',MS:'Imports of services',V:'Change in inventories'};
-let H=[];
+let H=[],HQ=[];
 (async()=>{
   let st=null;try{st=await j('data/status.json')}catch(e){}
   H=csv(await (await fetch('data/history.csv')).text()).sort((a,b)=>a.asof<b.asof?-1:1);
+  // The quarter's history is continuous: rows from when it was the next quarter (chained run) come first, then the production rows.
+  let NX=[];try{const rn=await fetch('data/next/history.csv');if(rn.ok)NX=csv(await rn.text())}catch(e){}
+  HQ=H.concat(NX.filter(n=>!H.some(h=>h.asof==n.asof&&h.quarter==n.quarter)).map(n=>({...n,gdpnow:'',diff:'',gdpnow_date:'',chained:'1'}))).sort((a,b)=>a.asof<b.asof?-1:a.asof>b.asof?1:(a.chained?1:-1));
   const b=$('banner');
   if(st&&st.ok&&!st.held){b.textContent=`Last updated ${st.asof} (run finished ${st.finished.slice(0,16).replace('T',' ')} UTC).`}
   else{b.className='banner fail';b.textContent=`Latest run did not publish: ${st?st.message:'no status file'}. Showing the last good update${H.length?' ('+H[H.length-1].asof+')':''}.`}
@@ -70,7 +74,7 @@ let H=[];
    <div class="tile"><b>${miss(L.gdpnow)?'–':f2(L.gdpnow)+'%'}</b><span>${miss(L.gdpnow)?'GDPNow has not published '+L.quarter+' yet':'Published GDPNow, '+L.gdpnow_date}</span></div>
    <div class="tile"><b>${sg(L.diff)}</b><span>Difference (pp)</span></div>`;
   showNext(L);
-  const qs=[...new Set(H.map(r=>r.quarter))];
+  const qs=[...new Set(HQ.map(r=>r.quarter))];
   $('qsel').innerHTML=qs.map(q=>`<option>${q}</option>`).join('');$('qsel').value=L.quarter;
   $('qsel').onchange=()=>drawHist();drawHist();
   $('rsel').innerHTML=H.slice().reverse().map(r=>`<option>${r.asof}</option>`).join('');
@@ -93,7 +97,7 @@ async function showNext(L){
 }
 
 function drawHist(){
-  const q=$('qsel').value,R=H.filter(r=>r.quarter==q),s=$('hist');s.innerHTML='';
+  const q=$('qsel').value,R=HQ.filter(r=>r.quarter==q),s=$('hist');s.innerHTML='';
   const d=r=>new Date(r.asof).getTime(),W=720,Ht=280,m={l:48,r:20,t:14,b:30};
   const pts=[['nowcast',s=>s.nowcast,'var(--s1)','asof'],['gdpnow',s=>s.gdpnow,'var(--s2)','gdpnow_date']];
   const ys=R.flatMap(r=>[r.nowcast,r.gdpnow]).filter(v=>!miss(v)).map(Number);
@@ -105,12 +109,13 @@ function drawHist(){
   [['nowcast','var(--s1)'],['gdpnow','var(--s2)']].forEach(([k,c])=>{
     const P=R.filter(r=>!miss(r[k])).map(r=>[X(d(r)),Y(+r[k]),r]);
     if(P.length>1)NS('polyline',{points:P.map(p=>p.slice(0,2).join(',')).join(' '),fill:'none',stroke:c,'stroke-width':2,'stroke-linejoin':'round'},s);
-    P.forEach(([x,y,r])=>{NS('circle',{cx:x,cy:y,r:4,fill:c,stroke:'var(--surface)','stroke-width':2},s);
+    P.forEach(([x,y,r])=>{NS('circle',{cx:x,cy:y,r:4,fill:r.chained?'var(--surface)':c,stroke:r.chained?c:'var(--surface)','stroke-width':2},s);
       const h=NS('circle',{cx:x,cy:y,r:10,fill:'transparent'},s);hover(h,`${k=='nowcast'?'Replication':'GDPNow'}, ${r.asof}: ${f2(r[k])}`)})});
   NS('text',{x:4,y:10},s).textContent='% SAAR';
   $('histtab').innerHTML='<tr><th>As of</th><th class="num">Replication</th><th class="num">GDPNow</th><th class="num">Difference</th></tr>'+
-    R.slice().reverse().map(r=>`<tr><td>${r.asof}</td><td class="num">${f2(r.nowcast)}</td><td class="num">${f2(r.gdpnow)}</td><td class="num">${sg(r.diff)}</td></tr>`).join('');
-  drawComp(R[R.length-1]);
+    R.slice().reverse().map(r=>`<tr><td>${r.asof}${r.chained?' <span class="sub">next-quarter run</span>':''}</td><td class="num">${f2(r.nowcast)}</td><td class="num">${f2(r.gdpnow)}</td><td class="num">${sg(r.diff)}</td></tr>`).join('');
+  $('chainnote').style.display=R.some(r=>r.chained)?'block':'none';
+  drawComp(R.filter(r=>!r.chained).pop()||R[R.length-1]);
 }
 
 function drawComp(L){
