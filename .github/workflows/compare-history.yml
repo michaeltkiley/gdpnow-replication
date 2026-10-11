@@ -36,6 +36,7 @@ jobs:
           BLS_CONTACT: ${{ secrets.BLS_CONTACT }}
           GDPNOW_REFRESH: '1'
           VARIANT: ${{ matrix.variant }}
+          PYTHONWARNINGS: 'error::RuntimeWarning:gdpnow.bvar'   # DIAGNOSTIC (temporary): traceback of the BVAR warnings
         run: python tools/compare_history.py run
       - uses: actions/upload-artifact@v4
         with:
