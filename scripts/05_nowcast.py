@@ -21,6 +21,7 @@ def main():
     ap.add_argument('--vintage', help='workbook vintage (default: latest loaded)')
     ap.add_argument('--asof', help='L3 only: as-of date of the public data bundle')
     ap.add_argument('--tag', default='', help='L3 only: suffix for run id and bundle file (release-effect runs)')
+    ap.add_argument('--emit-pseudo', action='store_true', help='L3 only: also write data/<asof><tag>_pseudo.pkl, the rows that let the next quarter be nowcast (gdpnow/chain.py)')
     ap.add_argument('--force', action='store_true')
     a = ap.parse_args()
 
@@ -41,7 +42,13 @@ def main():
         inp = inputs.from_workbook(con, vintage)
         if a.level != 'L1':     # our estimates from stage 04 replace the workbook's
             inp = params.overlay(con, run_id, inp)
-    comps, agg, inter = nowcast.run(inp)
+    details = {} if a.emit_pseudo else None
+    comps, agg, inter = nowcast.run(inp, details)
+    if a.emit_pseudo:
+        import pickle
+        from gdpnow import chain
+        from gdpnow.config import DATA
+        pickle.dump(chain.rows(inp, comps, agg, details), open(DATA / f'{a.asof.replace("-", "")}{a.tag}_pseudo.pkl', 'wb'))
 
     tag = lambda df: df.assign(run_id=run_id)[['run_id'] + list(df.columns)]
     store.replace_rows(con, 'nowcast_components', tag(comps), {'run_id': run_id})

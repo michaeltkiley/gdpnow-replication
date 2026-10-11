@@ -241,13 +241,32 @@ TRADE = {
 }
 
 
+TRADE_PRICE_EXT = 'trend'     # 'trend' (default) or 'flat'; the choice is compared in tools/chain_check.py
+
+
+def extend_price(series, win):
+    """Monthly trade price over `win`, continued after its last release at its mean monthly log change of the last six months ('flat': held). These series are
+    outside the monthly price BVAR panel and stop at their last release. They enter only the nominal weights of the consistency adjustment for later
+    unreleased months (not the real growth), which a one-month-ahead production quarter never needs; a chained next-quarter run, with four unreleased
+    months, does."""
+    s = series.reindex(win)
+    last = s.last_valid_index()
+    if last is None or last == win[-1]:
+        return s
+    lg = np.log(s.dropna())
+    g = (lg.iloc[-1] - lg.iloc[-7]) / 6 if TRADE_PRICE_EXT == 'trend' and len(lg) > 6 else 0.0
+    for t in win[win > last]:
+        s[t] = s[t - pd.offsets.MonthEnd(1)] * np.exp(g)
+    return s
+
+
 def trade(kind, inp, mon):
     """Real exports and imports (Higgins 2014 step 5, eqs. 9-13). Returns ((exports, imports), out)."""
     s = TRADE[kind]
     win = pd.date_range(mon.start, inp.T1, freq='ME')
     ex_g, im_g, c = mon.growth(s['exp']), mon.growth(s['imp']), mon.growth(s['contrib'])
     released = inp.growth[s['exp']].reindex(win).notna()
-    px, pm = inp.monthly_prices[s['pexp']], inp.monthly_prices[s['pimp']]
+    px, pm = (extend_price(inp.monthly_prices[s[k]], win) for k in ('pexp', 'pimp'))
     gdp = inp.monthly_prices['MGDPN_USECONsplicefr']
     nom_x = mon.level(s['exp']) * px
     nom_m = mon.level(s['imp']) * pm
@@ -318,12 +337,12 @@ def inventories(inp):
         real = {q: 100 * np.mean([cipi[t] for t in q_months(q)]) / p[i + 1] for i, q in enumerate([T, T1])}
         s0 = nipa[d['stock']][Q0] / 1000
         s = [s0, s0 + real[T] / 4, s0 + real[T] / 4 + real[T1] / 4]
-        stocks.append(s); prices.append(p); out[f'inv:{d["stock"]}'] = s
+        stocks.append(s); prices.append(p); out[f'inv:{d["stock"]}'] = s; out[f'invp:{d["stock"]}'] = p
     for d in REAL_PATH_INV:
         s1 = nipa[d['stock']][T] / 1000
         s = [nipa[d['stock']][Q0] / 1000, s1, s1 + inp.cipi_paths[d['cipi']].reindex(q_months(T1)).sum() / 12 / 1000]
         p = [nipa[d['price']][Q0], nipa[d['price']][T], inp.inv_deflators[d['price']][T1]]
-        stocks.append(s); prices.append(p); out[f'inv:{d["stock"]}'] = s
+        stocks.append(s); prices.append(p); out[f'inv:{d["stock"]}'] = s; out[f'invp:{d["stock"]}'] = p
     for d in AR_INV:
         lvl = nipa[d['stock']]
         g = 400 * np.log(lvl / lvl.shift(1))
@@ -332,7 +351,7 @@ def inventories(inp):
         pr = nipa[d['price']]
         p2 = pr[T] * np.exp(np.log(pr[T] / pr[T - pd.offsets.QuarterEnd(12)]) / 12)   # 12-quarter average growth
         s = [lvl[Q0] / 1000, lvl[T] / 1000, lvl[T] / 1000 * np.exp(g1 / 400)]
-        stocks.append(s); prices.append([pr[Q0], pr[T], p2]); out[f'inv:{d["stock"]}'] = s
+        stocks.append(s); prices.append([pr[Q0], pr[T], p2]); out[f'inv:{d["stock"]}'] = s; out[f'invp:{d["stock"]}'] = [pr[Q0], pr[T], p2]
     S, P = np.array(stocks), np.array(prices) / 100
     fisher = lambda a, b: np.sqrt((S[:, b] @ P[:, b] / (S[:, a] @ P[:, b])) * (S[:, b] @ P[:, a] / (S[:, a] @ P[:, a])))
     total0 = nipa['SZ_USNA'][Q0] / 1000
@@ -340,6 +359,7 @@ def inventories(inp):
     total2 = total1 * fisher(1, 2)
     cipi_model = 4 * (total2 - total1)
     w1, w2 = inp.blend['PTVH']
+    out['inv_total'] = [total0, total1, total2]
     out.update({'cipi_monthly_model': cipi_model, 'cipi_bvar': inp.bvar['VZ'] / 1000, 'w_monthly': w1, 'w_bvar': w2})
     return w1 * cipi_model + w2 * inp.bvar['VZ'] / 1000, out
 

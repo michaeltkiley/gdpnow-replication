@@ -1,10 +1,15 @@
 name: compare-history
 on:
   workflow_dispatch:
+    inputs:
+      tool:
+        description: 'compare (default) or chain (tools/chain_check.py)'
+        default: 'compare'
 permissions:
   contents: read
 jobs:
   variant:
+    if: inputs.tool != 'chain'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     strategy:
@@ -42,6 +47,7 @@ jobs:
           name: hist-${{ matrix.variant }}
           path: data/compare_${{ matrix.variant }}.pkl
   compare:
+    if: inputs.tool != 'chain'
     needs: variant
     runs-on: ubuntu-24.04
     steps:
@@ -55,3 +61,27 @@ jobs:
           pattern: hist-*
           path: data
       - run: python tools/compare_history.py compare
+  chain:
+    if: inputs.tool == 'chain'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - uses: actions/cache/restore@v4
+        with:
+          path: data/gdpnow.duckdb
+          key: chain-none
+          restore-keys: state-
+      - name: Chain check
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          BEA_API_KEY: ${{ secrets.BEA_API_KEY }}
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+          BLS_CONTACT: ${{ secrets.BLS_CONTACT }}
+          GDPNOW_REFRESH: '1'
+        run: CHAIN_STAGES=c0,c3,c1 python tools/chain_check.py

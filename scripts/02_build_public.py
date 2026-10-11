@@ -27,6 +27,8 @@ def main():
     ap.add_argument('--ism', default='public', choices=['public', 'seeded'],
                     help='ISM indexes: regional-survey stand-ins (core, strict public) or workbook-seeded history (sensitivity)')
     ap.add_argument('--tag', default='', help='suffix for the output file (release-effect runs; see scripts/11_release_effects.py)')
+    ap.add_argument('--pseudo', help='pickle of gdpnow.chain rows (scripts/05_nowcast.py --emit-pseudo): nowcast the quarter after the production quarter')
+    ap.add_argument('--truncate-to', help='test use: drop quarterly data after this quarter-end date')
     ap.add_argument('--force', action='store_true')
     a = ap.parse_args()
     out = DATA / f'{a.asof.replace("-", "")}{a.tag}_public_inputs.pkl'
@@ -37,7 +39,9 @@ def main():
     if P.REFRESH and not a.tag:
         P.begin_recording(a.asof)         # production build: log every request for the daily probe
     last = pd.Timestamp(a.last_price_month) + pd.offsets.MonthEnd(0)
-    bundle = inputs_public.build(con, a.asof, last, ism=a.ism)
+    import pickle as _pk
+    pseudo = _pk.load(open(a.pseudo, 'rb')) if a.pseudo else None
+    bundle = inputs_public.build(con, a.asof, last, ism=a.ism, pseudo=pseudo, truncate_to=a.truncate_to)
     with open(out, 'wb') as f:
         pickle.dump({'bundle': bundle, 'asof': a.asof, 'last_price_month': str(last.date())}, f)
     if P.REFRESH and not a.tag:

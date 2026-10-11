@@ -175,7 +175,7 @@ def census_cipi(raw, d, iva, core, cols, T1, lags):
     cipi = 12 * raw[d['book']].diff() + iva
     sales = raw[d['sales']]
     s = block_forecast(cipi / sales.shift(6), core, cols, T1, lags)
-    months = pd.date_range(T1 - pd.offsets.MonthEnd(2), T1, freq='ME')
+    months = pd.date_range(T1 - pd.offsets.MonthEnd(5), T1, freq='ME')       # the months of T too: a chained next-quarter run has unreleased book values there
     return pd.Series({t: cipi[t] if not np.isnan(cipi.get(t, np.nan)) else s[t] * sales[t - pd.offsets.MonthEnd(6)]
                       for t in months})
 
@@ -187,7 +187,7 @@ def real_cipi(raw, d, scale, core, cols, T1, lags):
     if d['udt_real']:
         real = real.combine_first((12 * raw[d['udt_real']].diff()).where(real.isna()))
     s = block_forecast(real / scale, core, cols, T1, lags)
-    months = pd.date_range(T1 - pd.offsets.MonthEnd(2), T1, freq='ME')
+    months = pd.date_range(T1 - pd.offsets.MonthEnd(5), T1, freq='ME')       # the months of T too (see census_cipi)
     return pd.Series({t: real[t] if not np.isnan(real.get(t, np.nan)) else s[t] * scale[t] for t in months})
 
 

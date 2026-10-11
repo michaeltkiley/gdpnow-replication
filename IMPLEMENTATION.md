@@ -308,6 +308,22 @@ request (Content-Length is ignored: BLS sends it intermittently); Census program
 sends no ETag and a Last-Modified that differs between its servers, by a digest of the content; FRED by a digest of the
 response. A probe replays about 60 small requests in a few seconds.
 
+**The page (`docs/index.html`).** Laid out like the GDPNow page and styled like the other trackers on michaeltkiley.github.io: a latest-estimate headline in GDPNow's wording (quarter, date, change since the previous run, and the published GDPNow figure), a "How this was tested" card linking to `report.html` (the L1/L2/L3 test on the Atlanta Fed's own data), the evolution of the estimate for a chosen quarter (replication against published GDPNow, direct end labels, crosshair tooltip, table view), contributions to the estimate by six spending categories over the quarter's runs (colors validated for colour-vision deficiency in light and dark; table view of all 13 components), the next-quarter card while it applies, and the breakdown of what moved the estimate. Charts size to the screen and redraw on resize; a missing GDPNow value shows as a dash.
+
+**Next quarter (chained; `gdpnow/chain.py`, stage 05 `--emit-pseudo`, stage 02 `--pseudo`, stage 09 `--next`).** While the production quarter has ended but BEA has
+not yet published its advance estimate (the production quarter's last day is before the as-of date), the daily run also nowcasts the following quarter:
+the production nowcast is entered as if it were the published estimate (one pseudo-actual row for the production quarter in each quarterly table: levels,
+nominal detail, detailed growth, deflators, inventory stocks and the actual-growth history; `chain.COLUMNS`), the data are rebuilt on the archived pulls of the
+day, and the estimation and assembly run unchanged with T moved forward a quarter. The monthly and factor models carry the new quarter's growth: the factor is
+forecast past the target quarter, unreleased indicator months are filled by their factor-augmented ARs, and the monthly price BVAR already reaches the last
+price month plus four months; the chain supplies only the quarterly base (levels, shares, deflators, stocks, AR terms and one observation in the quarterly
+BVARs). Monthly trade prices outside the price BVAR panel continue at their six-month mean log change after the last release. Records go to
+`docs/data/next/history.csv` and `docs/data/next/runs/<asof>.json`; the run id is `L3_<asof>_next`. A day without new data repeats the previous record. The
+step runs after the production record; if it fails, production still publishes and the workflow fails afterwards (`next_failed` in `status.json`). On the page
+the next quarter appears under the headline while it is produced, and a quarter's history is continuous: points from when it was the next quarter (open
+markers), then the production series. No GDPNow figure exists for the next quarter. `tools/chain_check.py` (dispatch of `compare-history` with `tool=chain`)
+tests the machinery: entering BEA's published values of the latest quarter into data cut one quarter back must reproduce the production nowcast exactly.
+
 **Quarter rollover.** The replication's target quarter is the quarter after the latest quarter with real GDP in BEA's bulk NIPA file, so it rolls
 over on the day BEA publishes the advance estimate (the daily rebuild sees the BEA change). GDPNow's quarter is whatever its workbook's tracking
 sheets are labelled with, and it rolls on its own schedule; the two can differ for a day or more. Neither order may stop a run or mislead the page:
