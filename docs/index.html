@@ -28,6 +28,7 @@ body.embed h1,body.embed .sub,body.embed footer{display:none}body.embed main{pad
 <p class="sub">Independent re-implementation of the Atlanta Fed GDPNow model, re-estimated daily from public data. Not affiliated with the Federal Reserve Bank of Atlanta. <a href="report.html">Method and replication report</a>.</p>
 <div id="banner" class="banner">Loading…</div>
 <div class="hero" id="hero"></div>
+<div id="nextq"></div>
 
 <h2>History: our nowcast vs. published GDPNow</h2>
 <label class="sub">Quarter <select id="qsel"></select></label>
@@ -68,12 +69,28 @@ let H=[];
   $('hero').innerHTML=`<div class="tile"><b>${f2(L.nowcast)}%</b><span>This replication, ${L.quarter} (SAAR), as of ${L.asof}</span></div>
    <div class="tile"><b>${miss(L.gdpnow)?'–':f2(L.gdpnow)+'%'}</b><span>${miss(L.gdpnow)?'GDPNow has not published '+L.quarter+' yet':'Published GDPNow, '+L.gdpnow_date}</span></div>
    <div class="tile"><b>${sg(L.diff)}</b><span>Difference (pp)</span></div>`;
+  showNext(L);
   const qs=[...new Set(H.map(r=>r.quarter))];
   $('qsel').innerHTML=qs.map(q=>`<option>${q}</option>`).join('');$('qsel').value=L.quarter;
   $('qsel').onchange=()=>drawHist();drawHist();
   $('rsel').innerHTML=H.slice().reverse().map(r=>`<option>${r.asof}</option>`).join('');
   $('rsel').onchange=()=>showRun($('rsel').value);showRun(L.asof);
 })().catch(e=>{$('banner').className='banner fail';$('banner').textContent='Could not load data: '+e.message});
+
+async function showNext(L){
+  const el=$('nextq');el.innerHTML='';
+  try{
+    const r=await fetch('data/next/history.csv');if(!r.ok)return;
+    const N=csv(await r.text()).sort((a,b)=>a.asof<b.asof?-1:1),n=N[N.length-1];
+    if(!n||n.asof!==L.asof)return;       // shown only while the production quarter has ended and BEA has not published it yet
+    el.innerHTML=`<h2>Next quarter: ${n.quarter} (experimental)</h2>
+     <div class="hero"><div class="tile"><b>${f2(n.nowcast)}%</b><span>This replication, ${n.quarter} (SAAR), as of ${n.asof}</span></div>
+     <div class="tile"><b>${f2(n.production_nowcast)}%</b><span>${n.production_quarter}, awaiting BEA's first estimate</span></div></div>
+     <p class="sub">GDPNow publishes no figure for ${n.quarter} until BEA's advance estimate for ${n.production_quarter}. This runs the model one quarter ahead, entering our own ${n.production_quarter} nowcast as if it were the published estimate, so it carries that nowcast's error.${n.unchanged=='true'?' No new data since the last run.':''}</p>
+     <div class="tablewrap"><table><tr><th>Component</th><th class="num">Contribution (pp)</th><th class="num">Growth (%)</th></tr>`+
+     KEYS.map(k=>`<tr><td>${LABEL[k]}</td><td class="num">${f2(n['c_'+k])}</td><td class="num">${k=='V'?'–':f2(n['g_'+k])}</td></tr>`).join('')+`</table></div>`;
+  }catch(e){}
+}
 
 function drawHist(){
   const q=$('qsel').value,R=H.filter(r=>r.quarter==q),s=$('hist');s.innerHTML='';

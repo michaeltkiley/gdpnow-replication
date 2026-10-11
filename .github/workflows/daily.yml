@@ -69,6 +69,10 @@ jobs:
       - name: Vintage archive (every input value as first seen or revised, branch data)
         if: steps.run.outcome == 'success'
         run: scripts/archive_to_branch.sh vintage origin
+      - name: Fail the job if the next-quarter run failed (production was already published; GitHub emails on failure)
+        if: steps.run.outcome == 'success'
+        run: |
+          python -c "import json, sys; m = json.load(open('docs/data/status.json')).get('next_failed'); print(m or 'next-quarter run ok'); sys.exit(1 if m else 0)"
       - name: Fail the job if the run failed or was held (GitHub emails on failure)
         if: steps.run.outcome != 'success'
         run: exit 1

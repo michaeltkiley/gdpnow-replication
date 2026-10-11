@@ -41,6 +41,34 @@ def sh(*args, env=None):
                    env={**os.environ, **(env or {})})
 
 
+def next_quarter_due(asof):
+    """The next-quarter nowcast is produced while the production quarter T1 (the quarter after BEA's latest estimate) has ended but BEA has not yet
+    published its advance estimate: T1's last day is before the as-of date. Returns the production run's T1 quarter-end or None."""
+    con = store.connect()
+    try:
+        r = con.execute('SELECT T1 FROM runs WHERE run_id = ?', [f'L3_{asof.replace("-", "")}']).fetchone()
+    finally:
+        con.close()
+    return r[0] if r and pd.Timestamp(r[0]) < pd.Timestamp(asof) else None
+
+
+def next_quarter(asof, lpm):
+    """Chained next-quarter run (gdpnow/chain.py) after the production record. Failure is returned, not raised: production still publishes and the
+    job fails afterwards (status.json next_failed)."""
+    vint = asof.replace('-', '')
+    try:
+        if next_quarter_due(asof) is None:
+            return None
+        sh('02_build_public.py', '--asof', asof, '--last-price-month', lpm, '--ism', 'public', '--tag', '_next', '--pseudo', f'data/{vint}_pseudo.pkl', '--force')
+        sh('04_estimate.py', '--level', 'L3', '--asof', asof, '--tag', '_next', '--force')
+        sh('05_nowcast.py', '--level', 'L3', '--asof', asof, '--tag', '_next', '--force')
+        sh('09_record.py', '--asof', asof, '--next')
+        return None
+    except Exception as e:
+        print('NEXT-QUARTER RUN FAILED:', e, flush=True)
+        return f'next-quarter run failed: {e}'
+
+
 def code_hash():
     """Fingerprint of everything besides data that determines the estimate: library code, config, the estimation
     stage scripts and the versions of the numerical libraries."""
@@ -86,8 +114,10 @@ def last_price_month(asof, refresh=False):
 def housekeeping(asof):
     con = store.connect()
     try:
-        runs = [r[0] for r in con.execute("SELECT run_id FROM runs WHERE run_id LIKE 'L3_%' ORDER BY run_id").fetchall()]
+        every = [r[0] for r in con.execute("SELECT run_id FROM runs WHERE run_id LIKE 'L3_%' ORDER BY run_id").fetchall()]
+        runs = [r for r in every if len(r) == 11]                    # L3_YYYYMMDD: one per day; tagged runs (next quarter, release effects) go with their day
         old = runs[:-KEEP_RUNS]
+        old += [r for r in every if len(r) > 11 and r[:11] in old]
         for t in ('est_frames', 'est_params', 'est_series', 'est_provenance', 'provenance', 'nowcast_components',
                   'nowcast_aggregates', 'nowcast_intermediates', 'verification', 'runs'):
             if old and store.table_exists(con, t):
@@ -142,6 +172,7 @@ def main():
         chash = code_hash()
         same_month = bool(prev) and prev[0][:7] == asof[:7]
         unchanged = False
+        next_err = None
         if check:
             may_skip = prev_ok and prev[1] == chash and same_month
             res = None
@@ -164,11 +195,16 @@ def main():
         if unchanged:
             sh('05_nowcast.py', '--level', 'L1', '--vintage', vint)
             sh('09_record.py', '--asof', asof, '--carry-from', prev[0], '--vintage', vint)
+            try:
+                sh('09_record.py', '--asof', asof, '--carry-from', prev[0], '--next')
+            except Exception as e:
+                next_err = f'next-quarter carry-forward failed: {e}'
         else:
             sh('04_estimate.py', '--level', 'L3', '--asof', asof, *fl)
-            sh('05_nowcast.py', '--level', 'L3', '--asof', asof, *fl)
+            sh('05_nowcast.py', '--level', 'L3', '--asof', asof, '--emit-pseudo', *fl)
             sh('05_nowcast.py', '--level', 'L1', '--vintage', vint, *fl)
             sh('09_record.py', '--asof', asof, '--vintage', vint, *fl)
+            next_err = next_quarter(asof, lpm)
             sh('10_decompose.py', '--asof', asof, *fl)
             sh('11_release_effects.py', '--asof', asof, '--last-price-month', lpm, *fl)
             stamp(asof, code_hash=chash)
@@ -187,7 +223,7 @@ def main():
         write(False, 'held for review: ' + '; '.join(problems), held=True)
         print('HELD:', problems)
         sys.exit(3)
-    write(True, 'no new data: nowcast unchanged' if unchanged else 'ok', **({'unchanged': True} if unchanged else {}))
+    write(True, 'no new data: nowcast unchanged' if unchanged else 'ok', **({'unchanged': True} if unchanged else {}), **({'next_failed': next_err} if next_err else {}))
     print(f'\ndaily run {asof}: ok')
 
 

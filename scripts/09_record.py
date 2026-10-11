@@ -83,14 +83,73 @@ def carry_forward(asof, prev, vintage):
           f'GDPNow {upd["gdpnow"]} (update {upd["gdpnow_date"]})')
 
 
+NEXT = OUT / 'next'
+
+
+def record_next(asof):
+    """Record the chained next-quarter nowcast (run L3_<asof>_next, gdpnow/chain.py) beside the production record: docs/data/next/runs/<asof>.json
+    and one row per as-of date in docs/data/next/history.csv. No GDPNow figure exists for this quarter, so there is no benchmark."""
+    con = store.connect()
+    run_id = f'L3_{asof.replace("-", "")}_next'
+    run = con.execute('SELECT T, T1, gdp FROM runs WHERE run_id = ?', [run_id]).fetchone()
+    if run is None:
+        sys.exit(f'run {run_id} not found')
+    T, T1, gdp = run
+    quarter = f'{T1.year}Q{(T1.month - 1) // 3 + 1}'
+    comps = con.execute('SELECT id, label, growth_pct, contribution FROM nowcast_components WHERE run_id = ?', [run_id]).fetchdf()
+    agg = dict(con.execute('SELECT key, value FROM nowcast_aggregates WHERE run_id = ?', [run_id]).fetchall())
+    prod = pd.read_csv(OUT / 'history.csv')
+    prod = prod[prod['asof'] == asof].iloc[0]
+    rec = {'asof': asof, 'quarter': quarter, 'production_quarter': prod['quarter'], 'production_nowcast': float(prod['nowcast']),
+           'note': 'Experimental: the production quarter nowcast is entered as if it were the published estimate and the model is run for the next quarter '
+                   '(gdpnow/chain.py). GDPNow publishes no figure for this quarter.',
+           'nowcast': {'gdp': gdp, 'aggregates': agg,
+                       'components': {r.id: {'label': r.label, 'growth': r.growth_pct, 'contribution': r.contribution} for r in comps.itertuples()}}}
+    (NEXT / 'runs').mkdir(parents=True, exist_ok=True)
+    (NEXT / 'runs' / f'{asof}.json').write_text(json.dumps(rec, indent=1))
+    row = {'asof': asof, 'quarter': quarter, 'nowcast': gdp, 'production_quarter': prod['quarter'], 'production_nowcast': float(prod['nowcast']),
+           'unchanged': False}
+    for r in comps.itertuples():
+        row[f'g_{r.id}'], row[f'c_{r.id}'] = r.growth_pct, r.contribution
+    hist = NEXT / 'history.csv'
+    df = pd.read_csv(hist) if hist.exists() else pd.DataFrame(columns=['asof'])
+    df = pd.concat([df[df['asof'] != asof], pd.DataFrame([row])], ignore_index=True).sort_values('asof')
+    df.to_csv(hist, index=False)
+    print(f'{asof} next quarter {quarter}: nowcast {gdp:.3f} (production quarter {prod["quarter"]}: {float(prod["nowcast"]):.3f}) -> {NEXT.relative_to(ROOT)}')
+
+
+def carry_next(asof, prev):
+    """No new public data: repeat the previous day's next-quarter record, flagged unchanged."""
+    hist = NEXT / 'history.csv'
+    if not hist.exists():
+        return
+    df = pd.read_csv(hist)
+    old = df[df['asof'] == prev]
+    if old.empty:
+        return
+    prod = pd.read_csv(OUT / 'history.csv')
+    prod = prod[prod['asof'] == asof].iloc[0]
+    rec = json.loads((NEXT / 'runs' / f'{prev}.json').read_text())
+    since = rec.get('unchanged', {}).get('since', prev)
+    rec.update(asof=asof, unchanged={'since': since}, production_nowcast=float(prod['nowcast']))
+    (NEXT / 'runs' / f'{asof}.json').write_text(json.dumps(rec, indent=1))
+    row = {**old.iloc[0].to_dict(), 'asof': asof, 'production_nowcast': float(prod['nowcast']), 'unchanged': True}
+    df = pd.concat([df[df['asof'] != asof], pd.DataFrame([row])], ignore_index=True).sort_values('asof')
+    df.to_csv(hist, index=False)
+    print(f'{asof} next quarter: no new data, {since} record carried forward')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--asof', required=True)
     ap.add_argument('--vintage', help='workbook vintage of the L1 integrity run (default: latest loaded)')
     ap.add_argument('--carry-from', metavar='ASOF', help='no new data: repeat that day\'s nowcast, refresh the benchmark only')
+    ap.add_argument('--next', action='store_true', help='record the chained next-quarter run (L3_<asof>_next) in docs/data/next; with --carry-from, carry that day forward')
     ap.add_argument('--force', action='store_true')
     a = ap.parse_args()
     asof = a.asof
+    if a.next:
+        return carry_next(asof, a.carry_from) if a.carry_from else record_next(asof)
     if a.carry_from:
         return carry_forward(asof, a.carry_from, a.vintage)
     out = OUT / 'runs' / f'{asof}.json'
