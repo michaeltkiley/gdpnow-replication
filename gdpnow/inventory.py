@@ -280,6 +280,7 @@ def inventory_blend(inp, monthly_prices, bvar_hist_v):
         if wl:
             print(f'X|INVMODEL warnings {q.date()} {len(wl)}: {sorted({str(w.message)[:60] for w in wl})}', flush=True)
     model = pd.Series(model)
+    print('X|INVMODEL head', model.head(8).round(4).to_dict(), 'n_nan', int(model.isna().sum()), 'of', len(model), flush=True)   # DIAGNOSTIC (temporary)
     gdp_prev = nipa['GDPZ_USNA'].shift(1) / 1000
     prev = nipa['VZ_USNA'].shift(1) / 1000
     contrib = lambda c: (c - prev) / gdp_prev
