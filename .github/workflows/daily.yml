@@ -2,7 +2,7 @@ name: daily-nowcast
 
 on:
   schedule:
-    - cron: '30 21 * * 1-5'    # weekdays 21:30 UTC, after the day's releases and the Atlanta Fed update
+    - cron: '41 21 * * 1-5'    # weekdays 21:41 UTC (5:41pm EDT / 4:41pm EST), after the day's releases and the Atlanta Fed update
   workflow_dispatch:
     inputs:
       asof:

@@ -2,7 +2,7 @@ name: splice-check
 
 on:
   schedule:
-    - cron: '30 14 * * 1-5'    # every weekday; the guard step keeps only the first weekday of the month
+    - cron: '41 14 * * 1-5'    # every weekday at 14:41 UTC; the guard step keeps only the first weekday of the month
   workflow_dispatch:
 
 concurrency:
