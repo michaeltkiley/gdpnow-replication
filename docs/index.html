@@ -50,10 +50,10 @@
   .page { max-width: 1120px; margin: 0 auto; padding: 36px 24px 64px; display: flex; flex-direction: column; gap: 22px; }
 
   .site-nav { border-bottom: 1px solid var(--rule); background: var(--surface-card); }
-  .site-nav-inner { max-width: 1120px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .site-nav-inner { max-width: 1260px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .site-nav .wordmark { font-family: "Newsreader", Georgia, serif; font-weight: 500; font-size: 17px; color: var(--ink); text-decoration: none; }
-  .site-nav nav { display: flex; gap: 20px; flex-wrap: wrap; }
-  .site-nav nav a { font-size: 13px; font-weight: 500; letter-spacing: 0.02em; color: var(--ink-secondary); text-decoration: none; }
+  .site-nav nav { font-size: 0; line-height: 0; text-wrap: balance; margin: 0 -20px -8px 0; }
+  .site-nav nav a { display: inline-block; margin: 0 20px 8px 0; line-height: 1.5; font-size: 13px; font-weight: 500; letter-spacing: 0.02em; color: var(--ink-secondary); text-decoration: none; }
   .site-nav nav a:hover, .site-nav nav a.active { color: var(--accent-text); }
 
   .masthead { display: flex; flex-direction: column; gap: 6px; }
@@ -129,6 +129,7 @@
       <a href="https://michaeltkiley.github.io/resource_utilization/">Resource Utilization and Risk</a>
       <a href="https://michaeltkiley.github.io/termprem/">Yield Curve Tracker</a>
       <a href="https://michaeltkiley.github.io/gdpnow-replication/" class="active">Real GDP</a>
+      <a href="https://michaeltkiley.github.io/fcig/">Financial Conditions</a>
     </nav>
   </div>
 </div>
