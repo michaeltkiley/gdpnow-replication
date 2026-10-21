@@ -1,0 +1,88 @@
+{
+ "asof": "2026-10-20",
+ "quarter": "2026Q4",
+ "production_quarter": "2026Q3",
+ "production_nowcast": 3.571811442998252,
+ "note": "Experimental: the production quarter nowcast is entered as if it were the published estimate and the model is run for the next quarter (gdpnow/chain.py). GDPNow publishes no figure for this quarter.",
+ "nowcast": {
+  "gdp": 3.6160048552273283,
+  "aggregates": {
+   "GDP": 3.6160048552273283,
+   "final_sales": 3.268945002104151,
+   "final_sales_domestic": 3.609533995116876,
+   "private_domestic_final_purchases": 4.015849643323666,
+   "PCE": 3.352890859260449,
+   "cipi_level": 74.73650260392505,
+   "cipi_prev": 54.488142365793145,
+   "cipi_change": 20.2483602381319,
+   "net_exports_level": -1318.7724383280608
+  },
+  "components": {
+   "CTG": {
+    "label": "PCE goods",
+    "growth": 3.9032964359144717,
+    "contribution": 0.8195530230245738
+   },
+   "CS": {
+    "label": "PCE services",
+    "growth": 3.1045587545540654,
+    "contribution": 1.444786667273099
+   },
+   "FNE": {
+    "label": "Equipment",
+    "growth": 9.736497379407115,
+    "contribution": 0.5804777949996164
+   },
+   "FNP": {
+    "label": "Intellectual property products",
+    "growth": 6.7342116811415,
+    "contribution": 0.3830466924707152
+   },
+   "FNS": {
+    "label": "Nonresidential structures",
+    "growth": 3.2162934762743234,
+    "contribution": 0.09419944624134176
+   },
+   "FR": {
+    "label": "Residential",
+    "growth": 3.3311920802190143,
+    "contribution": 0.11978144027963507
+   },
+   "GF": {
+    "label": "Federal government",
+    "growth": 1.2303684902223555,
+    "contribution": 0.07521819996437462
+   },
+   "GS": {
+    "label": "State and local government",
+    "growth": 1.8144393783796398,
+    "contribution": 0.20499791873352452
+   },
+   "XM": {
+    "label": "Goods exports",
+    "growth": 7.172985835399515,
+    "contribution": 0.5219041262788767
+   },
+   "XS": {
+    "label": "Services exports",
+    "growth": 4.744737562373413,
+    "contribution": 0.18915254097312698
+   },
+   "MM": {
+    "label": "Goods imports",
+    "growth": 8.22686423863399,
+    "contribution": -0.9590398414231642
+   },
+   "MS": {
+    "label": "Services imports",
+    "growth": 7.37044473785573,
+    "contribution": -0.20860457941077534
+   },
+   "V": {
+    "label": "Change in private inventories",
+    "growth": NaN,
+    "contribution": 0.35053142582229607
+   }
+  }
+ }
+}
