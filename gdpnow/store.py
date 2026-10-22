@@ -22,7 +22,7 @@ def replace_rows(con, table, df, where):
 
 def table_exists(con, table):
     return con.execute("SELECT count(*) FROM information_schema.tables WHERE table_name = ?",
-                       [table]).fetchone()[0] > 0
+                       [table]).fetchall()[0][0] > 0
 
 
 def query(con, sql, params=()):
@@ -30,7 +30,7 @@ def query(con, sql, params=()):
 
 
 def latest_vintage(con):
-    return con.execute('SELECT max(vintage) FROM wb_vintage').fetchone()[0]
+    return con.execute('SELECT max(vintage) FROM wb_vintage').fetchall()[0][0]
 
 
 def series_frame(con, vintage, sheet, freq='M'):
