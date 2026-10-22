@@ -1,6 +1,6 @@
 {
  "asof": "2026-10-22",
- "ok": false,
- "message": "run failed: Command '['/opt/hostedtoolcache/Python/3.12.15/x64/bin/python', '/home/runner/work/gdpnow-replication/gdpnow-replication/scripts/02_build_public.py', '--asof', '2026-10-22', '--last-price-month', '2026-09', '--ism', 'public', '--force']' returned non-zero exit status 1.",
- "finished": "2026-10-22T11:13:45+00:00"
+ "ok": true,
+ "message": "ok",
+ "finished": "2026-10-22T11:38:15+00:00"
 }
