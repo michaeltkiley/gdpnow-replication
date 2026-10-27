@@ -186,7 +186,13 @@ def replay(kind, url, body):
     if kind == 'GET_JSON':
         return digest_json(_get_core(url, tries=6, throttle=True))
     if kind == 'GET_BYTES':
-        return digest_bytes(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=300).read())
+        for k in range(4):                         # census.gov answers an occasional transient 500
+            try:
+                return digest_bytes(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=300).read())
+            except Exception:
+                if k == 3:
+                    raise
+                time.sleep(5 * (k + 1))
     if kind in ('BLS_HEAD', 'BULK_HEAD'):          # BLS_HEAD: requests logged by the previous version
         if '/pub/time.series/' in url:
             from . import bls_flat
