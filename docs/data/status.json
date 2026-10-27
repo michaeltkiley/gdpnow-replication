@@ -1,6 +1,6 @@
 {
  "asof": "2026-10-26",
  "ok": false,
- "message": "run failed: probe request failed (GET_BYTES https://www.census.gov/construction/c30/xlsx/fedsatime.xlsx): HTTP Error 500: Internal Server Error",
- "finished": "2026-10-27T00:50:31+00:00"
+ "message": "run failed: Command '['/opt/hostedtoolcache/Python/3.12.15/x64/bin/python', '/home/runner/work/gdpnow-replication/gdpnow-replication/scripts/02_build_public.py', '--asof', '2026-10-26', '--last-price-month', '2026-09', '--ism', 'public', '--force']' returned non-zero exit status 1.",
+ "finished": "2026-10-27T02:24:03+00:00"
 }
