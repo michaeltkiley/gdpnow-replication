@@ -1,6 +1,6 @@
 {
- "asof": "2026-10-23",
- "ok": true,
- "message": "ok",
- "finished": "2026-10-24T00:15:03+00:00"
+ "asof": "2026-10-26",
+ "ok": false,
+ "message": "run failed: probe request failed (GET_BYTES https://www.census.gov/construction/c30/xlsx/fedsatime.xlsx): HTTP Error 500: Internal Server Error",
+ "finished": "2026-10-27T00:50:31+00:00"
 }
