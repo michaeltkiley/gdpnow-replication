@@ -2,86 +2,86 @@
  "asof": "2026-10-27",
  "quarter": "2026Q4",
  "production_quarter": "2026Q3",
- "production_nowcast": 3.6463357640712735,
+ "production_nowcast": 3.5556304395512495,
  "note": "Experimental: the production quarter nowcast is entered as if it were the published estimate and the model is run for the next quarter (gdpnow/chain.py). GDPNow publishes no figure for this quarter.",
  "nowcast": {
-  "gdp": 3.574878839491591,
+  "gdp": 3.5912065211335165,
   "aggregates": {
-   "GDP": 3.574878839491591,
-   "final_sales": 3.2784864283385673,
-   "final_sales_domestic": 3.613574216738269,
-   "private_domestic_final_purchases": 4.020928276130964,
-   "PCE": 3.3561308161659698,
-   "cipi_level": 76.12205455531355,
-   "cipi_prev": 58.72497035085842,
-   "cipi_change": 17.397084204455133,
-   "net_exports_level": -1318.4392052752892
+   "GDP": 3.5912065211335165,
+   "final_sales": 3.2725508900248723,
+   "final_sales_domestic": 3.5967575620125425,
+   "private_domestic_final_purchases": 4.00050185652594,
+   "PCE": 3.35630924161463,
+   "cipi_level": 74.40799010346973,
+   "cipi_prev": 55.76927791295209,
+   "cipi_change": 18.638712190517637,
+   "net_exports_level": -1317.6756244608273
   },
   "components": {
    "CTG": {
     "label": "PCE goods",
-    "growth": 3.911129370010058,
-    "contribution": 0.8209026887311217
+    "growth": 3.9081839760724213,
+    "contribution": 0.820512926545184
    },
    "CS": {
     "label": "PCE services",
-    "growth": 3.1057323634048117,
-    "contribution": 1.444848058897666
+    "growth": 3.107319383337548,
+    "contribution": 1.4459842793944004
    },
    "FNE": {
     "label": "Equipment",
-    "growth": 9.753356364480915,
-    "contribution": 0.5812625699790422
+    "growth": 9.749413468598455,
+    "contribution": 0.5812012192231033
    },
    "FNP": {
     "label": "Intellectual property products",
-    "growth": 6.737285070761345,
-    "contribution": 0.38309067380399464
+    "growth": 6.726754667686907,
+    "contribution": 0.3826130137572915
    },
    "FNS": {
     "label": "Nonresidential structures",
-    "growth": 3.2316215254716063,
-    "contribution": 0.09461149689561318
+    "growth": 3.191160645519475,
+    "contribution": 0.09344337447495525
    },
    "FR": {
     "label": "Residential",
-    "growth": 3.3463655038321605,
-    "contribution": 0.12028079860158802
+    "growth": 2.9110780358521993,
+    "contribution": 0.1045943848473932
    },
    "GF": {
     "label": "Federal government",
-    "growth": 1.2212822718033145,
-    "contribution": 0.07464055957097394
+    "growth": 1.229304008997012,
+    "contribution": 0.0751493808934566
    },
    "GS": {
     "label": "State and local government",
-    "growth": 1.8177809062818406,
-    "contribution": 0.20530499129559923
+    "growth": 1.8149237525141304,
+    "contribution": 0.20503508799881784
    },
    "XM": {
     "label": "Goods exports",
-    "growth": 7.189364359873895,
-    "contribution": 0.5228959114686966
+    "growth": 7.2098241568714805,
+    "contribution": 0.524499406648946
    },
    "XS": {
     "label": "Services exports",
-    "growth": 4.757059008097508,
-    "contribution": 0.18957335204017203
+    "growth": 4.766860812907603,
+    "contribution": 0.1900111777862844
    },
    "MM": {
     "label": "Goods imports",
-    "growth": 8.196665149291626,
-    "contribution": -0.9553130958418012
+    "growth": 8.107629628172308,
+    "contribution": -0.9455056211517247
    },
    "MS": {
     "label": "Services imports",
-    "growth": 7.3615066847533495,
-    "contribution": -0.20829092635155927
+    "growth": 7.384422424663573,
+    "contribution": -0.20898136372061984
    },
    "V": {
     "label": "Change in private inventories",
     "growth": NaN,
-    "contribution": 0.3010717604005736
+    "contribution": 0.3226492544360287
    }
   }
  }
