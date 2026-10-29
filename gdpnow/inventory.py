@@ -82,15 +82,19 @@ def iva_model(raw, d, prices, last):
     pred = X @ w
     e = (hist - pred).loc[fit_idx]
     rho = float(np.dot(e[1:].to_numpy(), e[:-1].to_numpy()) / np.dot(e[:-1].to_numpy(), e[:-1].to_numpy()))
+    # A book value can be released before every price in the model is (advance Census inventories come before the BEA monthly PCE prices): a price
+    # change not yet published takes the mean change of the model's other prices that month, so the extension month gets a value instead of NaN.
+    dpf = dp.apply(lambda r: r.fillna(r.mean()), axis=1)
+    predf = pd.DataFrame({f'{p}_{k}': -12 * book.shift(1) * dpf[p].shift(k) for p in d['ppi'] for k in range(5)}) @ w
     out = hist.copy()
     t = hist.dropna().index.max()
     resid = hist[t] - pred[t]
     while t < last:
         t = t + pd.offsets.MonthEnd(1)
-        if np.isnan(book.get(t, np.nan)):
+        if np.isnan(book.get(t, np.nan)) or np.isnan(predf.get(t, np.nan)):
             break
         resid = rho * resid
-        out[t] = pred[t] + resid
+        out[t] = predf[t] + resid
     return out, {'weights': dict(zip(X.columns, w)), 'rho': rho}
 
 
@@ -264,7 +268,9 @@ def check_leading_gap(model):
     """The quarters without a monthly-model value must be a block at the start of the history (monthly data too short); a gap later is an error.
     Prints the block once."""
     na = model.isna()
-    first_ok = int(np.argmax(~na.to_numpy())) if (~na).any() else len(na)
+    if na.all():
+        raise RuntimeError('inventory model history has no value for any quarter (the model returned NaN, not a too-short sample): a model input is missing for every past quarter')
+    first_ok = int(np.argmax(~na.to_numpy()))
     if na.iloc[first_ok:].any():
         raise RuntimeError(f'inventory model history has missing quarters after its first value: {list(model.index[na].to_period("Q").astype(str))}')
     if first_ok:
