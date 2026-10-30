@@ -25,6 +25,7 @@ class FactorResult:
     sigma_v: pd.Series
     mean: pd.Series          # standardization constants (T01)
     sd: pd.Series
+    edge_weight: float = 1.0  # weight on the newest month's data against the AR prediction (see edge_weight)
 
 
 def standardize(panel):
@@ -55,6 +56,32 @@ def _ols(y, X):
     resid = np.full_like(y, np.nan)
     resid[ok] = y[ok] - X[ok] @ b
     return b, resid
+
+
+def edge_weight(Y, a_p, P_p, H, edge, n_back=180, R=1e-8):
+    """How much of the newest month's reading to believe when only the series in `edge` (a boolean mask over the columns) report it.
+
+    Pseudo real time on the estimation sample: for each of the last `n_back` months, update the filter's one-step prediction with (a) the series in
+    `edge` that month and (b) every series that month, and regress the full-information factor on the edge-only factor, both measured from the
+    prediction (through the origin). The slope is the weight; 1 when the edge series carry the month's information, less when they carry a part
+    of it. Parameters are those of the full-sample fit, so the weight reflects the ragged edge, not re-estimation."""
+    T = len(Y)
+    num = den = 0.0
+    for t in range(max(T - 2 - n_back, 1), T - 1):
+        full = ~np.isnan(Y[t])
+        part = full & edge
+        if part.sum() == 0 or full.sum() == 0:
+            continue
+
+        def update(obs):
+            Ht = H[obs]
+            S = Ht @ P_p[t] @ Ht.T + R * np.eye(obs.sum())
+            K = np.linalg.solve(S, Ht @ P_p[t]).T
+            return (a_p[t] + K @ (Y[t, obs] - Ht @ a_p[t]))[0]
+        d_full, d_part = update(full) - a_p[t][0], update(part) - a_p[t][0]
+        num += d_full * d_part
+        den += d_part * d_part
+    return float(np.clip(num / den, 0.0, 1.0)) if den > 0 else 1.0
 
 
 def estimate(panel, forecast_to, n_lags=3):
@@ -106,6 +133,10 @@ def estimate(panel, forecast_to, n_lags=3):
         J = np.linalg.solve(P_p[t + 1].T, (P_f[t] @ A.T).T).T
         a_s[t] = a_f[t] + J @ (a_s[t + 1] - a_p[t + 1])
     f = pd.Series(a_s[:, 0], index=z.index)
+    # The newest month is often reported by few series. Shrink its factor toward the filter's prediction by the weight those series earned in
+    # pseudo real time (edge_weight); the smoother already carried the month back to earlier ones.
+    w_edge = edge_weight(Y, a_p, P_p, H, ~np.isnan(Y[-1]))
+    f.iloc[-1] = a_p[-1][0] + w_edge * (f.iloc[-1] - a_p[-1][0])
 
     # AR(n_lags) forecasts beyond the last month with data.
     future = pd.date_range(last_data + pd.offsets.MonthEnd(1), forecast_to, freq='ME')
@@ -113,4 +144,4 @@ def estimate(panel, forecast_to, n_lags=3):
     for _ in future:
         vals.append(float(np.dot(rho, vals[::-1][:n_lags])))
     f = pd.concat([f, pd.Series(vals[n_lags:], index=future)])
-    return FactorResult(f, last_data, rho, sigma_u, gamma, phi, sig_v, mean, sd)
+    return FactorResult(f, last_data, rho, sigma_u, gamma, phi, sig_v, mean, sd, w_edge)
