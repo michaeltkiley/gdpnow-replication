@@ -229,6 +229,12 @@
     <div id="chg"></div>
   </section>
 
+  <section class="card" id="mccard" style="display:none">
+    <div class="head"><h2>Method changes</h2></div>
+    <p class="caption">Records dated before a change were computed without it and were not recomputed; 2026-10-29 was recomputed with the first three.</p>
+    <div class="tablewrap"><table id="mctab"></table></div>
+  </section>
+
   <footer class="methodology">
     <p><b>About.</b> The Real GDP Tracker is an independent replication of the Atlanta Fed's GDPNow model and is not affiliated with the Federal Reserve Bank of Atlanta; GDPNow is the Atlanta Fed's model, and the published GDPNow figures shown here are read from the workbook it posts. The replication re-estimates the model's parameters each day from public data (BEA, Census, BLS, Federal Reserve Board and others); it does not use the Atlanta Fed's data or parameters except in the test that checks the code.</p>
     <p>The quarter after the one being estimated appears while the latest quarter has ended but BEA has not published its advance estimate; no GDPNow figure exists for it.</p>
@@ -292,6 +298,10 @@ let H = [], HQ = [], NX = [];
   drawHist(); drawContrib();
   $('rsel').innerHTML = H.slice().reverse().map(r => `<option>${r.asof}</option>`).join('');
   $('rsel').onchange = () => showRun($('rsel').value); showRun(L.asof);
+  try {
+    const mc = csv(await (await fetch('data/method_changes.csv')).text());
+    if (mc.length) { $('mctab').innerHTML = '<tr><th>From</th><th>Change</th><th>Effect</th><th>Ref</th></tr>' + mc.map(r => `<tr><td>${r.date}</td><td>${r.change}</td><td>${r.effect}</td><td>${r.reference}</td></tr>`).join(''); $('mccard').style.display = ''; }
+  } catch (e) {}
 })().catch(e => { $('banner').style.display = 'block'; $('banner').className = 'banner fail'; $('banner').textContent = 'Could not load data: ' + e.message; });
 
 let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if ($('qsel').value) { drawHist(); drawContrib(); const r = $('rsel').value; if (r) showRun(r); } }, 200); });

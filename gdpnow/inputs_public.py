@@ -5,7 +5,7 @@ import pandas as pd
 
 from . import chain, estimate, public_monthly as PM, public_nipa as PN
 from .config import load_toml
-from .inputs import Inputs, FIELD_REGISTRY
+from .inputs import Inputs, FIELD_REGISTRY, published_prior_cipi
 
 TC = load_toml('transforms.toml')['tcode']
 
@@ -71,6 +71,6 @@ def build(con, asof, last_price_month, ref_vintage='latest', ism='public', pseud
         prices_T0=comp(qp, T), prices_Tm=comp(qp, T - pd.offsets.QuarterEnd(1)),
         monthly_prices=prices, cons_growth=cons_G, cons_levels=cons_L, util_travel={},
         inv_raw=inv, inv_deflators=inv_defl, cipi_paths=pd.DataFrame(), iva_paths=pd.DataFrame(), farm_other={},
-        flags={'drop_terms': [], 'ism_actual': ism == 'seeded'},
+        flags={'drop_terms': [], 'ism_actual': ism == 'seeded', 'use_published_prior_cipi': published_prior_cipi(con, ref_vintage)},
         source=f'public:{asof}', provenance={f: f'public:{asof}' for f in FIELD_REGISTRY})
     return inp, panel, q['actual'], qp.loc[:T]

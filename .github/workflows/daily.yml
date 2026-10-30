@@ -12,6 +12,10 @@ on:
         description: 'Recompute even if the day is already done'
         type: boolean
         default: false
+      skip_freshness:
+        description: 'Backdated recompute of an earlier as-of date only: skip the freshness check, whose baseline comes from a later date'
+        type: boolean
+        default: false
 
 # One run at a time, ever: later triggers queue behind the current run instead of racing it for the commit.
 concurrency:
@@ -51,7 +55,7 @@ jobs:
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
           BLS_CONTACT: ${{ secrets.BLS_CONTACT }}
         run: |
-          python scripts/daily.py ${{ inputs.asof && format('--asof {0}', inputs.asof) || '' }} ${{ inputs.force && '--force' || '' }}
+          python scripts/daily.py ${{ inputs.asof && format('--asof {0}', inputs.asof) || '' }} ${{ inputs.force && '--force' || '' }} ${{ inputs.skip_freshness && '--skip-freshness' || '' }}
       - name: Save state
         uses: actions/cache/save@v4
         if: always()
