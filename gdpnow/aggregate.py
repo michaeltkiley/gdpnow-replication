@@ -19,8 +19,9 @@ def fisher_growth(p0, p1, q0, q1):
     return np.sqrt((p0 @ q1 / (p0 @ q0)) * (p1 @ q1 / (p1 @ q0)))
 
 
-def aggregate(inp, growth, cipi):
-    """growth: id -> T1 log growth (SAAR) for the 12 non-inventory components; cipi: T1 real CIPI ($bn).
+def aggregate(inp, growth, cipi, cipi_prev=None):
+    """growth: id -> T1 log growth (SAAR) for the 12 non-inventory components; cipi: T1 real CIPI ($bn); cipi_prev: T real CIPI ($bn)
+    the change is measured from (default: BEA's published value).
 
     Returns a DataFrame of component growth (% SAAR) and contributions (pp), plus aggregates.
     """
@@ -29,6 +30,8 @@ def aggregate(inp, growth, cipi):
     ids = [c[0] for c in COMPONENTS]
     sign = np.array([c[3] for c in COMPONENTS], dtype=float)
     q0 = np.array([nipa[z][T] for _, z, _, _ in COMPONENTS])
+    if cipi_prev is not None:
+        q0[ids.index('V')] = cipi_prev * 1000
     q1 = np.array([nipa[z][T] * np.exp(growth[i] / 400) if i != 'V' else cipi * 1000 for i, z, _, _ in COMPONENTS])
     p0 = np.array([inp.prices_T0[i + 'Z'] for i in ids]) / 100
     p1 = np.array([inp.prices_T1[i + 'Z'] for i in ids]) / 100

@@ -360,6 +360,7 @@ def inventories(inp):
     cipi_model = 4 * (total2 - total1)
     w1, w2 = inp.blend['PTVH']
     out['inv_total'] = [total0, total1, total2]
+    out['cipi_prev_model'] = 4 * (total1 - total0)       # the model's CIPI for T, which differs from BEA's once BEA has published T
     out.update({'cipi_monthly_model': cipi_model, 'cipi_bvar': inp.bvar['VZ'] / 1000, 'w_monthly': w1, 'w_bvar': w2})
     return w1 * cipi_model + w2 * inp.bvar['VZ'] / 1000, out
 
