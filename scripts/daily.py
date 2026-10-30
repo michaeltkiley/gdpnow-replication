@@ -153,6 +153,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--asof', default=clock.today().isoformat())
     ap.add_argument('--force', action='store_true')
+    ap.add_argument('--skip-freshness', action='store_true',
+                    help='backdated recompute only: the freshness baseline comes from a later as-of date, so a series can look shorter than it was then')
     ap.add_argument('--max-jump', type=float, default=1.0, help='largest day-to-day nowcast change (pp) published without review')
     a = ap.parse_args()
     asof, vint = a.asof, a.asof.replace('-', '')
@@ -210,7 +212,7 @@ def main():
             stamp(asof, code_hash=chash)
         housekeeping(asof)
         problems = sanity(asof, a.max_jump)
-        if not unchanged:                        # inputs were rebuilt today: check they did not go missing, shrink or go stale
+        if not unchanged and not a.skip_freshness:   # inputs were rebuilt today: check they did not go missing, shrink or go stale
             con = store.connect()
             try:
                 problems += freshness.check(con, asof)
