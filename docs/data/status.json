@@ -1,6 +1,7 @@
 {
- "asof": "2026-10-28",
- "ok": true,
- "message": "ok",
- "finished": "2026-10-29T02:32:14+00:00"
+ "asof": "2026-10-29",
+ "ok": false,
+ "message": "held for review: integrity check: our code on GDPNow inputs differs from GDPNow by -0.0738 pp",
+ "finished": "2026-10-30T01:27:24+00:00",
+ "held": true
 }
