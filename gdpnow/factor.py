@@ -25,6 +25,7 @@ class FactorResult:
     sigma_v: pd.Series
     mean: pd.Series          # standardization constants (T01)
     sd: pd.Series
+    edge_weight: float = 1.0  # weight on the newest month's data against the AR prediction (see edge_weight)
 
 
 def standardize(panel):
@@ -57,7 +58,42 @@ def _ols(y, X):
     return b, resid
 
 
-def estimate(panel, forecast_to, n_lags=3):
+def edge_weight(panel, f_all, n_months=36, start='1990-01-31', min_months=18, full_share=0.9):
+    """How much of the newest month's reading to believe when only some series report it.
+
+    Pseudo real time with re-estimation: for each of the last `n_months` complete months t, estimate the model on data through t with month t
+    reported only by the series that report the newest month now, and compare that month-t factor with the factor from all the data (`f_all`),
+    both measured from the AR prediction of month t. The weight is the slope of the second on the first (through the origin, between 0 and 1).
+    With few reporting series the filter overreacts (in the 2026-10 backtest 5 series earned 0.15, 30 earned 1.0), and the in-sample filter
+    cannot show it because its loadings were fit on the same months. 1 when most of the usual series report."""
+    last = panel.dropna(how='all').index.max()
+    edge = panel.loc[last].notna().to_numpy()
+    prior = panel.loc[:last].iloc[:-1].dropna(how='all')
+    usual = prior.iloc[-1].notna().sum() if len(prior) else 0
+    if usual == 0 or edge.sum() >= full_share * usual:
+        return 1.0
+    cols = panel.columns[edge]
+    num = den = 0.0
+    n = 0
+    for t in prior.index[-n_months:]:
+        p = panel.loc[start:t].copy()
+        others = [c for c in p.columns if c not in cols]
+        p.loc[t, others] = np.nan
+        if p.loc[t].notna().sum() == 0:
+            continue
+        try:
+            r = estimate(p, t, shrink=False)
+        except Exception:
+            continue
+        if t not in r.factor.index or t not in f_all.index or len(r.factor) < 5:
+            continue
+        pred = float(np.dot(r.rho, r.factor.iloc[[-2, -3, -4]].to_numpy()))
+        x, y = r.factor.iloc[-1] - pred, f_all[t] - pred
+        num, den, n = num + x * y, den + x * x, n + 1
+    return float(np.clip(num / den, 0.0, 1.0)) if n >= min_months and den > 0 else 1.0
+
+
+def estimate(panel, forecast_to, n_lags=3, shrink=True):
     """panel: DataFrame (month-end index) of stationary series; NaN where unreleased.
     Returns FactorResult with the factor extended to `forecast_to`."""
     panel = panel.dropna(axis=1, how="all")
@@ -106,6 +142,10 @@ def estimate(panel, forecast_to, n_lags=3):
         J = np.linalg.solve(P_p[t + 1].T, (P_f[t] @ A.T).T).T
         a_s[t] = a_f[t] + J @ (a_s[t + 1] - a_p[t + 1])
     f = pd.Series(a_s[:, 0], index=z.index)
+    # The newest month is often reported by few series. Shrink its factor toward the filter's prediction by the weight those series earn in
+    # pseudo real time (edge_weight); the smoother already carried the month back to earlier ones.
+    w_edge = edge_weight(panel.loc[:last_data], f) if shrink else 1.0
+    f.iloc[-1] = a_p[-1][0] + w_edge * (f.iloc[-1] - a_p[-1][0])
 
     # AR(n_lags) forecasts beyond the last month with data.
     future = pd.date_range(last_data + pd.offsets.MonthEnd(1), forecast_to, freq='ME')
@@ -113,4 +153,4 @@ def estimate(panel, forecast_to, n_lags=3):
     for _ in future:
         vals.append(float(np.dot(rho, vals[::-1][:n_lags])))
     f = pd.concat([f, pd.Series(vals[n_lags:], index=future)])
-    return FactorResult(f, last_data, rho, sigma_u, gamma, phi, sig_v, mean, sd)
+    return FactorResult(f, last_data, rho, sigma_u, gamma, phi, sig_v, mean, sd, w_edge)
