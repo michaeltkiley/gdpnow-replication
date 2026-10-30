@@ -1,6 +1,7 @@
 {
- "asof": "2026-10-30",
- "ok": true,
- "message": "ok",
- "finished": "2026-10-30T13:18:02+00:00"
+ "asof": "2026-10-29",
+ "ok": false,
+ "message": "held for review: input shrank: bls_flat|CIS2012300000000I 103 -> 102 observations since the last passing check",
+ "finished": "2026-10-30T13:34:25+00:00",
+ "held": true
 }
