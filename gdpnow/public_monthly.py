@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.x13 import x13_arima_analysis
 
-from . import bea_trade as BT, bls_flat as BF, census_bulk as CB, history as H, ids0182 as IDS, trade_bvar as TB, public_data as P
+from . import bea_trade as BT, bls_flat as BF, census_bulk as CB, history as H, housing, ids0182 as IDS, trade_bvar as TB, public_data as P
 from .config import ROOT, load_toml
 
 X13 = str(ROOT / 'tools' / 'x13' / 'x13as' / 'x13as_ascii')
@@ -646,7 +646,10 @@ def build_indicators(cx, prices, nipa_q, inv):
     L['valExHomeSales'] = cx.splice('valExHomeSales', ex_units / 1e3 * ex_const / prices['R5312101_PPIRInterpfr'].reindex(ex_units.index),
                                     [], 'MonthlyLevels', kind='log')
     # New single-family + multifamily construction (permanent-site), deflated by the residential structures price.
-    L['SplicedNewHousingConstruction'] = (census_construction(cx, 'privsatime', 3) + census_construction(cx, 'privsatime', 4)) / prices['CCIHD_USECONfr']
+    # Months with starts but no C30 spending yet are estimated from starts and prices (WP appendix eq. A2; gdpnow/housing.py).
+    sf = housing.extend_single_family(census_construction(cx, 'privsatime', 3), f('HOUST1F'), f('ASPNHSUS'))
+    mf = housing.extend_multifamily(census_construction(cx, 'privsatime', 4), L['HSTM@USECON'])
+    L['SplicedNewHousingConstruction'] = (sf + mf).dropna() / prices['CCIHD_USECONfr']
     # Improvements deflator (WP Table A5b note): geometric mean of the CCIHD house price, the PPI for net inputs
     # to residential maintenance and repair and an Atkeson-Ohanian extrapolation of the construction ECI. The PPI
     # series was discontinued in Dec-2014; from 2015 the workbook's deflator is the mean of the other two
