@@ -59,6 +59,15 @@ def _coef_dict(df):
     return out
 
 
+def published_prior_cipi(con, vintage):
+    """The workbook's switch Inventories!C2: 1 = the inventory change is measured from BEA's published CIPI for the latest quarter, 0 = from the
+    inventory model's own CIPI for it (GDPNow flips it when it chooses; the replication follows the newest workbook). False if unreadable."""
+    if vintage is None:
+        return False
+    row = store.query(con, "SELECT num FROM wb_cells WHERE vintage = ? AND sheet = 'Inventories' AND row = 2 AND col = 3", (vintage,))
+    return bool(len(row) and row.num.iloc[0] == 1)
+
+
 def from_workbook(con, vintage):
     """L1: every field from the workbook vintage (test fixture only)."""
     s = lambda sheet: store.series_frame(con, vintage, sheet)
@@ -91,7 +100,7 @@ def from_workbook(con, vintage):
         inv_raw=s('InventoryRaw'), inv_deflators=s('InvDefDatafr'),
         cipi_paths=s('CIPIbeastackFore'), iva_paths=s('ivaBEAForeStack'),
         farm_other=_coef_dict(coef[coef.sheet == 'FarmOtherInvCoeffs']),
-        flags={'use_published_prior_cipi': False},   # Inventories!C2 = 0 in this vintage
+        flags={'use_published_prior_cipi': published_prior_cipi(con, vintage)},
         source=f'workbook:{vintage}',
         provenance={f: f'workbook:{vintage}' for f in FIELD_REGISTRY},
     )
