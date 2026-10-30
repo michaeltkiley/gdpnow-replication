@@ -43,5 +43,7 @@ def run(inp, details=None):
     if details is not None:
         details['INV'] = out
     rows.append(('INV', 'cipi', cipi))
-    comps, agg = aggregate(inp, growth, cipi)
+    # GDPNow measures the inventory change from its own model's CIPI for T until its Inventories!C2 switch is set to use BEA's published value
+    prev = None if inp.flags.get('use_published_prior_cipi') else out['cipi_prev_model']
+    comps, agg = aggregate(inp, growth, cipi, prev)
     return comps, agg, pd.DataFrame(rows, columns=['block', 'key', 'value'])
