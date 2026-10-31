@@ -1,0 +1,20 @@
+nominal_notrade (RMSFE h1 h2 h3 h4)
+  2005-19        full  1.73 1.66 1.34 1.19
+  2005-19        ar2   1.99 1.96 1.98 1.98
+  2022-26        full  2.06 1.81 2.03 2.05
+  2022-26        ar2   1.99 1.98 1.97 1.97
+  GDPNow overlap full  1.72 1.46 1.49 1.47
+  GDPNow overlap ar2   1.65 1.58 1.58 1.58
+  GDPNow overlap GDPNow 1.30 1.07 0.90 1.01
+  mean error (full, ar2), h=3: 2005-19 0.58 0.38 | 2022-26 0.81 0.40
+  live 2026Q4: MIDAS-15 3.68 MIDAS-3 3.12 AR2 2.70
+nominal_notrade_pc (RMSFE h1 h2 h3 h4)
+  2005-19        full  1.65 1.56 1.25 1.10
+  2005-19        ar2   1.96 1.93 1.94 1.93
+  2022-26        full  1.99 1.65 1.82 1.83
+  2022-26        ar2   1.92 1.89 1.86 1.86
+  GDPNow overlap full  1.65 1.30 1.33 1.30
+  GDPNow overlap ar2   1.59 1.55 1.51 1.51
+  GDPNow overlap GDPNow 1.30 1.07 0.90 1.01
+  mean error (full, ar2), h=3: 2005-19 0.24 0.15 | 2022-26 0.24 0.05
+  live 2026Q4: MIDAS-15 2.84 MIDAS-3 2.51 AR2 2.32

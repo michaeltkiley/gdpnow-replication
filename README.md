@@ -28,6 +28,8 @@ Needs Python (pandas, numpy, scipy, statsmodels, duckdb, openpyxl), the Census X
 binary in `tools/x13/`, a free FRED API key in `.env` (not committed), and a contact string for BLS's User-Agent (`BLS_CONTACT`; a repository secret in the workflow). BEA, Census and BLS data come from public files and need no key. Every input value is also archived as first seen or revised on the `data` branch (see IMPLEMENTATION.md, section 6). A freshness check holds the daily run, and GitHub emails, when an input series disappears, shrinks or stops advancing. While the production quarter has ended but BEA has not published it, the daily run also shows a chained nowcast of the following quarter. A monthly check (workflow `splice-check`) compares the history borrowed from the GDPNow workbook with the newest workbook and opens an issue, passed or failed. Stages skip finished
 work; `--force` redoes them.
 
+**MIDAS companion:** two MIDAS tabs on the tracker page (`docs/index.html`) with real-time ridge-MIDAS nowcasts; see [MIDAS.md](MIDAS.md).
+
 ## Contents
 
 `gdpnow/` library · `scripts/` pipeline stages · `config/` documented specification constants and bridge structure ·

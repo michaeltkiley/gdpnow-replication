@@ -1,0 +1,48 @@
+name: midas-daily
+
+# Daily MIDAS nowcast for docs/midas.html. Runs after the GDPNow replication (21:41 UTC) so its history.csv is current.
+on:
+  schedule:
+    - cron: '17 22 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Run for this date only, YYYY-MM-DD (default today, UTC)'
+        required: false
+
+# Share the daily-nowcast queue so the two jobs never race for the commit.
+concurrency:
+  group: daily-nowcast
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install numpy pandas scipy
+      - name: MIDAS run
+        env:
+          MIDAS_DATA: ${{ runner.temp }}/midas
+        run: |
+          cd midas
+          if [ -n "${{ inputs.date }}" ]; then python live.py ${{ inputs.date }} ${{ inputs.date }}; else python live.py; fi
+          python build_page_data.py
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data/midas_daily.json docs/data/midas_static.json
+          git diff --cached --quiet && { echo "no change"; exit 0; }
+          git commit -m "MIDAS daily run $(date -u +%F)"
+          git pull --rebase origin ${{ github.ref_name }}
+          git push origin HEAD:${{ github.ref_name }}
