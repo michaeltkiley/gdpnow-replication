@@ -88,6 +88,12 @@ The intercept is the training-sample mean of GDP growth (ridge leaves it unpenal
 
 Every cell improves. The end-of-quarter mean error falls from +0.58 to +0.24pp (2005–19) and from +0.81 to +0.24pp (2022–26). The intercept implied for 2026Q4 is now 1.95% plus 0.24% population growth, against about 2.7% before. The live 2026Q4 nowcast becomes **2.84%** (MIDAS-3: 2.51%, AR(2): 2.32%; GDPNow 3.22%). The gap to GDPNow at end-of-quarter is still large (1.33 vs 0.90). Residual bias is probably the productivity slowdown, which per-capita adjustment does not remove. A rolling-window or trend-adjusted intercept is the natural next test. This was also chosen after seeing earlier results (`results/percapita.txt`).
 
+### Blend with GDPNow, final (per-capita, no trade) specification
+Best in-sample MIDAS weight, and RMSFE of GDPNow alone vs the blend (end M1 / M2 / M3 / 15th after). 2011Q3–2019Q4: weights 50 / 45 / 35 / 35%, GDPNow 1.06 / 1.00 / 0.79 / 0.72 to blend 0.93 / 0.89 / 0.73 / 0.63. 2022Q1–2026Q3: weights 0 / 25 / 10 / 30%, GDPNow 1.51 / 1.19 / 1.08 / 1.38 to blend 1.51 / 1.13 / 1.06 / 1.27. This supersedes the 25–35% figures above, which were for the nominal-GDP-growth spec.
+
+## 3b. The tracker page
+`docs/midas.html` (next to the GDPNow tracker) shows the final specification (per-capita, trade balance dropped) as two tabs: MIDAS with 14 indicators and MIDAS with 3 indicators. Each has a Data tab (headline, GDPNow comparison, waterfall of what changed since a chosen date, daily evolution, contribution by indicator) and a Replication tab (method, accuracy, track record, blend with GDPNow, how the specification was chosen). `midas/live.py` runs the model for any date (the workflow `midas-daily.yml` runs it each weekday), `midas/build_page_data.py` builds the static tables and `midas/make_page.py` assembles the HTML. Backfilled daily history starts 2026-04-01.
+
 ## 4. Live nowcast
 2026Q4 as of 2026-10-31 (end of month 1): **MIDAS-15 4.29%**, MIDAS-3 3.12%, AR(2) 2.70%; GDPNow 3.22% (Oct 29). The largest contribution (+0.6pp) is the trade balance, the same channel that failed in 2022Q2 and 2025Q2, so I would not trust this number. The replication's own chained 2026Q4 nowcast (3.26%) is the better guide.
 

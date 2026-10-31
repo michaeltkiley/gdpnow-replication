@@ -101,7 +101,7 @@ def ridge_fit_predict(X, y, xn):
             best = (press, lam)
     lam = best[1]
     beta = Vt.T @ ((s / (s ** 2 + lam)) * uy)
-    return ym + zn @ beta, beta, zn, lam
+    return ym + zn @ beta, beta, zn, lam, ym
 
 
 def q_ext(g, y_, q_):
@@ -137,7 +137,11 @@ def nowcast_origin(args):
             x, last = mon[s]
             last = min(last, cpi_last)
             mon[s] = ((x - cpi.reindex(x.index)).loc[:last], last)
-    omon = pd.Period(origin, 'M') if h < 4 else pd.Period(origin, 'M')   # month of the origin date
+    omon = pd.Period(origin, 'M')                        # month of the origin date
+    m1q = pd.Period(year=q.year, month=3 * (q.quarter - 1) + 1, freq='M')
+    # months from the quarter's first month to the origin month: 0,1,2 (end of months 1-3), 3 (month after the quarter).
+    # Any date works (daily tracker); h=None -> derived from the date.
+    a_off = A_H[h] if h else min(3, max(0, int((omon - m1q).n)))
     lag = {s: int((omon - mon[s][1]).n) for s in mon}
     # ---- training quarters
     taus = [t for t in pd.period_range(TRAIN_START, gl, freq='Q') if t not in COVID_Q]
@@ -147,7 +151,7 @@ def nowcast_origin(args):
         m1 = pd.Period(year=tau.year, month=3 * (tau.quarter - 1) + 1, freq='M')
         f = []
         for s in ids:
-            end = m1 + A_H[h] - lag[s]
+            end = m1 + a_off - lag[s]
             idx = [end - k for k in range(K)]
             w = mon[s][0].reindex(idx).values
             if np.isnan(w).any(): return None
@@ -167,14 +171,16 @@ def nowcast_origin(args):
     for name, ids in (('full', [s for s in mon if not (NOTRADE and s == 'BOPGSTB')]), ('trio', TRIO)):
         X, Y, xn = design(ids)
         out[f'n_{name}'] = len(Y)
-        pr, beta, zn, lam = ridge_fit_predict(X, Y, xn)
-        out[name] = float(pr) + popadd; out[f'lam_{name}'] = float(lam)
-        if name == 'full':               # contribution of each predictor group to (pred - mean)
-            nb = DEG + 1
-            for i, s in enumerate(ids):
-                out[f'c_{s}'] = float(zn[i * nb:(i + 1) * nb] @ beta[i * nb:(i + 1) * nb])
-            out['c_gdp_lag'] = float(zn[-1] * beta[-1])
-            out['lag_' + 'max'] = max(lag.values())
+        pr, beta, zn, lam, ym = ridge_fit_predict(X, Y, xn)
+        out[name] = float(pr) + popadd; out[f'lam_{name}'] = float(lam); out[f'ym_{name}'] = float(ym)
+        pre = 'c_' if name == 'full' else 'ct_'     # contribution of each predictor to (prediction - training mean)
+        nb = DEG + 1
+        for i, s in enumerate(ids):
+            out[f'{pre}{s}'] = float(zn[i * nb:(i + 1) * nb] @ beta[i * nb:(i + 1) * nb])
+        out[f'{pre}gdp_lag'] = float(zn[-1] * beta[-1])
+        if name == 'full':
+            out['lag_max'] = max(lag.values())
+            out['lags'] = {s: lag[s] for s in ids}
     # ---- AR(2) benchmark (same training quarters, OLS)
     Xa, Ya = [], []
     for t in taus:

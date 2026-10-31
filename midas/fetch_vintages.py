@@ -34,6 +34,18 @@ def job(sid, d):
     return 1
 
 
+def fetch_dates(dates, workers=16, refresh_current=False):
+    """Vintages of every predictor, GDP and population as of each date (daily tracker)."""
+    if refresh_current:                          # unrevised / fallback series are re-downloaded
+        for sid in ('T10Y3M', 'ICSA', 'NFCI'):
+            f = DATA / 'vint' / f'{sid}.csv'
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_bytes(get(FRED.format(id=sid, c='1990-01-01')))
+    jobs = [(s, d) for d in dates for s in VINTAGE_IDS + ['GDPC1', 'POPTHM']]
+    with cf.ThreadPoolExecutor(workers) as ex:
+        return sum(ex.map(lambda j: job(*j), jobs))
+
+
 if __name__ == '__main__':
     w = int(sys.argv[1]) if len(sys.argv) > 1 else 8
     ods = sorted({o[3] for o in origins()})
