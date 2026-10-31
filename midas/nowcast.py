@@ -18,6 +18,7 @@ K, DEG = 6, 2                       # monthly lags per series; Legendre degree (
 TRAIN_START = pd.Period('1992Q3', 'Q')
 LAMS = np.logspace(-1, 4, 60)
 SPEC = os.environ.get('MIDAS_SPEC', 'nominal')   # nominal | real (flows deflated by CPI); suffix _w = winsorise standardised predictors at +-3 SD
+NOTRADE = 'notrade' in SPEC                       # drop BOPGSTB from the 15-variable panel
 WINS = 3.0 if SPEC.endswith('_w') else None
 DEFLATE = ['RSAFS', 'PCE', 'DGORDER', 'BUSINV']
 A_H = {1: 0, 2: 1, 3: 2, 4: 3}      # origin month offset from the quarter's first month
@@ -146,7 +147,7 @@ def nowcast_origin(args):
         xn = feats(ids, q)
         return np.array(X), np.array(Y), np.array(xn + [g.get(q - lagY)])
 
-    for name, ids in (('full', list(mon)), ('trio', TRIO)):
+    for name, ids in (('full', [s for s in mon if not (NOTRADE and s == 'BOPGSTB')]), ('trio', TRIO)):
         X, Y, xn = design(ids)
         out[f'n_{name}'] = len(Y)
         pr, beta, zn, lam = ridge_fit_predict(X, Y, xn)

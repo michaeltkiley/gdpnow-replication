@@ -2,7 +2,7 @@
 
 **Proposal (one model):** a **real-time Ridge-MIDAS** nowcast of the BEA *advance* GDP estimate, refit at every forecast date on the data vintage actually published that day. It is a simplified Babii–Ghysels–Striaukas (2022) sg-LASSO-MIDAS, with Clements–Galvão (2008) real-time vintages, run on 15 monthly/weekly/daily indicators. Chan's three-variable set is run through the identical pipeline as an ablation.
 
-Everything below was executed end to end (`midas/run_all.sh`; public data, no API key). **Verdict: feasible and informative, not a GDPNow competitor.** Before COVID it beats AR(2) by about 40% at quarter-end. It is clearly worse than GDPNow, and it fails after 2021. Its one real use is as a minor (~25–35%) blend partner to GDPNow in 2011–19.
+Everything below was executed end to end (`midas/run_all.sh`; public data, no API key). **Update:** dropping the trade balance (section 3) removes the post-2021 failure at no pre-COVID cost, so that variant is the one I would carry forward. **Verdict: feasible and informative, not a GDPNow competitor.** Before COVID it beats AR(2) by about 40% at quarter-end. It is clearly worse than GDPNow, and it fails after 2021. Its one real use is as a minor (~25–35%) blend partner to GDPNow in 2011–19.
 
 ## 1. Literature in brief (what matters for this choice)
 
@@ -73,8 +73,9 @@ The headline is the specification I fixed first (nominal predictors, no clipping
 | CPI-deflated | 1.39 | 2.81 |
 | winsorised | 1.49 | 2.68 |
 | both | 1.51 | 2.49 |
+| **drop trade balance** | **1.34** | **2.03** |
 
-Robustifying costs pre-COVID accuracy and still leaves 2022+ at or above AR(2) (1.97). Because I looked at the 2022+ errors to choose these variants, they are not clean out-of-sample tests.
+CPI-deflating and winsorising cost pre-COVID accuracy and still leave 2022+ above AR(2) (1.97). **Dropping the trade balance** (suggested after the diagnosis above) is the only fix that is nearly free: 2005–19 is unchanged (1.34 vs 1.31; 1.19 vs 1.21 on the 15th after) and 2022–26 falls to AR(2) level (2.03). On the GDPNow-overlap sample end-M3 improves from 1.99 to 1.49, still well short of GDPNow's 0.90. The 2022Q2 miss shrinks from +8.0 to +2.7 against an actual of −0.9, and 2025Q2 from +8.9 to +2.2 against +3.0. Its live 2026Q4 nowcast is 3.68% instead of 4.29%. It is still a post-hoc choice, so the cleanest next step is to confirm it on data after 2026Q3, and it means the model carries no net-trade information at all, which is exactly where GDPNow has its edge. Because I looked at the 2022+ errors to choose these variants, they are not clean out-of-sample tests.
 
 ## 4. Live nowcast
 2026Q4 as of 2026-10-31 (end of month 1): **MIDAS-15 4.29%**, MIDAS-3 3.12%, AR(2) 2.70%; GDPNow 3.22% (Oct 29). The largest contribution (+0.6pp) is the trade balance, the same channel that failed in 2022Q2 and 2025Q2, so I would not trust this number. The replication's own chained 2026Q4 nowcast (3.26%) is the better guide.

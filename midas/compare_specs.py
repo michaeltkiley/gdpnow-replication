@@ -4,7 +4,7 @@ r = lambda d, m: np.sqrt(np.mean((d[m] - d.actual) ** 2))
 def load(s):
     d = pd.read_csv(f'results/forecasts_{s}.csv'); return d[d.actual.notna()]
 rows = []
-for s in ('nominal', 'real', 'nominal_w', 'real_w'):
+for s in ('nominal', 'real', 'nominal_w', 'real_w', 'nominal_notrade'):
     d = load(s)
     pre = d[d.y <= 2019]; post = d[d.y >= 2022]
     ov = d[d.gdpnow.notna() & ((d.y >= 2022) | (d.y <= 2019))]
