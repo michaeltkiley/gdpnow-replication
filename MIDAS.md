@@ -2,7 +2,7 @@
 
 **Proposal (one model):** a **real-time Ridge-MIDAS** nowcast of the BEA *advance* GDP estimate, refit at every forecast date on the data vintage actually published that day. It is a simplified Babii–Ghysels–Striaukas (2022) sg-LASSO-MIDAS, with Clements–Galvão (2008) real-time vintages, run on 15 monthly/weekly/daily indicators. Chan's three-variable set is run through the identical pipeline as an ablation.
 
-Everything below was executed end to end (`midas/run_all.sh`; public data, no API key). **Update:** dropping the trade balance (section 3) removes the post-2021 failure at no pre-COVID cost, so that variant is the one I would carry forward. **Verdict: feasible and informative, not a GDPNow competitor.** Before COVID it beats AR(2) by about 40% at quarter-end. It is clearly worse than GDPNow, and it fails after 2021. Its one real use is as a minor (~25–35%) blend partner to GDPNow in 2011–19.
+Everything below was executed end to end (`midas/run_all.sh`; public data, no API key). **Update:** dropping the trade balance and modelling per-capita growth (section 3) removes the post-2021 failure at no pre-COVID cost; that is the variant I would carry forward. **Verdict: feasible and informative, not a GDPNow competitor.** Before COVID it beats AR(2) by about 40% at quarter-end. It is clearly worse than GDPNow, and it fails after 2021. Its one real use is as a minor (~25–35%) blend partner to GDPNow in 2011–19.
 
 ## 1. Literature in brief (what matters for this choice)
 
@@ -76,6 +76,17 @@ The headline is the specification I fixed first (nominal predictors, no clipping
 | **drop trade balance** | **1.34** | **2.03** |
 
 CPI-deflating and winsorising cost pre-COVID accuracy and still leave 2022+ above AR(2) (1.97). **Dropping the trade balance** (suggested after the diagnosis above) is the only fix that is nearly free: 2005–19 is unchanged (1.34 vs 1.31; 1.19 vs 1.21 on the 15th after) and 2022–26 falls to AR(2) level (2.03). On the GDPNow-overlap sample end-M3 improves from 1.99 to 1.49, still well short of GDPNow's 0.90. The 2022Q2 miss shrinks from +8.0 to +2.7 against an actual of −0.9, and 2025Q2 from +8.9 to +2.2 against +3.0. Its live 2026Q4 nowcast is 3.68% instead of 4.29%. It is still a post-hoc choice, so the cleanest next step is to confirm it on data after 2026Q3, and it means the model carries no net-trade information at all, which is exactly where GDPNow has its edge. Because I looked at the 2022+ errors to choose these variants, they are not clean out-of-sample tests.
+
+### Intercept and per-capita version
+The intercept is the training-sample mean of GDP growth (ridge leaves it unpenalised), with every quarter since 1992Q3 weighted equally. It therefore lags trend changes. By 2019 it was about 2.6%, and the model over-predicted by about 0.6pp on average in both samples. To address this I model **GDP growth minus population growth** and add the population assumption back (trailing 4-quarter growth of monthly total population, ALFRED vintage as of each forecast date). The same adjustment is applied to the AR(2) benchmark, so the comparison stays fair. Variant `nominal_notrade_pc`, RMSFE (end M1 / M2 / M3 / 15th after):
+
+| | no trade, GDP growth | **no trade, per capita** | AR(2) per capita | GDPNow |
+|---|---|---|---|---|
+| 2005–19 | 1.73 / 1.66 / 1.34 / 1.19 | **1.65 / 1.56 / 1.25 / 1.10** | 1.96 / 1.93 / 1.94 / 1.93 | n/a |
+| 2022–26 | 2.06 / 1.81 / 2.03 / 2.05 | **1.99 / 1.65 / 1.82 / 1.83** | 1.92 / 1.89 / 1.86 / 1.86 | n/a |
+| GDPNow overlap | 1.72 / 1.46 / 1.49 / 1.47 | **1.65 / 1.30 / 1.33 / 1.30** | 1.59 / 1.55 / 1.51 / 1.51 | 1.30 / 1.07 / 0.90 / 1.01 |
+
+Every cell improves. The end-of-quarter mean error falls from +0.58 to +0.24pp (2005–19) and from +0.81 to +0.24pp (2022–26). The intercept implied for 2026Q4 is now 1.95% plus 0.24% population growth, against about 2.7% before. The live 2026Q4 nowcast becomes **2.84%** (MIDAS-3: 2.51%, AR(2): 2.32%; GDPNow 3.22%). The gap to GDPNow at end-of-quarter is still large (1.33 vs 0.90). Residual bias is probably the productivity slowdown, which per-capita adjustment does not remove. A rolling-window or trend-adjusted intercept is the natural next test. This was also chosen after seeing earlier results (`results/percapita.txt`).
 
 ## 4. Live nowcast
 2026Q4 as of 2026-10-31 (end of month 1): **MIDAS-15 4.29%**, MIDAS-3 3.12%, AR(2) 2.70%; GDPNow 3.22% (Oct 29). The largest contribution (+0.6pp) is the trade balance, the same channel that failed in 2022Q2 and 2025Q2, so I would not trust this number. The replication's own chained 2026Q4 nowcast (3.26%) is the better guide.

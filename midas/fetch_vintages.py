@@ -37,7 +37,7 @@ def job(sid, d):
 if __name__ == '__main__':
     w = int(sys.argv[1]) if len(sys.argv) > 1 else 8
     ods = sorted({o[3] for o in origins()})
-    jobs = [(s, d) for d in ods for s in VINTAGE_IDS + ['GDPC1']]
+    jobs = [(s, d) for d in ods for s in VINTAGE_IDS + ['GDPC1', 'POPTHM']]
     # unrevised daily spread: one download
     for sid in ('T10Y3M', 'ICSA', 'NFCI'):       # current (unrevised / fallback) series
         f = DATA / 'vint' / f'{sid}.csv'

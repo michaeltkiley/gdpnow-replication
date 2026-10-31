@@ -18,8 +18,9 @@ K, DEG = 6, 2                       # monthly lags per series; Legendre degree (
 TRAIN_START = pd.Period('1992Q3', 'Q')
 LAMS = np.logspace(-1, 4, 60)
 SPEC = os.environ.get('MIDAS_SPEC', 'nominal')   # nominal | real (flows deflated by CPI); suffix _w = winsorise standardised predictors at +-3 SD
+PC = SPEC.endswith('_pc')                          # per-capita target + population assumption
 NOTRADE = 'notrade' in SPEC                       # drop BOPGSTB from the 15-variable panel
-WINS = 3.0 if SPEC.endswith('_w') else None
+WINS = 3.0 if '_w' in SPEC else None
 DEFLATE = ['RSAFS', 'PCE', 'DGORDER', 'BUSINV']
 A_H = {1: 0, 2: 1, 3: 2, 4: 3}      # origin month offset from the quarter's first month
 COVID_Q = {pd.Period(f'{y}Q{q}', 'Q') for y, q in COVID}
@@ -103,12 +104,28 @@ def ridge_fit_predict(X, y, xn):
     return ym + zn @ beta, beta, zn, lam
 
 
+def q_ext(g, y_, q_):
+    return max(g.index[-1], pd.Period(f'{y_}Q{q_}', 'Q'))
+
+
 def nowcast_origin(args):
     y_, q_, h, origin = args
     q = pd.Period(f'{y_}Q{q_}', 'Q')
     # ---- data as of origin
     g = gdp_growth(origin)
     gl = g.index[-1]
+    popadd = 0.0
+    gt = g                                               # series actually modelled
+    if PC:                                               # y = GDP growth - population growth; add population back at the end
+        p = read_vint('POPTHM', origin); p.index = p.index.to_period('Q')
+        p = p.groupby(level=0).mean()
+        gp = 100 * ((p / p.shift(1)) ** 4 - 1)
+        gp = gp.dropna()
+        assump = gp.iloc[-4:].mean()                     # population assumption: trailing 4-quarter average growth
+        gp = gp.reindex(pd.period_range(g.index[0], q_ext(g, y_, q_), freq='Q'))
+        gp = gp.fillna(assump)
+        popadd = float(gp[pd.Period(f'{y_}Q{q_}', 'Q')])
+        gt = (g - gp.reindex(g.index)).dropna()
     lagY = int((q - gl).n)                               # 1 normally; 2 if previous quarter's advance not out yet
     mon = {}
     for sid in VINTAGE_IDS:
@@ -140,18 +157,18 @@ def nowcast_origin(args):
     def design(ids):
         X, Y = [], []
         for t in taus:
-            yl = g.get(t - lagY, np.nan)
+            yl = gt.get(t - lagY, np.nan)
             f = feats(ids, t)
-            if f is None or np.isnan(yl) or np.isnan(g.get(t, np.nan)): continue
-            X.append(f + [yl]); Y.append(g[t])
+            if f is None or np.isnan(yl) or np.isnan(gt.get(t, np.nan)): continue
+            X.append(f + [yl]); Y.append(gt[t])
         xn = feats(ids, q)
-        return np.array(X), np.array(Y), np.array(xn + [g.get(q - lagY)])
+        return np.array(X), np.array(Y), np.array(xn + [gt.get(q - lagY)])
 
     for name, ids in (('full', [s for s in mon if not (NOTRADE and s == 'BOPGSTB')]), ('trio', TRIO)):
         X, Y, xn = design(ids)
         out[f'n_{name}'] = len(Y)
         pr, beta, zn, lam = ridge_fit_predict(X, Y, xn)
-        out[name] = float(pr); out[f'lam_{name}'] = float(lam)
+        out[name] = float(pr) + popadd; out[f'lam_{name}'] = float(lam)
         if name == 'full':               # contribution of each predictor group to (pred - mean)
             nb = DEG + 1
             for i, s in enumerate(ids):
@@ -161,13 +178,14 @@ def nowcast_origin(args):
     # ---- AR(2) benchmark (same training quarters, OLS)
     Xa, Ya = [], []
     for t in taus:
-        a, b = g.get(t - lagY, np.nan), g.get(t - lagY - 1, np.nan)
-        if np.isnan(a) or np.isnan(b) or np.isnan(g.get(t, np.nan)): continue
-        Xa.append([1, a, b]); Ya.append(g[t])
+        a, b = gt.get(t - lagY, np.nan), gt.get(t - lagY - 1, np.nan)
+        if np.isnan(a) or np.isnan(b) or np.isnan(gt.get(t, np.nan)): continue
+        Xa.append([1, a, b]); Ya.append(gt[t])
     Xa, Ya = np.array(Xa), np.array(Ya)
     co = np.linalg.lstsq(Xa, Ya, rcond=None)[0]
-    out['ar2'] = float(co @ [1, g.get(q - lagY), g.get(q - lagY - 1)])
-    out['mean'] = float(Ya.mean())
+    out['ar2'] = float(co @ [1, gt.get(q - lagY), gt.get(q - lagY - 1)]) + popadd
+    out['mean'] = float(Ya.mean()) + popadd
+    out['pop_assump'] = popadd
     return out
 
 
