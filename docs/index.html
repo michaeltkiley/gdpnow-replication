@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Real GDP Tracker — Michael T. Kiley</title>
-<meta name="description" content="A daily nowcast of U.S. real GDP growth: an independent re-implementation of the Atlanta Fed's GDPNow model, re-estimated from public data.">
+<meta name="description" content="A daily nowcast of U.S. real GDP growth: an independent re-implementation of the Atlanta Fed\'s GDPNow, plus real-time MIDAS models, re-estimated from public data.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Michael T. Kiley">
 <meta property="og:title" content="Real GDP Tracker">
@@ -138,6 +138,24 @@
   body.embed .page { padding: 8px; }
   @media (max-width: 860px) { .top { grid-template-columns: 1fr; } }
   @media (max-width: 560px) { .tiles { grid-template-columns: 1fr 1fr; } .page { padding: 24px 16px 48px; } }
+  .tabs{display:flex;flex-wrap:wrap;gap:0 20px;border-bottom:1px solid var(--rule)}
+  .tabs button{appearance:none;border:0;background:none;cursor:pointer;font:inherit;font-size:14px;font-weight:500;color:var(--ink-muted);padding:10px 4px 9px;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tabs button:hover{color:var(--ink-secondary)}
+  .tabs button[aria-selected="true"]{color:var(--accent-text);border-bottom-color:var(--accent-text)}
+  .tabs.sub button{font-size:13px;padding:8px 2px 7px}
+  .panel{display:flex;flex-direction:column;gap:22px}
+  .panel[hidden]{display:none}
+  .controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:end;padding:14px 16px;background:var(--surface-card);border:1px solid var(--rule);border-radius:8px}
+  .ctl{display:flex;flex-direction:column;gap:4px}
+  .ctl .l,.ctl label.l{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);font-weight:600}
+  input[type=date]{font:inherit;font-size:.9rem;padding:4px 8px;border:1px solid var(--rule);border-radius:6px;background:var(--surface-card);color:var(--ink)}
+  input:focus-visible,button:focus-visible,select:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
+  .linkbtn{font:inherit;font-size:.8rem;border:0;background:none;color:var(--accent-text);padding:2px 10px 2px 0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+  .stamp{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.8rem;color:var(--ink-secondary)}
+  .headline .tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .about li{font-size:13.5px;color:var(--ink-secondary)}
+  .card h3 .caption{font-weight:400}
+  @media (max-width:560px){.headline .tiles{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -163,7 +181,6 @@
             <ul>
               <li><a href="https://michaeltkiley.github.io/inflation_forecast/">Inflation Forecast</a></li>
               <li><a href="https://michaeltkiley.github.io/gdpnow-replication/" aria-current="page">Real GDP Tracker</a></li>
-              <li><a href="https://michaeltkiley.github.io/gdpnow-replication/midas.html">Real GDP Tracker: MIDAS</a></li>
             </ul>
           </div>
           <div role="group" aria-labelledby="nav-grp-3">
@@ -184,9 +201,18 @@
   <header class="masthead">
     <p class="eyebrow"><a class="crumb" href="https://michaeltkiley.github.io/">Home</a><span class="crumb-sep" aria-hidden="true">/</span>Inflation &amp; Economic Activity</p>
     <h1>Real GDP Tracker</h1>
+  </header>
+  <nav class="tabs" id="top" role="tablist" aria-label="Model">
+    <button type="button" role="tab" data-top="gdpnow" aria-selected="true">GDPNow replication</button>
+    <button type="button" role="tab" data-top="full" aria-selected="false">MIDAS, 14 indicators</button>
+    <button type="button" role="tab" data-top="trio" aria-selected="false">MIDAS, 3 indicators</button>
+  </nav>
+  <section class="panel" id="panel-gdpnow">
+    <header class="masthead">
     <p class="subtitle">A daily nowcast of U.S. real GDP growth: an independent re-implementation of the Atlanta Fed's GDPNow model, re-estimated every day from public data and compared with the published GDPNow estimate.</p>
     <p class="asof" id="asof">Loading…</p>
   </header>
+
   <div id="banner" class="banner" style="display:none"></div>
 
   <section class="top">
@@ -242,8 +268,107 @@
     <p><b>How this was tested.</b> Before it ran daily, the code was tested on the Atlanta Fed&rsquo;s own data (the 3 October 2026 workbook). Given GDPNow&rsquo;s inputs and parameters, it reproduces the published nowcast to 1.5&times;10<sup>&minus;7</sup> percentage point, with all 13 components and contributions matching. The test then re-estimates every parameter and rebuilds the data from public sources, and shows where each gap comes from. Details of the testing, and of the method, code and data behind the tracker, are available on request.</p>
     <p class="disclaimer">For informational purposes only. This is the author&rsquo;s own estimate. All downloads and calculations are the author&rsquo;s own and may contain errors &mdash; don&rsquo;t rely on this for decisions or conclusions. Verify independently with your own data and calculations before using it for any purpose. The analysis and views presented are the author&rsquo;s own and do not reflect the views of any institution with which he is affiliated.</p>
   </footer>
+  </section>
+  <section class="panel" id="panel-midas" hidden>
+    <header>
+      <p class="subtitle">A data-only cross-check on GDPNow: statistical nowcasts of U.S. real GDP growth built from monthly, weekly and daily indicators, refit every day on what had been published.</p>
+      <p class="asof" id="m-asof">Loading…</p>
+      <p class="caption" style="max-width:76ch">These models do not use GDP's expenditure accounting, so they are less accurate than GDPNow; their value is as a second opinion. The GDPNow tab has the replication of the Atlanta Fed's model.</p>
+    </header>
+    <div id="m-banner" class="banner" style="display:none"></div>
+    <div class="panel" id="m-panel">
+    <div>
+      <p class="subtitle" id="m-msub"></p>
+      <p class="caption" id="m-mcite" style="max-width:76ch"></p>
+    </div>
+    <nav class="tabs sub" role="tablist" aria-label="Sections">
+      <button type="button" role="tab" data-sub="data" aria-selected="true">Data</button>
+      <button type="button" role="tab" data-sub="replication" aria-selected="false">Replication</button>
+    </nav>
+
+    <div class="panel" id="m-p-data">
+      <div class="card headline" id="m-headline"></div>
+      <div class="controls">
+        <label class="ctl"><span class="l">Quarter</span><select id="m-qsel"></select></label>
+        <div class="ctl"><label class="l" for="m-since">Compare today with</label><input type="date" id="m-since">
+          <span class="quick"><button type="button" class="linkbtn" data-q="week">a week ago</button><button type="button" class="linkbtn" data-q="month">a month ago</button><button type="button" class="linkbtn" data-q="first">first estimate</button></span></div>
+        <div class="ctl" style="min-width:0"><span class="l">Dates compared</span><div class="stamp" id="m-stamp"></div></div>
+      </div>
+      <section class="card">
+        <div class="head"><h2 id="m-wfTitle">What changed</h2></div>
+        <div id="m-wf"></div>
+        <p class="sub">Bars start at the nowcast on the comparison date, add each part's contribution to the change, and end at today's nowcast. <span class="pos">■</span> Blue raised the nowcast; <span class="neg">■</span> orange lowered it. Indicator groups move when new data are released or revised. <i>Trend growth</i> is the average per-person growth in the training sample, which drifts slowly; <i>Population</i> is the population-growth assumption added back at the end.</p>
+      </section>
+      <section class="card">
+        <div class="head"><h2 id="m-evoTitle">Evolution of the estimate</h2></div>
+        <div class="legend" id="m-evoLegend"></div>
+        <svg id="m-evo" class="chart" viewBox="0 0 760 300" role="img" aria-label="Nowcast over time"></svg>
+        <p class="sub">Percent, seasonally adjusted annual rate. One point per trading day. The dashed line is the same model with no indicators (an AR(2) on per-person growth plus population). GDPNow points are the Atlanta Fed's published updates.</p>
+      </section>
+      <section class="card">
+        <div class="head"><h2>Latest run by indicator</h2><span class="caption" id="m-tabCap"></span></div>
+        <div class="tablewrap"><table id="m-indtab"></table></div>
+        <p class="sub">Contribution is each indicator's effect on the nowcast relative to an average quarter (percentage points). "Behind" is how many months the latest published value trails the current month; the model pairs each indicator with historical quarters that had the same lag.</p>
+      </section>
+    </div>
+
+    <div class="panel" id="m-p-rep" hidden>
+      <section class="card about">
+        <h2>How it works</h2>
+        <p>The model is a <b>real-time ridge MIDAS regression</b> (mixed-data sampling): quarterly GDP growth is regressed directly on the last six months of each monthly indicator, with weekly and daily series averaged to months. Each indicator's six lags are compressed into three numbers (level, slope, curvature) by a Legendre polynomial, which is a flexible way of letting recent months count more or less. A ridge penalty, chosen by leave-one-out cross-validation, keeps the many coefficients in check.</p>
+        <ul>
+          <li><b>Real time.</b> Every day the model is refit on the data vintage published that day (St. Louis Fed's ALFRED), so the ragged edge is what was actually available. Each past quarter is compared at the same point in its quarter, with the same publication lags as today.</li>
+          <li><b>Per person.</b> The model forecasts GDP growth <i>minus population growth</i> and adds a population assumption (the last four quarters' growth) back. This stops the average growth rate it learns from carrying a demographic trend that has since faded.</li>
+          <li><b>Target.</b> BEA's advance estimate of real GDP growth. Training uses 1992Q3 onward and leaves out 2020 and 2021.</li>
+          <li><b>Two versions.</b> The 14-indicator model uses the series below; the 3-indicator model uses only industrial production, the Chicago Fed financial conditions index and the 10-year minus 3-month spread, the information set of Chan's MIDAS tutorial.</li>
+        </ul>
+      </section>
+      <section class="card">
+        <div class="head"><h2>Indicators</h2></div>
+        <div class="tablewrap"><table id="m-predtab"></table></div>
+        <p class="sub">The goods and services trade balance was tested and dropped: before COVID it carried the largest weight, but its extreme swings in 2022 and 2025 produced the worst misses.</p>
+      </section>
+      <section class="card">
+        <div class="head"><h2>How accurate has it been?</h2></div>
+        <p class="sub" style="margin-top:0">Root mean squared forecast error against BEA's advance estimate, percentage points of annualised growth. Each quarter is scored at four dates: the end of each month of the quarter and the 15th of the month after (before the advance release).</p>
+        <div id="m-acc"></div>
+      </section>
+      <section class="card">
+        <div class="head"><h2>End-of-quarter nowcasts against outcomes</h2></div>
+        <div class="legend" id="m-trkLegend"></div>
+        <svg id="m-trk" class="chart" viewBox="0 0 760 300" role="img" aria-label="End of quarter nowcasts against the advance estimate"></svg>
+        <p class="sub">Nowcast at the end of the quarter's third month. Values beyond the axis (the 2020 pandemic quarters) are pinned to the edge; hover for the actual numbers.</p>
+        <details><summary>Last eight quarters</summary><div class="tablewrap"><table id="m-lastq"></table></div></details>
+      </section>
+      <section class="card" id="m-blendcard">
+        <div class="head"><h2>Does it add anything to GDPNow?</h2></div>
+        <div id="m-blend"></div>
+      </section>
+      <section class="card">
+        <div class="head"><h2>How the specification was chosen</h2></div>
+        <div class="tablewrap"><table id="m-path"></table></div>
+        <p class="sub">Each step was chosen after seeing the previous step's errors, so the results here are not a clean out-of-sample test of the final specification. Full write-up, code and every variant: <a href="https://github.com/michaeltkiley/gdpnow-replication/blob/main/MIDAS.md">MIDAS.md</a>.</p>
+      </section>
+      <section class="card about">
+        <h2>Data timing and limits</h2>
+        <ul>
+          <li>Indicator history is read from the vintage published that day (revised); only the newest observations are first releases. Weekly jobless claims before 2009 and the Chicago Fed index before 2011 have no archived vintages, so current data cut at the forecast date are used.</li>
+          <li>The October 2025 unemployment rate and CPI were never published (government shutdown) and are interpolated.</li>
+          <li>Not used: surveys such as ISM, real consumption detail, construction, trade detail. They are part of what GDPNow has and this model lacks.</li>
+          <li>The daily tracker runs the same algorithm as the evaluation, but accuracy was measured only at the four dates per quarter above.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+    <footer class="methodology">
+    <p><b>About.</b> Independent research by the author; not affiliated with the Federal Reserve Bank of Atlanta or the Federal Reserve System. GDPNow is the Atlanta Fed's model. The series shown as "GDPNow" are the Atlanta Fed's published nowcasts.</p>
+    <p><b>Method and sources.</b> MIDAS: Ghysels, Santa-Clara and Valkanov. Real-time vintages: Clements and Galv&atilde;o, <a href="https://econpapers.repec.org/RePEc:bes:jnlbes:v:26:y:2008:p:546-554">&ldquo;Macroeconomic forecasting with mixed-frequency data,&rdquo;</a> <i>JBES</i> (2008). Legendre lag polynomials and regularisation: Babii, Ghysels and Striaukas, <a href="https://arxiv.org/pdf/2005.14057">&ldquo;Machine learning time series regressions with an application to nowcasting,&rdquo;</a> <i>JBES</i> (2022); this page uses ridge instead of their sparse-group LASSO. Small information set: Chan, Poon and Zhu, <a href="https://doi.org/10.1016/j.jeconom.2025.106090">&ldquo;Time-varying parameter MIDAS models: application to nowcasting US real GDP,&rdquo;</a> <i>Journal of Econometrics</i>; this page has no time-varying parameters. Data: St. Louis Fed ALFRED/FRED, Philadelphia Fed real-time data set (advance estimates before 2011), Atlanta Fed GDPNow archive.</p>
+    <p class="disclaimer">For informational purposes only. This is the author&rsquo;s own estimate. All downloads and calculations are the author&rsquo;s own and may contain errors &mdash; don&rsquo;t rely on it for decisions.</p>
+  </footer>
+  </section>
 </div>
 <div id="tip"></div>
+
 
 <script>
 const $ = id => document.getElementById(id);
@@ -480,5 +605,197 @@ async function showRun(a) {
     });
   })();
   </script>
+<script>
+(function () {
+const $ = id => document.getElementById('m-' + id);
+const fm = (v, d = 2) => v == null || isNaN(v) ? '–' : (+v).toFixed(d);
+const sg = (v, d = 2) => v == null ? '–' : (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(d);
+const qlab = q => 'Q' + q.slice(5) + ' ' + q.slice(0, 4);
+const MODEL = { full: { name: 'MIDAS, 14 indicators', c: 'c', ym: 'ym_full' }, trio: { name: 'MIDAS, 3 indicators', c: 'ct', ym: 'ym_trio' } };
+const GL = { labor: 'Labor market', production: 'Production & orders', spending: 'Spending & sentiment', housing: 'Housing', trade: 'Trade', inventories: 'Inventories', prices: 'Prices', financial: 'Financial conditions', 'GDP lag': 'Last quarter’s growth', trend: 'Trend growth (per person)', pop: 'Population' };
+const HLAB = ['End of month 1', 'End of month 2', 'End of month 3', '15th of month after'];
+const COL = { model: 'var(--series-rep)', gn: 'var(--series-gdpnow)', repl: 'var(--g4)', ar: 'var(--ink-muted)', act: 'var(--ink)' };
+let S, D, dates, st = { m: 'full', sub: 'data', q: null, since: null };
+const tip = document.getElementById('tip');
+function showTip(e, h) { tip.innerHTML = h; tip.style.display = 'block'; const w = tip.offsetWidth; tip.style.left = Math.min(e.clientX + 14, innerWidth - w - 8) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; }
+function hideTip() { tip.style.display = 'none'; }
+const gid = Object.fromEntries((window.__P = []).concat([]));
+
+function recFor(date, q) { return (D[date] || []).find(r => r.q === q); }
+function datesOf(q) { return dates.filter(d => recFor(d, q)); }
+function stage(date, q) { const m1 = (+q.slice(5) - 1) * 3, m = new Date(date).getUTCMonth(); return Math.max(0, Math.min(3, m - m1 - (new Date(date).getUTCFullYear() - +q.slice(0, 4)) * 12)); }
+function groupOf(id) { if (id === 'gdp_lag') return 'GDP lag'; const p = S.predictors.find(x => x.id === id); return p ? p.group : id; }
+function decomp(rec, m) {
+  const M = MODEL[m], o = {};
+  for (const [id, v] of Object.entries(rec[M.c] || {})) { const g = groupOf(id); o[g] = (o[g] || 0) + v; }
+  o.trend = rec[M.ym]; o.pop = rec.pop; return o;
+}
+function actualOf(q) { const r = S.track.find(t => t.qp === q.replace('Q', 'Q') && t.actual != null); return r ? r.actual : null; }
+const toX = d => Date.parse(d);
+
+/* ---------------- generic line chart ---------------- */
+function lineChart(el, series, o) {
+  const W = 760, H = 300, L = 44, R = 16, T = 12, B = 30, w = W - L - R, h = H - T - B;
+  const all = series.flatMap(s => s.pts.map(p => p[1])).concat((o.hl || []).map(x => x.y));
+  let y0 = o.ymin ?? Math.floor(Math.min(...all, 0) - 0.3), y1 = o.ymax ?? Math.ceil(Math.max(...all) + 0.3);
+  const X = x => L + (x - o.x0) / (o.x1 - o.x0 || 1) * w, Y = y => T + (y1 - y) / (y1 - y0) * h;
+  let s = '';
+  const step = (y1 - y0) > 12 ? 4 : (y1 - y0) > 6 ? 2 : 1;
+  for (let v = Math.ceil(y0 / step) * step; v <= y1; v += step) s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`;
+  if (y0 < 0 && y1 > 0) s += `<line class="axis" x1="${L}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  for (const [x, lab] of o.ticks) s += `<line class="grid" x1="${X(x)}" x2="${X(x)}" y1="${T}" y2="${T + h}"/><text x="${X(x)}" y="${H - 8}" text-anchor="middle">${lab}</text>`;
+  for (const hl of (o.hl || [])) s += `<line x1="${L}" x2="${W - R}" y1="${Y(hl.y)}" y2="${Y(hl.y)}" stroke="${hl.color}" stroke-width="1.5" stroke-dasharray="6 4"/><text x="${W - R}" y="${Y(hl.y) - 5}" text-anchor="end" style="fill:${hl.color}">${hl.label}</text>`;
+  for (const se of series) {
+    const pts = se.pts.filter(p => p[1] != null);
+    if (!pts.length) continue;
+    if (se.line !== false) s += `<polyline fill="none" stroke="${se.color}" stroke-width="2" ${se.dash ? 'stroke-dasharray="5 4"' : ''} stroke-linejoin="round" points="${pts.map(p => X(p[0]).toFixed(1) + ',' + Y(Math.max(y0, Math.min(y1, p[1]))).toFixed(1)).join(' ')}"/>`;
+    if (se.dots !== false) for (const p of pts) s += `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(Math.max(y0, Math.min(y1, p[1]))).toFixed(1)}" r="${se.r || 3}" fill="${se.color}" data-t="${se.name}: ${p[2] ?? ''} <b>${fm(p[1])}</b>"/>`;
+  }
+  el.innerHTML = s;
+  el.onpointermove = e => { const t = e.target.getAttribute && e.target.getAttribute('data-t'); if (t) showTip(e, t); else hideTip(); };
+  el.onpointerleave = hideTip;
+}
+function monthTicks(a, b) { const t = []; const d = new Date(a); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + 1); while (+d <= b) { t.push([+d, d.toLocaleString('en', { month: 'short', timeZone: 'UTC' })]); d.setUTCMonth(d.getUTCMonth() + 1); } return t; }
+function legend(el, items) { el.innerHTML = items.map(i => `<span class="item"><i class="ln" style="background:${i[1]};${i[2] ? 'height:0;border-top:2px dashed ' + i[1] : ''}"></i>${i[0]}</span>`).join(''); }
+
+/* ---------------- waterfall ---------------- */
+function waterfall(el, a, b, da, db) {
+  const keys = Object.keys(GL).filter(k => (a[k] != null || b[k] != null));
+  const items = keys.map(k => ({ k, v: (b[k] || 0) - (a[k] || 0) })).filter(x => Math.abs(x.v) >= 0.005);
+  const startV = Object.values(a).reduce((s, v) => s + (v || 0), 0), endV = Object.values(b).reduce((s, v) => s + (v || 0), 0);
+  const rows = [{ lab: `Nowcast ${da}`, from: 0, to: startV, tot: true }];
+  let run = startV;
+  for (const it of items) { rows.push({ lab: GL[it.k], from: run, to: run + it.v, v: it.v }); run += it.v; }
+  rows.push({ lab: `Nowcast ${db}`, from: 0, to: endV, tot: true });
+  const W = 760, LW = 190, RH = 28, H = rows.length * RH + 24, vals = rows.flatMap(r => [r.from, r.to]).concat([0]);
+  const lo = Math.min(...vals), hi = Math.max(...vals), pad = (hi - lo || 1) * 0.12, x0 = lo - pad, x1 = hi + pad;
+  const X = v => LW + (v - x0) / (x1 - x0) * (W - LW - 56);
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Waterfall of changes in the nowcast">`;
+  s += `<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="4" y2="${H - 18}"/>`;
+  rows.forEach((r, i) => {
+    const y = 6 + i * RH, xa = Math.min(X(r.from), X(r.to)), xb = Math.max(X(r.from), X(r.to));
+    const fill = r.tot ? 'var(--ink-secondary)' : (r.v >= 0 ? 'var(--series-rep)' : 'var(--series-gdpnow)');
+    s += `<text class="lbl" x="${LW - 8}" y="${y + 15}" text-anchor="end" ${r.tot ? 'style="font-weight:600"' : ''}>${r.lab}</text>`;
+    s += `<rect x="${xa.toFixed(1)}" y="${y}" width="${Math.max(xb - xa, 1.5).toFixed(1)}" height="${RH - 8}" rx="3" fill="${fill}"/>`;
+    const lab = r.tot ? fm(r.to) : sg(r.v);
+    s += `<text x="${(xb + 6).toFixed(1)}" y="${y + 14}">${lab}</text>`;
+    if (i < rows.length - 1 && !rows[i + 1].tot) s += `<line stroke="var(--rule)" stroke-dasharray="2 3" x1="${X(r.to)}" x2="${X(r.to)}" y1="${y + RH - 8}" y2="${y + RH}"/>`;
+  });
+  el.innerHTML = s + '</svg>' + (items.length ? '' : '<p class="sub">No change in any component over this period.</p>');
+}
+
+/* ---------------- render: data tab ---------------- */
+function pickSince() {
+  const ds = datesOf(st.q), last = ds[ds.length - 1];
+  if (!st.since || !ds.includes(st.since)) { const t = new Date(last); t.setUTCDate(t.getUTCDate() - 7); st.since = [...ds].reverse().find(d => d <= t.toISOString().slice(0, 10)) || ds[0]; }
+}
+function renderData() {
+  const m = st.m, M = MODEL[m], ds = datesOf(st.q), last = ds[ds.length - 1];
+  pickSince();
+  const now = recFor(last, st.q), then = recFor(st.since, st.q), act = actualOf(st.q), a = stage(last, st.q);
+  const rm = S.stats.pre.rmsfe[m][a], other = MODEL[m === 'full' ? 'trio' : 'full'];
+  const chg = now[m] - then[m];
+  $('headline').innerHTML = `<p class="lead">${qlab(st.q)} real GDP growth, ${M.name}</p>
+    <div class="big">${fm(now[m])}<small>% SAAR</small></div>
+    <div class="when">As of ${last}${act != null ? ` · BEA advance estimate: <b>${fm(act)}%</b>` : ''} · ${sg(chg)} pp since ${st.since}</div>
+    <div class="tiles">
+      <div class="tile"><b>${fm(now.gdpnow)}</b><span>Published GDPNow (Atlanta Fed)</span></div>
+      <div class="tile"><b>${fm(now.repl)}</b><span>GDPNow replication (this site)</span></div>
+      <div class="tile"><b>${fm(now[m === 'full' ? 'trio' : 'full'])}</b><span>${other.name}</span></div>
+      <div class="tile"><b>${fm(now.ar2)}</b><span>No-indicator benchmark (AR(2) + population)</span></div>
+      <div class="tile"><b>±${fm(rm, 1)}</b><span>Typical miss at this stage (${HLAB[a].toLowerCase()}; 2005–19 RMSFE)</span></div>
+      <div class="tile"><b>${now.n}</b><span>Quarters used to fit the model</span></div>
+    </div>`;
+  $('qsel').innerHTML = [...new Set(dates.flatMap(d => D[d].map(r => r.q)))].sort().reverse().map(q => `<option value="${q}" ${q === st.q ? 'selected' : ''}>${qlab(q)}</option>`).join('');
+  const si = $('since'); si.min = ds[0]; si.max = last; si.value = st.since;
+  $('stamp').textContent = `${st.since} → ${last}`;
+  $('wfTitle').textContent = `What changed in the ${qlab(st.q)} nowcast`;
+  waterfall($('wf'), decomp(then, m), decomp(now, m), st.since, last);
+  // evolution
+  const pts = k => ds.map(d => [toX(d), recFor(d, st.q)[k], d]);
+  const x0 = toX(ds[0]), x1 = toX(last);
+  $('evoTitle').textContent = `Evolution of the ${qlab(st.q)} estimate`;
+  const ser = [{ name: M.name, color: COL.model, pts: pts(m), r: 2.2 }, { name: 'GDPNow', color: COL.gn, pts: pts('gdpnow'), r: 2.2 }, { name: 'GDPNow replication', color: COL.repl, pts: pts('repl'), r: 2.2 }, { name: 'No-indicator benchmark', color: COL.ar, dash: 1, dots: false, pts: pts('ar2') }];
+  lineChart($('evo'), ser, { x0, x1: x1 + (x1 - x0) * 0.02 + 1, ticks: monthTicks(x0, x1), hl: act != null ? [{ y: act, color: 'var(--ink)', label: `BEA advance ${fm(act)}` }] : [] });
+  legend($('evoLegend'), [[M.name, COL.model], ['Published GDPNow', COL.gn], ['GDPNow replication (this site)', COL.repl], ['No-indicator benchmark', COL.ar, 1]]);
+  // indicator table
+  const cs = now[M.c], rows = Object.entries(cs).map(([id, v]) => { const p = S.predictors.find(x => x.id === id); return { id, lab: id === 'gdp_lag' ? 'Previous quarter’s GDP growth' : p.label, g: GL[groupOf(id)], v, lag: (now.lags || {})[id] }; }).sort((x, y) => Math.abs(y.v) - Math.abs(x.v));
+  $('tabCap').textContent = `${qlab(st.q)}, as of ${last}`;
+  $('indtab').innerHTML = '<tr><th>Indicator</th><th>Group</th><th class="num">Behind (months)</th><th class="num">Contribution, pp</th></tr>' +
+    rows.map(r => `<tr><td>${r.lab}</td><td>${r.g}</td><td class="num">${m === 'full' && r.lag != null ? r.lag : '–'}</td><td class="num ${r.v >= 0 ? 'pos' : 'neg'}">${sg(r.v)}</td></tr>`).join('') +
+    `<tr><td>Trend growth per person</td><td>Intercept</td><td class="num">–</td><td class="num">${fm(now[M.ym])}</td></tr><tr><td>Population growth assumed</td><td>Added back</td><td class="num">–</td><td class="num">${fm(now.pop)}</td></tr><tr><th colspan="3">Nowcast</th><th class="num">${fm(now[m])}</th></tr>`;
+}
+
+/* ---------------- render: replication tab ---------------- */
+function renderRep() {
+  const m = st.m, M = MODEL[m];
+  $('predtab').innerHTML = '<tr><th>Indicator</th><th>Group</th><th>Frequency</th><th>Transform</th><th>In this model</th></tr>' + S.predictors.map(p => {
+    const inm = m === 'trio' ? p.trio : p.used; return `<tr style="${inm ? '' : 'opacity:.45'}"><td>${p.label} <span class="caption">(${p.id})</span></td><td>${GL[p.group]}</td><td>${p.freq}</td><td>${p.transform}</td><td>${inm ? 'yes' : (p.used ? 'no' : 'tested, dropped')}</td></tr>`; }).join('');
+  let acc = '';
+  for (const k of ['pre', 'post', 'gn', 'covid']) {
+    const s = S.stats[k], gn = s.rmsfe.gdpnow, mm = s.rmsfe[m], ar = s.rmsfe.ar2;
+    acc += `<h3>${s.label} <span class="caption">(${s.quarters} quarters)</span></h3><div class="tablewrap"><table><tr><th>Forecast date</th><th class="num">${M.name}</th><th class="num">No-indicator benchmark</th>${gn ? '<th class="num">Published GDPNow</th>' : ''}</tr>` +
+      [0, 1, 2, 3].map(i => `<tr><td>${HLAB[i]}</td><td class="num"><b>${fm(mm[i])}</b></td><td class="num">${fm(ar[i])}</td>${gn ? `<td class="num">${fm(gn[i])}</td>` : ''}</tr>`).join('') + '</table></div>';
+  }
+  if (m === 'full') acc += `<p class="sub">Average error at the end of the quarter (nowcast minus outcome), ${M.name}: ${sg(S.bias.pre[m] ?? S.bias.pre.full)} pp in 2005–19 and ${sg(S.bias.post[m] ?? S.bias.post.full)} pp in 2022–26 (14-indicator model; the benchmark: ${sg(S.bias.pre.ar2)} and ${sg(S.bias.post.ar2)}).</p>`;
+  $('acc').innerHTML = acc;
+  // track
+  const tr = S.track.filter(r => r.h === 3 && r.actual != null);
+  const qs = tr.map(r => r.qp), xi = i => i, N = qs.length;
+  const mk = k => tr.map((r, i) => [i, r[k], qlab(r.qp.replace('Q', '-Q').replace('-Q', '').length ? r.qp.slice(0, 4) + '-' + r.qp.slice(4) : r.qp)]);
+  const yr = []; qs.forEach((q, i) => { if (q.endsWith('Q1') && +q.slice(0, 4) % 3 === 0 || (q === qs[0])) yr.push([i, q.slice(0, 4)]); });
+  const labs = (k) => tr.map((r, i) => [i, r[k], r.qp]);
+  lineChart($('trk'), [{ name: 'BEA advance estimate', color: COL.act, pts: labs('actual'), line: true, r: 2.5 }, { name: M.name, color: COL.model, pts: labs(m), line: false, r: 3.2 }, { name: 'GDPNow', color: COL.gn, pts: labs('gdpnow'), line: false, r: 3.2 }, ], { x0: -1, x1: N, ticks: yr, ymin: -8, ymax: 10 });
+  legend($('trkLegend'), [['BEA advance estimate', COL.act], [M.name + ' (end of quarter)', COL.model], ['Published GDPNow (end of quarter)', COL.gn]]);
+  const last8 = tr.slice(-8).reverse();
+  $('lastq').innerHTML = '<tr><th>Quarter</th><th class="num">Advance estimate</th><th class="num">' + M.name + '</th><th class="num">GDPNow</th><th class="num">AR(2) benchmark</th></tr>' + last8.map(r => `<tr><td>${qlab(r.qp.slice(0, 4) + '-' + r.qp.slice(4))}</td><td class="num">${fm(r.actual)}</td><td class="num">${fm(r[m])}</td><td class="num">${fm(r.gdpnow)}</td><td class="num">${fm(r.ar2)}</td></tr>`).join('');
+  // blend
+  if (m === 'full') {
+    $('blend').innerHTML = '<p class="sub" style="margin-top:0">If you already follow GDPNow, does a share of this model improve on it? The weight is the MIDAS share that minimises error over the sample (chosen in sample, so the gain is an upper bound).</p>' +
+      Object.entries(S.blend).map(([lab, rows]) => `<h3>${lab}</h3><div class="tablewrap"><table><tr><th>Forecast date</th><th class="num">GDPNow</th><th class="num">MIDAS</th><th class="num">Best MIDAS weight</th><th class="num">Blend</th><th class="num">Error correlation</th></tr>` + rows.map((r, i) => `<tr><td>${HLAB[i]}</td><td class="num">${fm(r.gdpnow)}</td><td class="num">${fm(r.midas)}</td><td class="num">${Math.round(r.w * 100)}%</td><td class="num"><b>${fm(r.blend)}</b></td><td class="num">${fm(r.corr)}</td></tr>`).join('') + '</table></div>').join('') +
+      '<p class="sub">Before COVID, a 35–50% weight on MIDAS lowers GDPNow’s error by roughly 8–13%. Since 2022 the gain is small (0–25% weight, 0–8% lower error), so treat MIDAS as a cross-check rather than an input.</p>';
+  } else $('blend').innerHTML = '<p class="sub">The blend analysis uses the 14-indicator model.</p>';
+  $('path').innerHTML = '<tr><th>Step</th><th class="num">2005–19</th><th class="num">2022–26</th><th class="num">AR(2) 2005–19</th><th class="num">AR(2) 2022–26</th></tr>' + S.path.map(p => `<tr><td>${p.label}</td><td class="num">${fm(p.pre)}</td><td class="num">${fm(p.post)}</td><td class="num">${fm(p.ar_pre)}</td><td class="num">${fm(p.ar_post)}</td></tr>`).join('') + '<tr><td colspan="5" class="caption">RMSFE at the end of the quarter, 14- or 15-indicator model.</td></tr>';
+}
+
+/* ---------------- wiring ---------------- */
+const SUBT = { full: ['Where is GDP growth heading, according to 14 monthly, weekly and daily indicators?', 'Industrial production, payrolls, retail sales, consumption, orders, housing, inventories, prices, sentiment and financial conditions, each entering with a flexible lag profile and shrunk toward zero.'], trio: ['What do just three indicators say?', 'Industrial production, the Chicago Fed financial conditions index and the yield-curve slope: the small information set used in Chan’s MIDAS tutorial and in Chan, Poon and Zhu’s paper, here with the same real-time estimator as the larger model.'] };
+function setModel(m) {
+  st.m = m;
+  $('msub').textContent = SUBT[m][0]; $('mcite').textContent = SUBT[m][1]; renderData(); renderRep();
+}
+function setSub(s) {
+  st.sub = s; document.querySelectorAll('#panel-midas .tabs.sub button').forEach(b => b.setAttribute('aria-selected', b.dataset.sub === s));
+  $('p-data').hidden = s !== 'data'; $('p-rep').hidden = s !== 'replication'; history.replaceState(null, '', '#' + st.m + (s === 'replication' ? '-rep' : ''));
+}
+Promise.all([fetch('data/midas_static.json').then(r => r.json()), fetch('data/midas_daily.json').then(r => r.json())]).then(([s, d]) => {
+  S = s; D = d; dates = Object.keys(D).sort();
+  const last = dates[dates.length - 1]; st.q = D[last][0].q;
+  $('asof').textContent = `As of ${last}. Updated each weekday after the day's releases.`;
+
+  document.querySelectorAll('#panel-midas .tabs.sub button').forEach(b => b.onclick = () => setSub(b.dataset.sub));
+  $('qsel').onchange = e => { st.q = e.target.value; st.since = null; renderData(); };
+  $('since').onchange = e => { const v = e.target.value, ds = datesOf(st.q); st.since = [...ds].reverse().find(x => x <= v) || ds[0]; renderData(); };
+  document.querySelectorAll('.quick button').forEach(b => b.onclick = () => { const ds = datesOf(st.q), L = ds[ds.length - 1], t = new Date(L); if (b.dataset.q === 'first') st.since = ds[0]; else { t.setUTCDate(t.getUTCDate() - (b.dataset.q === 'week' ? 7 : 30)); st.since = [...ds].reverse().find(x => x <= t.toISOString().slice(0, 10)) || ds[0]; } renderData(); });
+  window.__midas = { show(m, rep) { setModel(m); setSub(rep ? 'replication' : 'data'); } };
+  route();
+}).catch(e => { const b = $('banner'); b.style.display = 'block'; b.className = 'banner fail'; b.textContent = 'Could not load data: ' + e; });
+
+})();
+</script>
+<script>
+/* top-level tabs: GDPNow | MIDAS 14 | MIDAS 3.  Hash: #gdpnow (default), #full, #trio, #full-rep, #trio-rep */
+function route() {
+  const h = location.hash.slice(1) || 'gdpnow';
+  const t = h.startsWith('trio') ? 'trio' : (h.startsWith('full') || h.startsWith('midas')) ? 'full' : 'gdpnow';
+  document.querySelectorAll('#top button').forEach(b => b.setAttribute('aria-selected', b.dataset.top === t));
+  document.getElementById('panel-gdpnow').hidden = t !== 'gdpnow';
+  document.getElementById('panel-midas').hidden = t === 'gdpnow';
+  if (t !== 'gdpnow' && window.__midas) window.__midas.show(t, h.endsWith('-rep'));
+}
+document.querySelectorAll('#top button').forEach(b => b.onclick = () => { location.hash = b.dataset.top; });
+window.addEventListener('hashchange', route);
+route();
+</script>
 </body>
 </html>
