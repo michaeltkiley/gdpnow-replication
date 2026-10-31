@@ -1,0 +1,13 @@
+2011Q3-2019Q4 quarters 34
+ h=1: GDPNow 1.06 | MIDAS-15 1.21 | AR2 1.12 | best MIDAS weight 0.35 -> 1.00 | corr(errors) 0.49
+ h=2: GDPNow 1.00 | MIDAS-15 1.29 | AR2 1.28 | best MIDAS weight 0.20 -> 0.97 | corr(errors) 0.61
+ h=3: GDPNow 0.79 | MIDAS-15 1.09 | AR2 1.32 | best MIDAS weight 0.30 -> 0.72 | corr(errors) 0.32
+ h=4: GDPNow 0.72 | MIDAS-15 1.09 | AR2 1.32 | best MIDAS weight 0.25 -> 0.64 | corr(errors) 0.19
+2022Q1-2026Q3 quarters 19
+ h=1: GDPNow 1.51 | MIDAS-15 2.30 | AR2 2.06 | best MIDAS weight 0.00 -> 1.51 | corr(errors) 0.70
+ h=2: GDPNow 1.19 | MIDAS-15 2.09 | AR2 2.00 | best MIDAS weight 0.00 -> 1.19 | corr(errors) 0.54
+ h=3: GDPNow 1.08 | MIDAS-15 2.98 | AR2 1.97 | best MIDAS weight 0.05 -> 1.08 | corr(errors) 0.27
+ h=4: GDPNow 1.38 | MIDAS-15 2.42 | AR2 1.97 | best MIDAS weight 0.10 -> 1.35 | corr(errors) 0.32
+
+LIVE 2026Q4 @2026-10-31: MIDAS-15 4.29 | MIDAS-3 3.12 | AR2 2.70
+{'BOPGSTB': np.float64(0.6), 'INDPRO': np.float64(0.27), 'AWHMAN': np.float64(0.25), 'HOUST': np.float64(0.23), 'CPIAUCSL': np.float64(-0.2), 'DGORDER': np.float64(0.18), 'RSAFS': np.float64(0.18), 'PCE': np.float64(0.12), 'ICSA': np.float64(0.1), 'UMCSENT': np.float64(-0.08), 'NFCI': np.float64(0.08), 'BUSINV': np.float64(-0.07), 'UNRATE': np.float64(0.05), 'T10Y3M': np.float64(-0.02), 'PAYEMS': np.float64(-0.01), 'gdp_lag': np.float64(0.01)}
