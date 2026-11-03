@@ -338,11 +338,23 @@ GDPNow workbook (the prefix before each spliced series' public data begin, plus 
 cannot erase it. On the first weekday of each month (Central time) the workflow downloads the newest workbook, compares each stored
 growth with the same series' growth in it (absolute tolerance 1e-6; log or difference, whichever reproduces the stored rows), and opens a
 GitHub issue titled "Monthly splice check YYYY-MM: passed" or "failed", mentioning the owner, with the series, months and size of each
-change; also listed (informational, not a failure) are any live-vs-workbook agreements below the 0.90 gate, e.g. the ISM stand-ins. A failed check fails the job (email). It is a maintenance
-alert only: it does not hold the daily nowcast and does not refresh the stored history. Manual run: dispatch `splice-check`.
+change; also listed (informational, not a failure) are any live-vs-workbook agreements below the 0.90 gate, e.g. the ISM stand-ins. It does not hold the daily nowcast. When the check
+finds a revision, the same job runs the refresh below with `--auto` (see "Automatic refresh"), re-runs the check, and the issue title says
+"revised, refreshed automatically, re-check clean", "refreshed but re-check still differs" or "failed, held for review". The job fails
+(email) unless the re-check is clean. Manual run: dispatch `splice-check`.
+
+**Automatic refresh (`splice_refresh.guard`, `scripts/14_refresh_history.py --auto`, in workflow `splice-check`).** The refresh is applied
+without the owner only when the revision is routine: no month's log growth changes by more than `MAX_ABS_CHANGE` (0.02), fewer than
+`MAX_SERIES_SHARE` (50%) of the stored borrowed series change, and no series or date vanished from the workbook. Otherwise nothing is
+changed, the script exits 4 and the issue is titled "failed, held for review" with the reasons. After an applied refresh the job re-runs
+`13_splice_check.py`; only a clean re-check saves the state (cache key `state-refresh-<run id>`), so a partial refresh never reaches the
+daily run. The workflow shares the `daily-nowcast` concurrency group. A cache saved from a branch cannot be read from `main`, so a test
+dispatch from a branch only shows the report; dispatch again on `main` for the refresh to take effect. First live use: the 2026-11-02
+workbook (17 series, 1,476 values, largest change 0.016), issues #73, #75, #76.
 
 **Refreshing the borrowed history (`gdpnow/splice_refresh.py`, `scripts/14_refresh_history.py`, workflow `refresh-history`).** When the monthly
-check reports a revision, the owner decides whether the stored history should follow the workbook. The workflow is manual and two-step:
+check reports a revision outside the automatic limits, the owner decides whether the stored history should follow the workbook. The
+manual workflow is two-step:
 dispatch with `apply = false` (default) to list the series, number of values, dates and size of every revision that would be replaced
 (nothing is written); dispatch again with `apply = true` to replace them. Only stored borrowed growth that differs from the newest
 workbook is replaced, for dates the workbook still carries; vanished series or dates are reported and left alone. Each replaced value
