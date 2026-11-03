@@ -5,8 +5,9 @@ on:
     - cron: '41 14 * * 1-5'    # every weekday at 14:41 UTC; the guard step keeps only the first weekday of the month
   workflow_dispatch:
 
+# Shares the daily run's group: an automatic refresh and a daily run never touch the state at the same time.
 concurrency:
-  group: splice-check
+  group: daily-nowcast
   cancel-in-progress: false
 
 permissions:
@@ -50,16 +51,43 @@ jobs:
         run: |
           python scripts/01_ingest_workbook.py --date "$(TZ=America/Chicago date +%Y%m%d)"
           python scripts/13_splice_check.py --out splice_check.md
+      - name: Refresh the borrowed history if the revision is routine (limits in gdpnow/splice_refresh.py); otherwise hold it for the owner
+        if: steps.gate.outputs.run == 'true' && steps.check.outcome != 'success'
+        id: refresh
+        continue-on-error: true
+        run: |
+          set +e
+          python scripts/14_refresh_history.py --auto --out refresh.md
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          [ -f refresh.md ] && { echo; cat refresh.md; } >> splice_check.md
+          exit $rc
+      - name: Re-run the check on the refreshed history (must be clean)
+        if: steps.refresh.outcome == 'success'
+        id: recheck
+        continue-on-error: true
+        run: python scripts/13_splice_check.py --out splice_recheck.md
+      - name: Save state (the daily run restores the newest)
+        if: steps.recheck.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: data/gdpnow.duckdb
+          key: state-refresh-${{ github.run_id }}
       - name: Open the month's issue (passed or failed)
         if: steps.gate.outputs.run == 'true' && always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           m=$(TZ=America/Chicago date +%Y-%m)
-          if [ "${{ steps.check.outcome }}" = "success" ]; then res=passed; else res=failed; fi
+          if [ "${{ steps.check.outcome }}" = "success" ]; then res=passed
+          elif [ "${{ steps.recheck.outcome }}" = "success" ]; then res="revised, refreshed automatically, re-check clean"
+          elif [ "${{ steps.refresh.outcome }}" = "success" ]; then res="refreshed but re-check still differs"
+          elif [ "${{ steps.refresh.outputs.rc }}" = "4" ]; then res="failed, held for review"
+          else res=failed; fi
+          [ -f splice_recheck.md ] && { echo; echo "**Re-check after refresh**"; echo; cat splice_recheck.md; } >> splice_check.md
           [ -f splice_check.md ] || echo "The check did not produce a report (see the run log): ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > splice_check.md
           { cat splice_check.md; echo; echo "@michaeltkiley"; echo; echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; } > body.md
           gh issue create --title "Monthly splice check $m: $res" --body-file body.md
       - name: Fail the job if the check failed (GitHub emails on failure)
-        if: steps.gate.outputs.run == 'true' && steps.check.outcome != 'success'
+        if: steps.gate.outputs.run == 'true' && steps.check.outcome != 'success' && steps.recheck.outcome != 'success'
         run: exit 1

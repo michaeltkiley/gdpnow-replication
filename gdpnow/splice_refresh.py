@@ -14,6 +14,27 @@ from . import splice_check as SC
 
 LOG = 'hist_growth_refresh_log'
 
+# Guardrails for the automatic refresh (--auto). A revision inside them is applied; anything outside is held for the owner.
+MAX_ABS_CHANGE = 0.02      # largest change in one month's log growth (2 pp) that counts as a routine revision
+MAX_SERIES_SHARE = 0.5     # share of the stored borrowed series that may change at once (more looks like a redefinition of the workbook)
+
+
+def guard(con, p, notes):
+    """(ok, reasons): whether the plan `p` is a routine revision that may be applied without the owner."""
+    if p.empty:
+        return True, []
+    why = []
+    big = p.assign(d=(p.new_growth - p.old_growth).abs()).query('d > @MAX_ABS_CHANGE')
+    if len(big):
+        why.append(f'{big.name.nunique()} series change by more than {MAX_ABS_CHANGE:g} in one month (largest {big.d.max():.3g})')
+    total = con.execute("SELECT count(DISTINCT name) FROM hist_growth WHERE source LIKE 'workbook%'").fetchone()[0]
+    if total and p.name.nunique() / total > MAX_SERIES_SHARE:
+        why.append(f'{p.name.nunique()} of {total} stored series change (limit {MAX_SERIES_SHARE:.0%})')
+    gone = [n for n in notes if 'not in the newest workbook' in n or 'no longer in the workbook' in n]
+    if gone:
+        why.append(f'{len(gone)} series or dates vanished from the workbook')
+    return not why, why
+
 
 def plan(con, vintage):
     """DataFrame (name, date, old_growth, new_growth, old_source) of the stored borrowed values the newest workbook revised, and a list of notes."""

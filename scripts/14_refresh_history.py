@@ -1,5 +1,6 @@
 """Refresh the borrowed GDPNow history from the newest workbook (see gdpnow/splice_refresh.py). Dry run unless --apply.
-Run after 01_ingest_workbook.py. Usage: python scripts/14_refresh_history.py [--apply] [--out refresh.md]"""
+Run after 01_ingest_workbook.py. Usage: python scripts/14_refresh_history.py [--apply | --auto] [--out refresh.md]
+--auto applies only a routine revision (splice_refresh.guard); otherwise it changes nothing and exits 4."""
 import argparse
 import sys
 from pathlib import Path
@@ -11,13 +12,20 @@ from gdpnow import clock, splice_check, splice_refresh, store
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--apply', action='store_true')
+    ap.add_argument('--auto', action='store_true')
     ap.add_argument('--out', default='refresh.md')
     a = ap.parse_args()
     con = store.connect()
     vint = store.latest_vintage(con)
     p, notes = splice_refresh.plan(con, vint)
+    held = []
+    if a.auto:
+        ok, held = splice_refresh.guard(con, p, notes)
+        a.apply = ok
     n = splice_refresh.apply(con, p, vint, clock.today().isoformat()) if a.apply else 0
     text = splice_refresh.report(p, notes, vint, a.apply)
+    if held:
+        text += '\n\n**HELD for the owner (outside the automatic limits):** ' + '; '.join(held) + '. Dispatch `refresh-history` with apply = true after review.'
     if a.apply:                                   # verify: the check must now pass for every series the workbook still carries
         ok, df, _ = splice_check.run(con, vint)
         left = df[df.status.isin(['CHANGED'])] if len(df) else df
@@ -26,6 +34,8 @@ def main():
             sys.exit(Path(a.out).write_text(text + '\n') and 3)
     Path(a.out).write_text(text + '\n')
     print(text)
+    if held:
+        sys.exit(4)
 
 
 if __name__ == '__main__':
