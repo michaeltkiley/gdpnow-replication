@@ -122,5 +122,8 @@
   "l1_minus_gdpnow": -1.721132347753951e-08,
   "workbook_vintage": "20261103"
  },
- "code_hash": "6077eff0de9366e4"
+ "code_hash": "6077eff0de9366e4",
+ "unchanged": {
+  "since": "2026-11-03"
+ }
 }
