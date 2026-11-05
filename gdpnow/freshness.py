@@ -19,6 +19,13 @@ CONFIG = Path(__file__).resolve().parents[1] / 'config' / 'freshness.toml'
 SLACK_DAYS, GAPS = 45, 2.5
 
 
+def line_key(source, series):
+    """Identity of a series across runs. A BEA bulk series is 'dataset:table:freq|line|label' and the label is borrowed from a concept stem
+    (bea_bulk.register), so an unrelated series added to the register can rename lines without changing their data: BEA is matched on
+    'dataset:table:freq|line' alone."""
+    return series.rsplit('|', 1)[0] if source == 'bea' and series.count('|') >= 2 else series
+
+
 def ignored():
     return list(tomllib.loads(CONFIG.read_text()).get('ignore', {})) if CONFIG.exists() else []
 
@@ -54,18 +61,19 @@ def findings(con, asof, today=None):
     base = baseline(con)
     out = []
     if base is not None:
-        prev = base.set_index(['source', 'series'])
-        t = today.set_index(['source', 'series'])
-        now_series = set(today['series'])
+        # compare on line_key; names are reported as they were in the baseline (disappeared) or today (shrank)
+        prev = base.assign(k=[line_key(a, b) for a, b in zip(base['source'], base['series'])]).drop_duplicates(['source', 'k']).set_index(['source', 'k'])
+        t = today.assign(k=[line_key(a, b) for a, b in zip(today['source'], today['series'])]).drop_duplicates(['source', 'k']).set_index(['source', 'k'])
+        now_series = set(t.index.get_level_values('k'))
         for key in prev.index.difference(t.index):
             if key[1] not in now_series:
-                out.append((*key, 'disappeared', 'in the last passing check, not today'))
+                out.append((key[0], prev.loc[key, 'series'], 'disappeared', 'in the last passing check, not today'))
         for key in prev.index.intersection(t.index):
             p, c = prev.loc[key], t.loc[key]
             if c['n'] < p['n']:
-                out.append((*key, 'shrank', f'{int(p["n"])} -> {int(c["n"])} observations since the last passing check'))
+                out.append((key[0], c['series'], 'shrank', f'{int(p["n"])} -> {int(c["n"])} observations since the last passing check'))
             elif c['last'] < p['last']:
-                out.append((*key, 'shrank', f'last observation {p["last"].date()} -> {c["last"].date()} since the last passing check'))
+                out.append((key[0], c['series'], 'shrank', f'last observation {p["last"].date()} -> {c["last"].date()} since the last passing check'))
     now = pd.Timestamp(asof)
     for r in today.itertuples():
         if pd.notna(r.gap):
