@@ -15,6 +15,7 @@ probe. BEA answers any made-up file name with HTTP 200 and an HTML page (no Last
 """
 import csv
 import io
+import re
 import tomllib
 from pathlib import Path
 import urllib.request
@@ -68,10 +69,15 @@ def _text(file):
     return _TEXT[file]
 
 
+_METRIC = re.compile(r'R[A-Z]$')
+
+
 def stem(code):
-    """A BEA series code is a concept stem plus a final metric letter (A191RC current dollars, A191RX chained dollars, A191RJ
-    quantity index ...)."""
-    return code[:-1] if len(code) > 1 else code
+    """The concept a series code belongs to. A code that ends in R plus a metric letter (A191RC current dollars, A191RX chained
+    dollars, A191RG price index ...) is a concept stem plus that letter, and the metrics of one concept share a label. Any other
+    code (LA001081, C4214X, I30D) stands for itself: dropping its last character merged unrelated series (LA001080 'Federal Reserve
+    banks' with LA001081 'New domestic light trucks' ...) so that a series added to the register relabelled lines of other tables."""
+    return code[:-1] if _METRIC.search(code) else code
 
 
 def register():
