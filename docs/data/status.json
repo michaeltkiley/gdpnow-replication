@@ -1,7 +1,6 @@
 {
  "asof": "2026-11-04",
- "ok": false,
- "message": "held for review: input disappeared: bea|NIPA:T40205B:Q|4|New domestic light trucks in the last passing check, not today; input disappeared: bea|NIPA:T40205B:Q|5|New domestic light trucks in the last passing check, not today; input disappeared: bea|NIPA:T40205B:Q|6|New domestic light trucks in the last passing check, not today; input disappeared: bea|NIPA:T40205B:Q|7|New domestic light trucks in the last passing check, not today; input disappeared: bea|NIPA:T40205B:Q|8|New domestic light trucks in the last passing check, not today; input disappeared: bea|NIUnderlyingDetail:U20405:M|10|New domestic light trucks in the last passing check, not today; input disappeared: bea|NIUnderlyingDetail:U20405:M|11|New domestic light trucks in the last passing check, not today",
- "finished": "2026-11-05T02:34:31+00:00",
- "held": true
+ "ok": true,
+ "message": "ok",
+ "finished": "2026-11-05T03:37:32+00:00"
 }
