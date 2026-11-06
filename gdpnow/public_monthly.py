@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.x13 import x13_arima_analysis
 
-from . import bea_trade as BT, bls_flat as BF, census_bulk as CB, history as H, housing, ids0182 as IDS, trade_bvar as TB, public_data as P
+from . import bea_trade as BT, bls_flat as BF, census_bulk as CB, gates, history as H, housing, ids0182 as IDS, trade_bvar as TB, public_data as P
 from .config import ROOT, load_toml
 
 X13 = str(ROOT / 'tools' / 'x13' / 'x13as' / 'x13as_ascii')
@@ -747,7 +747,8 @@ def build_trade(cx, prices, comp_defl, cap, ship=None):
     adv = asof_cut(cx.census('x', 'ftdadv', 'CBG', 'EXP'), cx.asof)
     t_aei = adv.index.max()
     aei = None
-    if t_aei > gx.index.max() and ship is not None:
+    window = gates.gate(cx.con, cx.asof, 'aei_window', t_aei > gx.index.max(), f'advance report {t_aei:%Y-%m}, full release {gx.index.max():%Y-%m}')
+    if window and ship is not None:
         aei = TB.aei_table(cx, t_aei)
         gg = TB.gold_adjusted_growth(cx, prices, aei, t_aei)
         gx[t_aei] = gx[t_aei - pd.offsets.MonthEnd(1)] * gg['exports']

@@ -5,10 +5,12 @@ for (source, series, asof) already in the archive is served from it unless refre
 """
 import datetime as dt
 import hashlib
+import http.client
 import json
 import os
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -138,6 +140,21 @@ def head(url, timeout=60):
         return h.get('Last-Modified'), h.get('ETag'), h.get('Content-Length')
 
 
+def _fetch(url, timeout, tries=4, wait=2):
+    """GET with retries on server errors (5xx, 429), dropped connections and timeouts: a publisher's momentary 500 (census.gov,
+    2026-10-27) must not fail a day. Other client errors (404, 403) are not retried."""
+    for i in range(tries):
+        try:
+            return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout).read()
+        except urllib.error.HTTPError as e:
+            if (e.code < 500 and e.code != 429) or i == tries - 1:
+                raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.IncompleteRead):
+            if i == tries - 1:
+                raise
+        time.sleep(wait * 2 ** i)
+
+
 def get_bytes(url, timeout=120):
     """A file's bytes. The change signal for the daily probe is the file's header (Last-Modified, ETag, length) when the server sends a
     Last-Modified together with an ETag, so the probe repeats a header-only request; any other server is checked by a digest of the
@@ -147,7 +164,7 @@ def get_bytes(url, timeout=120):
         h = head(url)
     except Exception:
         h = None
-    raw = urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout).read()
+    raw = _fetch(url, timeout)
     if h and h[0] and h[1]:
         record_head(url, h)
     else:
