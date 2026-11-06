@@ -3,10 +3,4 @@
 "bea|NIPA:T50809A:Q|*" = "legacy private-inventories table (SIC basis) that ends in 1997; kept in the bulk file"
 "bea|NIUnderlyingDetail:U2040[45]:M|15[78]|*" = "rental-of-tenant-landlord lines that end in 2001"
 "census_bulk|MHS2|T|SP|0|US" = "manufactured-home placements: Census publishes them about 4 months after the month"
-"fred|CFNAI" = "only read when the advance trade report is newer than the full release, so absent on most build days"
 "fred|MATISAMFRBDAL" = "Dallas materials-inventory index, discontinued December 2017 and no longer read; a same-day rerun can still find the old pull in the database"
-
-# Series read only in part of the release cycle: absent on a build day is not a loss, so only 'disappeared' is dropped (shrank/stale still apply when pulled).
-[conditional]
-"aei|*" = "Advance Economic Indicators table: read only while the advance trade report is newer than the full release (build_trade AEI window), closes when the full trade release arrives"
-"ids0182|*|Census-based|SA|[013456]" = "end-use detail read only by the AEI-window gold and capital-goods BVARs (trade_bvar), so absent once the full trade release has arrived"

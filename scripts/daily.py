@@ -175,6 +175,7 @@ def main():
         same_month = bool(prev) and prev[0][:7] == asof[:7]
         unchanged = False
         next_err = None
+        notes = []
         if check:
             may_skip = prev_ok and prev[1] == chash and same_month
             res = None
@@ -215,17 +216,18 @@ def main():
         if not unchanged and not a.skip_freshness:   # inputs were rebuilt today: check they did not go missing, shrink or go stale
             con = store.connect()
             try:
-                problems += freshness.check(con, asof)
+                holds, notes = freshness.check(con, asof, chash)
+                problems += holds
             finally:
                 con.close()
     except Exception as e:                       # includes failed stages (CalledProcessError)
         write(False, f'run failed: {e}')
         raise
     if problems:
-        write(False, 'held for review: ' + '; '.join(problems), held=True)
+        write(False, 'held for review: ' + '; '.join(problems), held=True, **({'warnings': notes} if notes else {}))
         print('HELD:', problems)
         sys.exit(3)
-    write(True, 'no new data: nowcast unchanged' if unchanged else 'ok', **({'unchanged': True} if unchanged else {}), **({'next_failed': next_err} if next_err else {}))
+    write(True, 'no new data: nowcast unchanged' if unchanged else 'ok', **({'unchanged': True} if unchanged else {}), **({'next_failed': next_err} if next_err else {}), **({'warnings': notes} if notes else {}))
     print(f'\ndaily run {asof}: ok')
 
 

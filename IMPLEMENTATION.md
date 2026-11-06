@@ -373,14 +373,29 @@ row per (source, series, date) among the files up to that day (`tools/vintage_as
 runs after the results commit, so a failure emails but cannot lose a result; it is idempotent. First production run (2026-10-07):
 3.5 MB baseline, 0.75 MB the next day, 37 KB for a day with few changes.
 
-**Input freshness check (`gdpnow/freshness.py`).** On every day the inputs are rebuilt, after the build, the run compares each series
-in `raw_pulls` with a baseline (observation count and last date per series, table `freshness_baseline`, saved by the last run that
-passed the check) and flags a series that disappeared (absent today under every source), shrank (fewer observations or an earlier last
-observation), or is stale (last observation older than 2.5 times its own median release gap plus 45 days). A flag holds the run like
-the nowcast sanity checks: results are written, the page is not updated, the workflow fails and GitHub emails, and the baseline is left
-as it was so the problem is not forgotten after one email. Series that legitimately behave so are listed with a reason in
-`config/freshness.toml` (patterns `source|series`). Skip days (nothing new) are not checked; the first run has no baseline and gets
-only the stale check.
+**Input freshness check (`gdpnow/freshness.py`, `gdpnow/gates.py`).** On every day the inputs are rebuilt, after the build, the run
+compares each series in `raw_pulls` with baselines saved by passing runs (observation count and last date per series, table
+`freshness_baseline`, one baseline per *regime* and each stamped with the run's code hash). The regime is the day's gate states: a read
+that depends on the calendar or on data availability calls `gates.gate(con, asof, name, condition)` (today: `aei_window`, the advance
+trade report newer than the full release, which gates the AEI table, CFNAI and the end-use detail of the gold and capital-goods BVARs).
+What a finding is depends on what can explain it.
+
+| Finding | Severity |
+|---|---|
+| a series is absent today that a baseline with the **same gates and same code** had | **hold** (the model is missing an input nothing explains) |
+| last observation earlier than in the last baseline, or more than 2 observations fewer | **hold** |
+| last observation older than 2.5 times the series' own median release gap plus 45 days | **hold** |
+| series not read today that earlier runs under other gates or code read | note: baseline relearned |
+| 1-2 observations fewer, last observation unchanged (a source revision) | note |
+
+A hold works as before: results are written, the page is not updated, the workflow fails and GitHub emails, and the baselines stay as
+they were so the problem is not forgotten after one email. Notes are published in `status.json` (`warnings`) and shown as workflow
+annotations. BEA lines are matched by table and line number, not label. Series that legitimately end are listed with a reason in
+`config/freshness.toml`. Skip days (nothing new) are not checked. **Rule for new code:** an input read inside an `if` on the calendar
+or on data availability needs a gate, or the first day that condition flips is held. Blind spot: a code change that drops a read by
+mistake relearns instead of holding; tests and review cover it. `tests/test_freshness.py` replays two years of release calendar (window
+opening and closing, monthly code changes, revisions, relabels) and fails if any day without a real problem is held; the `tests`
+workflow runs it on every pull request.
 
 ## 7. Repository map
 
