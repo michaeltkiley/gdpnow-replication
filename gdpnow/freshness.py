@@ -6,7 +6,9 @@ serve as the baseline). The first run has no baseline and only gets the stale ch
   - disappeared: in the baseline, absent today under every source (a series that moved to another source is not);
   - shrank: fewer observations, or an earlier last observation, than in the baseline;
   - is stale: its last observation is older than 2.5 normal release gaps plus 45 days (the gap is the series' own median spacing).
-Series that legitimately behave so are listed in config/freshness.toml with the reason (keys are 'source|series' patterns, `*` allowed). Run only on days the inputs were rebuilt. A day with problems leaves the baseline as it was, so a problem is not forgotten after one email.
+Series that legitimately behave so are listed in config/freshness.toml with the reason (keys are 'source|series' patterns, `*` allowed).
+[ignore] silences every finding for a series; [conditional] lists series the model reads only in part of the release cycle (e.g. the advance-trade window), which may be
+absent on a build day without that being a loss: only their 'disappeared' finding is dropped, shrank and stale still apply on the days they are pulled. Run only on days the inputs were rebuilt. A day with problems leaves the baseline as it was, so a problem is not forgotten after one email.
 """
 import fnmatch
 import tomllib
@@ -26,8 +28,16 @@ def line_key(source, series):
     return series.rsplit('|', 1)[0] if source == 'bea' and series.count('|') >= 2 else series
 
 
+def _patterns(section):
+    return list(tomllib.loads(CONFIG.read_text()).get(section, {})) if CONFIG.exists() else []
+
+
 def ignored():
-    return list(tomllib.loads(CONFIG.read_text()).get('ignore', {})) if CONFIG.exists() else []
+    return _patterns('ignore')
+
+
+def conditional():
+    return _patterns('conditional')
 
 
 def summary(con, asof):
@@ -85,9 +95,11 @@ def findings(con, asof, today=None):
 
 def check(con, asof):
     """Problem strings for the daily run (empty = fine); a passing check becomes the new baseline."""
-    skip = ignored()
+    skip, cond = ignored(), conditional()
     today = summary(con, asof)
-    problems = [f'input {k}: {s}|{x} {d}' for s, x, k, d in findings(con, asof, today) if not any(fnmatch.fnmatchcase(f'{s}|{x}', pat) for pat in skip)]
+    match = lambda s, x, pats: any(fnmatch.fnmatchcase(f'{s}|{x}', pat) for pat in pats)
+    problems = [f'input {k}: {s}|{x} {d}' for s, x, k, d in findings(con, asof, today)
+                if not match(s, x, skip) and not (k == 'disappeared' and match(s, x, cond))]
     if not problems:
         save_baseline(con, today)
     return problems

@@ -32,5 +32,37 @@ class Relabel(unittest.TestCase):
         self.assertEqual(len(F.check(self.con, '2026-11-05')), 1)
 
 
+class Conditional(unittest.TestCase):
+    """Series read only in the advance-trade window may be absent outside it (config/freshness.toml [conditional])."""
+    def setUp(self):
+        self.con = duckdb.connect()
+        self.con.execute('CREATE TABLE raw_pulls(source VARCHAR, series VARCHAR, as_of VARCHAR, retrieved_at VARCHAR, date VARCHAR, value DOUBLE)')
+
+    def put(self, asof, pairs):
+        for src, s in pairs:
+            for d in pd.date_range('2026-05-31', periods=5, freq='ME'):
+                self.con.execute('INSERT INTO raw_pulls VALUES (?,?,?,?,?,?)', [src, s, asof, 'x', str(d.date()), 1.0])
+
+    def test_window_closing_passes(self):
+        both = [('aei', 'exports|Capital Goods'), ('ids0182', 'imports|Census-based|SA|3'), ('fred', 'X')]
+        self.put('2026-11-03', both)
+        self.assertEqual(F.check(self.con, '2026-11-03'), [])
+        self.put('2026-11-05', [('fred', 'X')])
+        self.assertEqual(F.check(self.con, '2026-11-05'), [])
+
+    def test_unconditional_ids0182_still_flagged(self):
+        self.put('2026-11-03', [('ids0182', 'exports|Census-based|SA|2'), ('ids0182', 'exports|Census-based|SA|3')])
+        self.assertEqual(F.check(self.con, '2026-11-03'), [])
+        self.put('2026-11-05', [('ids0182', 'exports|Census-based|SA|3')])
+        self.assertEqual(len(F.check(self.con, '2026-11-05')), 1)
+
+    def test_conditional_series_still_checked_for_shrinking(self):
+        self.put('2026-11-03', [('aei', 'exports|Total')])
+        self.assertEqual(F.check(self.con, '2026-11-03'), [])
+        for d in pd.date_range('2026-05-31', periods=3, freq='ME'):
+            self.con.execute('INSERT INTO raw_pulls VALUES (?,?,?,?,?,?)', ['aei', 'exports|Total', '2026-11-05', 'x', str(d.date()), 1.0])
+        self.assertEqual(len(F.check(self.con, '2026-11-05')), 1)
+
+
 if __name__ == '__main__':
     unittest.main()
