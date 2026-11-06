@@ -1,7 +1,9 @@
 {
  "asof": "2026-11-05",
- "ok": false,
- "message": "held for review: input disappeared: aei|exports|Automotive Vehicles, etc. in the last passing check, not today; input disappeared: aei|exports|Capital Goods in the last passing check, not today; input disappeared: aei|exports|Consumer Goods in the last passing check, not today; input disappeared: aei|exports|Foods, Feeds, & Beverages in the last passing check, not today; input disappeared: aei|exports|Industrial Supplies in the last passing check, not today; input disappeared: aei|exports|Other Goods in the last passing check, not today; input disappeared: aei|exports|Total in the last passing check, not today; input disappeared: aei|imports|Automotive Vehicles, etc. in the last passing check, not today; input disappeared: aei|imports|Capital Goods in the last passing check, not today; input disappeared: aei|imports|Consumer Goods in the last passing check, not today; input disappeared: aei|imports|Foods, Feeds, & Beverages in the last passing check, not today; input disappeared: aei|imports|Industrial Supplies in the last passing check, not today; input disappeared: aei|imports|Other Goods in the last passing check, not today; input disappeared: aei|imports|Total in the last passing check, not today; input disappeared: ids0182|exports|Census-based|SA|0 in the last passing check, not today; input disappeared: ids0182|exports|Census-based|SA|1 in the last passing check, not today; input disappeared: ids0182|exports|Census-based|SA|3 in the last passing check, not today; input disappeared: ids0182|exports|Census-based|SA|4 in the last passing check, not today; input disappeared: ids0182|exports|Census-based|SA|5 in the last passing check, not today; input disappeared: ids0182|exports|Census-based|SA|6 in the last passing check, not today; input disappeared: ids0182|imports|Census-based|SA|0 in the last passing check, not today; input disappeared: ids0182|imports|Census-based|SA|1 in the last passing check, not today; input disappeared: ids0182|imports|Census-based|SA|3 in the last passing check, not today; input disappeared: ids0182|imports|Census-based|SA|4 in the last passing check, not today; input disappeared: ids0182|imports|Census-based|SA|5 in the last passing check, not today",
- "finished": "2026-11-06T02:16:38+00:00",
- "held": true
+ "ok": true,
+ "message": "ok",
+ "finished": "2026-11-06T02:54:27+00:00",
+ "warnings": [
+  "input relearned: 25 series read in an earlier run under other gates or code are not read today (gates today: aei_window=closed); baseline relearned"
+ ]
 }
