@@ -1,9 +1,6 @@
 {
- "asof": "2026-11-05",
+ "asof": "2026-11-06",
  "ok": true,
  "message": "ok",
- "finished": "2026-11-06T02:54:27+00:00",
- "warnings": [
-  "input relearned: 25 series read in an earlier run under other gates or code are not read today (gates today: aei_window=closed); baseline relearned"
- ]
+ "finished": "2026-11-07T01:31:55+00:00"
 }
