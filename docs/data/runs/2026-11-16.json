@@ -1,0 +1,126 @@
+{
+ "asof": "2026-11-16",
+ "quarter": "2026Q4",
+ "last_actual_quarter": "2026-09-30",
+ "nowcast": {
+  "gdp": 3.3862822369697954,
+  "aggregates": {
+   "GDP": 3.3862822369697954,
+   "final_sales": 2.6932199622509145,
+   "final_sales_domestic": 3.042819852908929,
+   "private_domestic_final_purchases": 3.3718020806422055,
+   "PCE": 2.565321516540764,
+   "cipi_level": 61.41271560839874,
+   "cipi_prev": 21.948460390276523,
+   "cipi_change": 39.46425521812222,
+   "net_exports_level": -1354.2919493604923
+  },
+  "components": {
+   "CTG": {
+    "label": "PCE goods",
+    "growth": 2.4704946311118414,
+    "contribution": 0.5187783973525468
+   },
+   "CS": {
+    "label": "PCE services",
+    "growth": 2.607942740835334,
+    "contribution": 1.2184284647486396
+   },
+   "FNE": {
+    "label": "Equipment",
+    "growth": 11.233985753429533,
+    "contribution": 0.6797464291287266
+   },
+   "FNP": {
+    "label": "Intellectual property products",
+    "growth": 7.485589494257616,
+    "contribution": 0.4295566325846358
+   },
+   "FNS": {
+    "label": "Nonresidential structures",
+    "growth": 5.3309566969144795,
+    "contribution": 0.1553454313784562
+   },
+   "FR": {
+    "label": "Residential",
+    "growth": -2.7635981837882517,
+    "contribution": -0.10040530334283745
+   },
+   "GF": {
+    "label": "Federal government",
+    "growth": 2.2474534274367963,
+    "contribution": 0.14058568467505403
+   },
+   "GS": {
+    "label": "State and local government",
+    "growth": 0.9884047185743317,
+    "contribution": 0.11226831660478409
+   },
+   "XM": {
+    "label": "Goods exports",
+    "growth": 6.35657785476218,
+    "contribution": 0.4616219357401027
+   },
+   "XS": {
+    "label": "Services exports",
+    "growth": 4.052646631650081,
+    "contribution": 0.1619793606412202
+   },
+   "MM": {
+    "label": "Goods imports",
+    "growth": 7.310300988208307,
+    "contribution": -0.8723779906207231
+   },
+   "MS": {
+    "label": "Services imports",
+    "growth": 7.346686477373621,
+    "contribution": -0.2080167545364628
+   },
+   "V": {
+    "label": "Change in private inventories",
+    "growth": NaN,
+    "contribution": 0.6887716326156531
+   }
+  }
+ },
+ "gdpnow": {
+  "date": "2026-11-09",
+  "gdp": 3.480964553754662,
+  "growth": {
+   "CTG": 2.6403749607245564,
+   "CS": 2.641249545847568,
+   "FNE": 12.958848180756677,
+   "FNP": 7.459491178877764,
+   "FNS": 6.103995734636203,
+   "FR": 0.8123366064267667,
+   "GF": 1.5758816368402595,
+   "GS": 1.0088384429402186,
+   "XM": 6.16822810392661,
+   "XS": 4.218746572237508,
+   "MM": 7.2284282639537345,
+   "MS": 7.529964057252303
+  },
+  "contribution": {
+   "CTG": 0.5542830745966576,
+   "CS": 1.2342966798468389,
+   "FNE": 0.7797082175366042,
+   "FNP": 0.42826828628420605,
+   "FNS": 0.1774371061931674,
+   "FR": 0.029127837764658257,
+   "GF": 0.09884775783160246,
+   "GS": 0.11461241812683289,
+   "XM": 0.4483453892455153,
+   "XS": 0.1685722265263085,
+   "MM": -0.8630516264015441,
+   "MS": -0.21312510411594793,
+   "V": 0.5236422903198547
+  }
+ },
+ "integrity": {
+  "l1_gdp": 3.480964522640373,
+  "gdpnow_latest": 3.480964553754662,
+  "l1_minus_gdpnow": -3.1114288923106415e-08,
+  "workbook_vintage": "20261116"
+ },
+ "code_hash": "24f50db5b5545e70"
+}
