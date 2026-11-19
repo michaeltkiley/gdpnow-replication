@@ -436,11 +436,15 @@ def build_consumption(cx, prices):
     }
     # Retail control (retail & food services ex motor vehicles, gas stations, building materials) and food
     # services, current and previous vintage (for the revision terms of the latest-month nowcast).
+    # The current vintage comes from Census's bulk file; the previous one (as known a month earlier) from ALFRED, because the bulk
+    # file holds only today's vintage: read through P.fred, the "previous" series silently equalled the current one and every
+    # revision term was zero (2026-10-06 to 2026-11-19).
     prev_asof = (pd.Timestamp(cx.asof) - pd.DateOffset(months=1)).date()
-    fr = lambda fid, asof: me(P.fred(cx.con, fid, asof))
-    ctrl = lambda asof: fr('RSFSXMV', asof) - fr('RSGASS', asof) - fr('RSBMGESD', asof)
-    lv['NRSXMI47_USECON'], lv['NRSXMI47_USECONPrevious'] = ctrl(cx.asof), ctrl(prev_asof)
-    lv['NRSV2_USECON'], lv['NRSV2_USECONPrevious'] = fr('RSFSDP', cx.asof), fr('RSFSDP', prev_asof)
+    cur = lambda fid: me(P.fred(cx.con, fid, cx.asof))
+    old = lambda fid: me(P.alfred(cx.con, fid, prev_asof))
+    ctrl = lambda get: get('RSFSXMV') - get('RSGASS') - get('RSBMGESD')
+    lv['NRSXMI47_USECON'], lv['NRSXMI47_USECONPrevious'] = ctrl(cur), ctrl(old)
+    lv['NRSV2_USECON'], lv['NRSV2_USECONPrevious'] = cur('RSFSDP'), old('RSFSDP')
     lv['NRSXMI47_USECONlessNRSV2_USECON'] = lv['NRSXMI47_USECON'] - lv['NRSV2_USECON']
     lv['NRSXMI47_USECONPrevlessNRSV2_USECONPrev'] = lv['NRSXMI47_USECONPrevious'] - lv['NRSV2_USECONPrevious']
     # Monthly travel services trade (BEA trade-release time series). The "Previous" (prior-vintage) columns, used

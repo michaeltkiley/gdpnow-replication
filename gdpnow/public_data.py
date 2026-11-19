@@ -329,17 +329,45 @@ def fred(con, series_id, asof, refresh=False):
         s = _archived(con, 'fred', series_id, asof)
         if s is not None:
             return s
+    s = _alfred_get(series_id, asof)
+    _archive(con, 'fred', series_id, asof, s)
+    return s
+
+
+def alfred(con, series_id, asof):
+    """Observations of a FRED series as known on a past date `asof`, always from ALFRED, never from a primary-source file.
+
+    The bulk files (census_bulk, bls_flat, bea_bulk, ...) carry only the vintage current on the download day, so `fred()` returns
+    today's data whatever `asof` it is given for a series they cover. Use this for an earlier vintage (e.g. the previous-vintage
+    retail series of the revision terms, IMPLEMENTATION.md DD6). Archived as source 'alfred' under `asof` itself: a past ALFRED
+    vintage never changes, so it is read back exactly (not through the mixed-vintage override, which remaps run dates) and the
+    daily refresh does not re-download it."""
+    if store.table_exists(con, 'raw_pulls'):
+        df = store.query(con, "SELECT date, value FROM raw_pulls WHERE source = 'alfred' AND series = ? AND as_of = ?",
+                         (series_id, str(asof)))
+        if not df.empty:
+            return pd.Series(df.value.to_numpy(), index=pd.to_datetime(df.date)).sort_index()
+    s = _alfred_get(series_id, asof, current_fallback=False)
+    if s.empty:
+        raise RuntimeError(f'ALFRED returned no observations for {series_id} as of {asof}')
+    _archive(con, 'alfred', series_id, asof, s)
+    return s
+
+
+def _alfred_get(series_id, asof, current_fallback=True):
+    """FRED observations with real-time period `asof`. With `current_fallback`, a series without usable real-time history
+    (e.g. licensed NAR data) falls back to the current vintage; without it the error is raised."""
     q = dict(series_id=series_id, api_key=os.environ['FRED_API_KEY'], file_type='json',
              realtime_start=str(asof), realtime_end=str(asof), observation_start='1947-01-01')
     try:
         d = _get(FRED + 'series/observations?' + urllib.parse.urlencode(q))
-    except Exception:           # series without usable real-time history (e.g. licensed NAR data): current vintage
+    except Exception:
+        if not current_fallback:
+            raise
         q.pop('realtime_start'), q.pop('realtime_end')
         d = _get(FRED + 'series/observations?' + urllib.parse.urlencode(q))
     obs = [(o['date'], float(o['value'])) for o in d.get('observations', []) if o['value'] not in ('.', '')]
-    s = pd.Series({pd.Timestamp(a): b for a, b in obs}, dtype=float).sort_index()
-    _archive(con, 'fred', series_id, asof, s)
-    return s
+    return pd.Series({pd.Timestamp(a): b for a, b in obs}, dtype=float).sort_index()
 
 
 def fred_info(series_id):

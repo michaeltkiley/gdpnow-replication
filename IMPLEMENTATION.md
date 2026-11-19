@@ -176,7 +176,10 @@ published after that date can differ (for example Census book values for the pri
 trade series to estimate revisions to the latest month of travel PCE. The previous vintage of that BEA file is not
 available, so those columns are empty and the travel revision adjustment is inactive. (It is also inactive under
 GDPNow's own rule on the replicated date.) The previous-vintage retail and food-services series used for the
-analogous retail revision terms are built from FRED/ALFRED as known one month earlier.
+analogous retail revision terms are read from ALFRED as known one month earlier (`public_data.alfred`, archived as source
+`alfred` under that date); the current vintage comes from Census's bulk file. From 2026-10-06 to 2026-11-19 the previous vintage
+was read through the bulk file too, which holds only today's vintage, so it equalled the current one and the revision terms were
+zero (see `docs/data/method_changes.csv`).
 
 ### Seasonal adjustment
 
