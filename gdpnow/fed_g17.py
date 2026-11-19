@@ -73,6 +73,7 @@ def _parse(file):
 def series(con, fred_id, asof):
     """The series FRED publishes as `fred_id` (index: first day of each month, like FRED)."""
     file, code = MAP[fred_id]
+    P.current_vintage_only('fed_g17', fred_id, asof)
     if not P.REFRESH:
         s = P._archived(con, 'fed_g17', fred_id, asof)
         if s is not None:

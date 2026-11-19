@@ -169,7 +169,7 @@ data of that day, of which +0.048 pp inventories and +0.032 pp trade):
 **DD5. Data vintages.** The ~20 series still read from FRED are retrieved as known on the as-of date (ALFRED). Everything
 read from primary-source files (BLS flat files, Census program zips, BEA bulk files, trade and vehicle workbooks, the Fed's G.17
 files, BEA IDS-0182, Treasury) is **current vintage on the download date**, archived with the retrieval date (the archive keeps
-seven days in the run's database; the durable vintage archive below keeps every value as first seen or revised). GDPNow uses the vintages its workbook held on its update date, so revisions
+seven days in the run's database; the durable vintage archive below keeps every value as first seen or revised). During a build those readers serve only the build's own as-of date: a request for any other vintage raises `PastVintageError` instead of silently returning today's data (`public_data.current_vintage_only`); an earlier vintage comes from ALFRED through `public_data.alfred()`. GDPNow uses the vintages its workbook held on its update date, so revisions
 published after that date can differ (for example Census book values for the prior month).
 
 **DD6. Prior-vintage travel data.** GDPNow's workbook keeps the previous vintage of the monthly travel-services

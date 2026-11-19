@@ -106,6 +106,7 @@ def series(con, fred_id, asof):
 
 
 def _get(con, asof, bid, file):
+    P.current_vintage_only('bls_flat', bid, asof)
     if bid in _CACHE:
         return _CACHE[bid]
     if not P.REFRESH:

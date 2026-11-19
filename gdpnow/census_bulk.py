@@ -146,6 +146,7 @@ def get(con, asof, program, cat, dt, adj=1, geo='US', first_of_month=False):
     The bulk file holds only today's vintage: for an `asof` not in the archive this returns today's data, so read earlier
     vintages with public_data.alfred()."""
     key = f'{program}|{cat}|{dt}|{adj}|{geo}'
+    P.current_vintage_only('census_bulk', key, asof)
     ck = (key, str(asof), first_of_month)        # by as-of date too: a cache by series alone served one date's pull for any other
     if ck in _CACHE:
         return _CACHE[ck]

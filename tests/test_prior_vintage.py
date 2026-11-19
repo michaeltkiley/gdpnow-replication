@@ -140,5 +140,63 @@ class RevisionTerms(unittest.TestCase):
         np.testing.assert_allclose(z[MONTHS[:2]].to_numpy(), [2.0, 3.0])
 
 
+class CurrentVintageGuard(unittest.TestCase):
+    """During a build, a reader of a primary-source file refuses any vintage but the build's own date (it would return today's
+    data), so a request for an earlier vintage fails loudly instead of silently zeroing a revision term."""
+    BUILD, EARLIER = '2026-11-19', '2026-10-19'
+
+    def setUp(self):
+        from gdpnow import bea_bulk, bea_trade, bea_vehicles, bls_flat, fed_g17
+        self.con = con_with_pulls()
+        P.begin_build(self.BUILD)
+        C._CACHE.clear()
+        first = lambda m: next(iter(m))
+        self.readers = {
+            'census_bulk': lambda d: C.series(self.con, 'RSFSXMV', d),
+            'bls_flat': lambda d: bls_flat.series(self.con, first(bls_flat.MAP), d),
+            'bea_bulk': lambda d: bea_bulk.series(self.con, first(bea_bulk.MAP), d),
+            'bea_trade': lambda d: bea_trade.series(self.con, first(bea_trade.MAP), d),
+            'bea_vehicles': lambda d: bea_vehicles.series(self.con, first(bea_vehicles.SHEET), d),
+            'fed_g17': lambda d: fed_g17.series(self.con, first(fed_g17.MAP), d),
+            'bea tables': lambda d: P.bea_table(self.con, 'NIPA', 'T10105', 'Q', d),
+            'fred() routed to a bulk file': lambda d: P.fred(self.con, 'RSFSXMV', d),
+        }
+
+    def tearDown(self):
+        P._BUILD['asof'] = None
+        C._CACHE.clear()
+
+    def test_every_reader_refuses_an_earlier_vintage(self):
+        no_network = AssertionError('the guard must fire before any download or archive read')
+        with mock.patch('urllib.request.urlopen', side_effect=no_network):
+            for name, read in self.readers.items():
+                with self.subTest(reader=name):
+                    with self.assertRaises(P.PastVintageError) as e:
+                        read(self.EARLIER)
+                    self.assertIn('alfred', str(e.exception))
+
+    def test_the_build_date_is_served(self):
+        prog, cat, dt_, adj, geo = C.FRED['RSFSXMV']
+        P._archive(self.con, 'census_bulk', f'{prog}|{cat}|{dt_}|{adj}|{geo}', self.BUILD, pd.Series([1.0, 2.0], index=MONTHS[:2]))
+        with mock.patch('urllib.request.urlopen', side_effect=AssertionError('served from the archive')):
+            s = C.series(self.con, 'RSFSXMV', self.BUILD)
+        self.assertEqual(list(s), [1.0, 2.0])
+        P.current_vintage_only('census_bulk', 'x', pd.Timestamp(self.BUILD))     # a Timestamp for the same day is the same date
+
+    def test_alfred_is_the_way_to_an_earlier_vintage(self):
+        with mock.patch.dict(os.environ, {'FRED_API_KEY': 'k'}), \
+                mock.patch.object(P, '_get', return_value=alfred_json(MARTS['RSFSXMV'][0])):
+            s = P.alfred(self.con, 'RSFSXMV', self.EARLIER)
+        self.assertEqual(list(s), [599797.0, 605188.0])
+
+    def test_a_new_build_resets_the_date(self):
+        """A backdated build (or the README quick start) asks every reader for its own date: nothing is refused."""
+        from gdpnow import public_monthly as PM
+        PM.Ctx(self.con, self.EARLIER)
+        P.current_vintage_only('census_bulk', 'x', self.EARLIER)
+        with self.assertRaises(P.PastVintageError):
+            P.current_vintage_only('census_bulk', 'x', self.BUILD)
+
+
 if __name__ == '__main__':
     unittest.main()

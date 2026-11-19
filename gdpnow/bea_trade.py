@@ -59,6 +59,7 @@ def parse(path):
 
 def series(con, fred_id, asof):
     """The series FRED publishes as `fred_id` (index: first day of each month, like FRED)."""
+    P.current_vintage_only('bea_trade', fred_id, asof)
     if fred_id in _CACHE:
         return _CACHE[fred_id]
     if not P.REFRESH:

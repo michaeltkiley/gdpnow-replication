@@ -309,6 +309,39 @@ def _archive(con, source, series, asof, s):
     store.replace_rows(con, 'raw_pulls', df, {'source': source, 'series': series, 'as_of': str(asof)})
 
 
+class PastVintageError(RuntimeError):
+    """A current-vintage-only source was asked for another vintage than the build's own as-of date."""
+
+
+_BUILD = {'asof': None}
+
+
+def _day(asof):
+    return pd.Timestamp(str(asof)).date().isoformat()
+
+
+def begin_build(asof):
+    """Record the as-of date of the input build in progress (public_monthly.Ctx). Readers of primary-source files then refuse
+    any other date: see current_vintage_only."""
+    _BUILD['asof'] = _day(asof)
+
+
+def current_vintage_only(source, series, asof):
+    """Guard for the readers of primary-source files (census_bulk, bls_flat, bea_bulk, bea_trade, bea_vehicles, fed_g17, BEA
+    tables). Those files carry only the vintage current on the download day, so during a build they serve only the build's own
+    as-of date. A request for another date (e.g. "as known a month earlier" for a revision term) would silently get today's data,
+    which is how the retail revision terms were zero from 2026-10-06 to 2026-11-19 (PR 81). It raises instead. Use alfred() for an
+    earlier vintage, after checking that FRED's copy of the series equals the primary source (FRED rounds BEA values and some of
+    its mirrors differ; DESIGN.md, 2026-10-06). A whole build for a past date (backdated recompute, README quick start) is not
+    affected: its readers are all asked for that date. Outside a build (tests, tools) nothing is checked."""
+    b = _BUILD['asof']
+    if b is not None and _day(asof) != b:
+        raise PastVintageError(
+            f'{source} {series}: asked for the vintage of {asof} during the build as of {b}, but this source holds only the '
+            f'current vintage, so it would return today\'s data. Use public_data.alfred() for an earlier vintage (check that '
+            f'FRED\'s copy equals the primary source first).')
+
+
 def fred(con, series_id, asof, refresh=False):
     """Observations of a FRED series as known on `asof` (ALFRED real-time period). Series listed in
     config/bls_series.toml come from BLS's flat files (gdpnow/bls_flat.py), those in config/census_series.toml from Census's bulk files (gdpnow/census_bulk.py); BEA tables come from BEA's bulk files (gdpnow/bea_bulk.py)."""
@@ -391,6 +424,7 @@ def bea_table(con, dataset, table, frequency, asof, refresh=False):
     """All lines of a BEA NIPA / underlying-detail table (current vintage, from BEA's bulk files; archived under `asof`).
     Returns DataFrame indexed by period end with columns 'line|description'."""
     key = f'{dataset}:{table}:{frequency}'
+    current_vintage_only('bea', key, asof)
     if REFRESH and (key, str(asof)) not in _SEEN:
         _SEEN.add((key, str(asof)))
         refresh = True
