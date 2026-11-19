@@ -142,10 +142,13 @@ def _frame(program):
 
 
 def get(con, asof, program, cat, dt, adj=1, geo='US', first_of_month=False):
-    """One series of a program (index: month end, or the first day of the month like FRED when `first_of_month`)."""
+    """One series of a program (index: month end, or the first day of the month like FRED when `first_of_month`).
+    The bulk file holds only today's vintage: for an `asof` not in the archive this returns today's data, so read earlier
+    vintages with public_data.alfred()."""
     key = f'{program}|{cat}|{dt}|{adj}|{geo}'
-    if (key, first_of_month) in _CACHE:
-        return _CACHE[(key, first_of_month)]
+    ck = (key, str(asof), first_of_month)        # by as-of date too: a cache by series alone served one date's pull for any other
+    if ck in _CACHE:
+        return _CACHE[ck]
     s = None
     if not P.REFRESH:
         s = P._archived(con, 'census_bulk', key, asof)
@@ -158,7 +161,7 @@ def get(con, asof, program, cat, dt, adj=1, geo='US', first_of_month=False):
         P._archive(con, 'census_bulk', key, asof, s)
     if first_of_month:
         s = s.set_axis(s.index.to_period('M').to_timestamp())
-    _CACHE[(key, first_of_month)] = s
+    _CACHE[ck] = s
     return s
 
 
