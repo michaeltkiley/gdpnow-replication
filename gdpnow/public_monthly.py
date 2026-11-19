@@ -84,6 +84,7 @@ class Ctx:
 
     def __init__(self, con, asof, ref_vintage=None, ism='public'):
         self.con, self.asof, self.cache, self.ref_vintage, self.ism_mode = con, str(asof), {}, ref_vintage, ism
+        P.begin_build(self.asof)        # primary-source readers now refuse any other vintage (public_data.current_vintage_only)
         self._refs = {}
 
     def ref(self, sheet, col):

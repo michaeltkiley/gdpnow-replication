@@ -152,6 +152,7 @@ def covers(fred_id):
 def series(con, fred_id, asof):
     """The series FRED publishes as `fred_id`, from NipaDataM.txt (index: first day of each month, like FRED)."""
     code, div = MAP[fred_id]
+    P.current_vintage_only('bea_bulk', fred_id, asof)
     if code not in _MONTHLY and not P.REFRESH:
         s = P._archived(con, 'bea_bulk', code, asof)
         if s is not None:
