@@ -26,6 +26,10 @@ def gdpnow_lookup():
         x = pd.read_csv(h, usecols=['asof', 'quarter', 'nowcast', 'gdpnow_date', 'gdpnow'], parse_dates=['asof', 'gdpnow_date'])
         rows.append(x.rename(columns={'gdpnow_date': 'date', 'quarter': 'q'})[['date', 'q', 'gdpnow']])
         repl = x.rename(columns={'quarter': 'q'})[['asof', 'q', 'nowcast']]
+    nx = ROOT / 'docs' / 'data' / 'next' / 'history.csv'            # the replication's experimental next-quarter runs
+    if nx.exists():
+        y = pd.read_csv(nx, usecols=['asof', 'quarter', 'nowcast'], parse_dates=['asof']).rename(columns={'quarter': 'q'})
+        repl = pd.concat([repl, y]).drop_duplicates(['asof', 'q'], keep='first').sort_values('asof')
     g = pd.concat(rows).dropna().drop_duplicates(['date', 'q'], keep='last').sort_values('date')
     return g, repl
 
@@ -44,11 +48,11 @@ def record(d, q, gnow, repl):
     s = gnow[(gnow['q'] == str(q)) & (gnow['date'] <= pd.Timestamp(d))]
     p = repl[(repl['q'] == str(q)) & (repl['asof'] <= pd.Timestamp(d))] if len(repl) else repl
     rd = lambda v: None if v is None or (isinstance(v, float) and np.isnan(v)) else round(float(v), 4)
-    return {'q': str(q), 'full': rd(r['full']), 'trio': rd(r['trio']), 'ar2': rd(r['ar2']),
-            'pop': rd(r['pop_assump']), 'ym_full': rd(r['ym_full']), 'ym_trio': rd(r['ym_trio']),
+    return {'q': str(q), 'full': rd(r['full']), 'five': rd(r['five']), 'ar2': rd(r['ar2']),
+            'pop': rd(r['pop_assump']), 'ym_full': rd(r['ym_full']), 'ym_five': rd(r['ym_five']),
             'c': {k[2:]: rd(v) for k, v in r.items() if k.startswith('c_')},
-            'ct': {k[3:]: rd(v) for k, v in r.items() if k.startswith('ct_')},
-            'lags': r.get('lags'), 'n': int(r['n_full']), 'gdpnow': rd(s['gdpnow'].iloc[-1]) if len(s) else None,
+            'cf': {k[3:]: rd(v) for k, v in r.items() if k.startswith('cf_')},
+            'lags': r.get('lags'), 'lags_five': r.get('lags_five'), 'n': int(r['n_full']), 'gdpnow': rd(s['gdpnow'].iloc[-1]) if len(s) else None,
             'repl': rd(p['nowcast'].iloc[-1]) if len(p) else None}
 
 

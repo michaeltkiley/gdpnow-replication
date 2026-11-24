@@ -6,8 +6,10 @@ For each origin date O (4 per quarter) and target quarter q:
   3. Regress GDP growth on  [ Legendre(2)-compressed last-6-months windows of each series, ending lag_s months
      before the same relative origin in each past quarter ] + lagged GDP growth, by ridge (LOO-CV penalty).
      -> every historical quarter 'looked like' the target quarter looks at O (same publication pattern).
-  4. Predict q.  Same pipeline with the 3-variable set (INDPRO, NFCI, 10y-3m) = Chan's tutorial information set,
-     plus an AR(2) benchmark, on the identical vintage and training window.
+  4. Predict q.  Same pipeline with the 5-variable set FIVE (INDPRO, NFCI, 10y-3m, payrolls, retail sales), in which payrolls and
+     retail sales are detrended by working-age population growth and retail sales is real (CPI-deflated); with the 3-variable set
+     (INDPRO, NFCI, 10y-3m) = Chan's tutorial information set (offline ablation); and with an AR(2) benchmark, all on the
+     identical vintage and training window.
 """
 import os, sys, warnings, concurrent.futures as cf
 import numpy as np, pandas as pd
@@ -19,6 +21,8 @@ TRAIN_START = pd.Period('1992Q3', 'Q')
 LAMS = np.logspace(-1, 4, 60)
 SPEC = os.environ.get('MIDAS_SPEC', 'nominal')   # nominal | real (flows deflated by CPI); suffix _w = winsorise standardised predictors at +-3 SD
 PC = SPEC.endswith('_pc')                          # per-capita target + population assumption
+FIVE_VAR = os.environ.get('MIDAS_FIVE', 'adj')    # adj (final) | real (real retail, no detrending) | raw (nominal retail, no detrending): ablation of the 5-variable set
+SUFFIX = '' if FIVE_VAR == 'adj' else f'_five{FIVE_VAR}'
 NOTRADE = 'notrade' in SPEC                       # drop BOPGSTB from the 15-variable panel
 WINS = 3.0 if '_w' in SPEC else None
 DEFLATE = ['RSAFS', 'PCE', 'DGORDER', 'BUSINV']
@@ -66,6 +70,39 @@ def monthly(sid, raw, origin):
     elif tr == 'diff': x = x.diff()
     elif tr == 'diffk': x = x.diff() / 1000
     return x, last
+
+
+def wap_trend(origin):
+    """Low-frequency trend in working-age population growth, % per month: (log CNP16OV_t - log CNP16OV_{t-12}) / 12.
+    A trailing 12-month change always contains exactly one of the January population-control breaks, so it is smooth;
+    read from the ALFRED vintage as of the origin."""
+    p = read_vint('CNP16OV', origin)
+    p = p[p.index <= pd.Timestamp(origin)]
+    p.index = p.index.to_period('M')
+    return (100 * (np.log(p) - np.log(p.shift(12))) / 12).dropna()
+
+
+def five_inputs(origin, mon):
+    """Series of the 5-variable model.  Payrolls and retail sales are measured relative to working-age population growth
+    (employment-to-population type change; per-person retail sales), and retail sales is real (deflated by headline CPI of
+    the same vintage), whatever the SPEC.  INDPRO, NFCI and the spread are as in `mon`."""
+    tr = wap_trend(origin)
+    m5 = {s: mon[s] for s in ('INDPRO', 'NFCI', 'T10Y3M')}
+
+    def detr(x):                                       # trend carried forward from its last value to the newest month
+        if FIVE_VAR != 'adj': return 0.0
+        return tr.reindex(x.index.union(tr.index)).ffill().reindex(x.index)
+
+    x, last = monthly('PAYEMS', read_vint('PAYEMS', origin), origin)
+    m5['PAYEMS'] = (x - detr(x), last)
+    x, last = monthly('RSAFS', read_vint('RSAFS', origin), origin)
+    cpi, cpi_last = mon['CPIAUCSL']
+    if FIVE_VAR == 'raw':
+        m5['RSAFS'] = (x - detr(x), last)
+    else:
+        last = min(last, cpi_last)
+        m5['RSAFS'] = ((x - cpi.reindex(x.index) - detr(x)).loc[:last], last)
+    return {s: m5[s] for s in FIVE}
 
 
 def gdp_growth(origin):
@@ -143,37 +180,41 @@ def nowcast_origin(args):
     # Any date works (daily tracker); h=None -> derived from the date.
     a_off = A_H[h] if h else min(3, max(0, int((omon - m1q).n)))
     lag = {s: int((omon - mon[s][1]).n) for s in mon}
+    mon5 = five_inputs(origin, mon)
+    lag5 = {s: int((omon - mon5[s][1]).n) for s in mon5}
     # ---- training quarters
     taus = [t for t in pd.period_range(TRAIN_START, gl, freq='Q') if t not in COVID_Q]
     out = {'y': y_, 'q': q_, 'h': h, 'origin': origin, 'lagY': lagY}
 
-    def feats(ids, tau):
+    def feats(ids, tau, src, lg):
         m1 = pd.Period(year=tau.year, month=3 * (tau.quarter - 1) + 1, freq='M')
         f = []
         for s in ids:
-            end = m1 + a_off - lag[s]
+            end = m1 + a_off - lg[s]
             idx = [end - k for k in range(K)]
-            w = mon[s][0].reindex(idx).values
+            w = src[s][0].reindex(idx).values
             if np.isnan(w).any(): return None
             f.extend(w @ BASIS)
         return f
 
-    def design(ids):
+    def design(ids, src, lg):
         X, Y = [], []
         for t in taus:
             yl = gt.get(t - lagY, np.nan)
-            f = feats(ids, t)
+            f = feats(ids, t, src, lg)
             if f is None or np.isnan(yl) or np.isnan(gt.get(t, np.nan)): continue
             X.append(f + [yl]); Y.append(gt[t])
-        xn = feats(ids, q)
+        xn = feats(ids, q, src, lg)
         return np.array(X), np.array(Y), np.array(xn + [gt.get(q - lagY)])
 
-    for name, ids in (('full', [s for s in mon if not (NOTRADE and s == 'BOPGSTB')]), ('trio', TRIO)):
-        X, Y, xn = design(ids)
+    PRE = {'full': 'c_', 'five': 'cf_', 'trio': 'ct_'}      # prefix of each model's per-predictor contributions
+    for name, ids, src, lg in (('full', [s for s in mon if not (NOTRADE and s == 'BOPGSTB')], mon, lag),
+                               ('five', FIVE, mon5, lag5), ('trio', TRIO, mon, lag)):
+        X, Y, xn = design(ids, src, lg)
         out[f'n_{name}'] = len(Y)
         pr, beta, zn, lam, ym = ridge_fit_predict(X, Y, xn)
         out[name] = float(pr) + popadd; out[f'lam_{name}'] = float(lam); out[f'ym_{name}'] = float(ym)
-        pre = 'c_' if name == 'full' else 'ct_'     # contribution of each predictor to (prediction - training mean)
+        pre = PRE[name]                             # contribution of each predictor to (prediction - training mean)
         nb = DEG + 1
         for i, s in enumerate(ids):
             out[f'{pre}{s}'] = float(zn[i * nb:(i + 1) * nb] @ beta[i * nb:(i + 1) * nb])
@@ -181,6 +222,8 @@ def nowcast_origin(args):
         if name == 'full':
             out['lag_max'] = max(lag.values())
             out['lags'] = {s: lag[s] for s in ids}
+        if name == 'five':
+            out['lags_five'] = {s: lag5[s] for s in ids}
     # ---- AR(2) benchmark (same training quarters, OLS)
     Xa, Ya = [], []
     for t in taus:
@@ -213,5 +256,5 @@ if __name__ == '__main__':
         s = A[(A.qp == r.qp) & (A.date <= pd.Timestamp(r.origin))]
         gn.append(s['gdpnow'].iloc[-1] if len(s) else np.nan)
     df['gdpnow'] = gn
-    df.to_csv(OUT / f'forecasts_{SPEC}.csv', index=False)
-    print(df[['qp', 'h', 'origin', 'actual', 'full', 'trio', 'ar2', 'gdpnow', 'n_full', 'lam_full']].round(2).to_string())
+    df.to_csv(OUT / f'forecasts_{SPEC}{SUFFIX}.csv', index=False)
+    print(df[['qp', 'h', 'origin', 'actual', 'full', 'five', 'trio', 'ar2', 'gdpnow', 'n_full', 'lam_full']].round(2).to_string())
