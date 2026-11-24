@@ -327,7 +327,7 @@
       <section class="card">
         <div class="head"><h2>Indicators</h2></div>
         <div class="tablewrap"><table id="m-predtab"></table></div>
-        <p class="sub">The goods and services trade balance was tested and dropped: before COVID it carried the largest weight, but its extreme swings in 2022 and 2025 produced the worst misses.</p>
+        <p class="sub" id="m-tradenote">The goods and services trade balance was tested and dropped: before COVID it carried the largest weight, but its extreme swings in 2022 and 2025 produced the worst misses.</p>
       </section>
       <section class="card">
         <div class="head"><h2>How accurate has it been?</h2></div>
@@ -348,13 +348,7 @@
       </section>
       <section class="card about">
         <h2>Data timing and limits</h2>
-        <ul>
-          <li>Indicator history is read from the vintage published that day (revised); only the newest observations are first releases. Weekly jobless claims before 2009 and the Chicago Fed index before 2011 have no archived vintages, so current data cut at the forecast date are used.</li>
-          <li>In the 5-indicator model the working-age population trend is the trailing 12-month growth of the civilian population aged 16 and over, read from the same daily vintage. A 12-month window always holds one of the January population-control resets, so the trend is smooth; it is carried forward from its latest value to the newest month.</li>
-          <li>The October 2025 unemployment rate and CPI were never published (government shutdown) and are interpolated.</li>
-          <li>Not used: surveys such as ISM, real consumption detail, construction, trade detail.</li>
-          <li>The daily tracker runs the same algorithm as the evaluation, but accuracy was measured only at the four dates per quarter above.</li>
-        </ul>
+        <ul id="m-limits"></ul>
       </section>
     </div>
   </div>
@@ -649,6 +643,10 @@ function hideTip() { tip.style.display = 'none'; }
 const gid = Object.fromEntries((window.__P = []).concat([]));
 const mavg = r => (r.full + r.five) / 2;
 const blendOf = r => r.repl == null ? null : (1 - BL.weight_midas) * r.repl + BL.weight_midas * mavg(r);
+const LIMITS_COMMON = ['Not used: surveys such as ISM, real consumption detail, construction, trade detail.', 'The daily tracker runs the same algorithm as the evaluation, but accuracy was measured only at the four dates per quarter above.'];
+const LIMITS = {
+  full: ['Indicator history is read from the vintage published that day (revised); only the newest observations are first releases. Weekly jobless claims before 2009 and the Chicago Fed index before 2011 have no archived vintages, so current data cut at the forecast date are used.', 'The October 2025 unemployment rate and CPI were never published (government shutdown) and are interpolated.'].concat(LIMITS_COMMON),
+  five: ['Indicator history is read from the vintage published that day (revised); only the newest observations are first releases. The Chicago Fed index before 2011 has no archived vintages, so current data cut at the forecast date are used.', 'The working-age population trend is the trailing 12-month growth of the civilian population aged 16 and over, read from the same daily vintage. A 12-month window always holds one of the January population-control resets, so the trend is smooth; it is carried forward from its latest value to the newest month.', 'The October 2025 CPI, which deflates retail sales, was never published (government shutdown) and is interpolated.'].concat(LIMITS_COMMON) };
 const VER = { full: 'This model uses the 14 indicators listed below.', five: 'This model uses industrial production, nonfarm payrolls, real retail sales, the Chicago Fed financial conditions index and the 10-year minus 3-month spread. Payrolls and retail sales are measured net of working-age population growth (a slowly moving trend, so they show how employment and spending are doing relative to the population that could supply them), and retail sales is deflated by CPI.' };
 
 function recFor(date, q) { return (D[date] || []).find(r => r.q === q); }
@@ -789,8 +787,10 @@ function renderBlendTab() {
 /* ---------------- render: replication tab ---------------- */
 function renderRep() {
   const m = st.m, M = MODEL[m];
-  $('predtab').innerHTML = '<tr><th>Indicator</th><th>Group</th><th>Frequency</th><th>Transform</th><th>In this model</th></tr>' + S.predictors.map(p => {
-    const inm = m === 'five' ? p.five : p.used, tf = m === 'five' && p.transform_five ? p.transform_five : p.transform; return `<tr style="${inm ? '' : 'opacity:.45'}"><td>${p.label} <span class="caption">(${p.id})</span></td><td>${GL[p.group]}</td><td>${p.freq}</td><td>${tf}</td><td>${inm ? 'yes' : (p.used ? 'no' : 'tested, dropped')}</td></tr>`; }).join('');
+  $('predtab').innerHTML = '<tr><th>Indicator</th><th>Group</th><th>Frequency</th><th>Transform</th></tr>' + S.predictors.filter(p => m === 'five' ? p.five : p.used).map(p => {
+    const tf = m === 'five' && p.transform_five ? p.transform_five : p.transform; return `<tr><td>${p.label} <span class="caption">(${p.id})</span></td><td>${GL[p.group]}</td><td>${p.freq}</td><td>${tf}</td></tr>`; }).join('');
+  $('tradenote').hidden = m !== 'full';
+  $('limits').innerHTML = LIMITS[m].map(t => `<li>${t}</li>`).join('');
   let acc = '';
   for (const k of ['pre', 'post', 'covid']) {
     const s = S.stats[k], mm = s.rmsfe[m], ar = s.rmsfe.ar2;
