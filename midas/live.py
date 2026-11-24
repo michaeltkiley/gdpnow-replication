@@ -26,6 +26,10 @@ def gdpnow_lookup():
         x = pd.read_csv(h, usecols=['asof', 'quarter', 'nowcast', 'gdpnow_date', 'gdpnow'], parse_dates=['asof', 'gdpnow_date'])
         rows.append(x.rename(columns={'gdpnow_date': 'date', 'quarter': 'q'})[['date', 'q', 'gdpnow']])
         repl = x.rename(columns={'quarter': 'q'})[['asof', 'q', 'nowcast']]
+    nx = ROOT / 'docs' / 'data' / 'next' / 'history.csv'            # the replication's experimental next-quarter runs
+    if nx.exists():
+        y = pd.read_csv(nx, usecols=['asof', 'quarter', 'nowcast'], parse_dates=['asof']).rename(columns={'quarter': 'q'})
+        repl = pd.concat([repl, y]).drop_duplicates(['asof', 'q'], keep='first').sort_values('asof')
     g = pd.concat(rows).dropna().drop_duplicates(['date', 'q'], keep='last').sort_values('date')
     return g, repl
 
