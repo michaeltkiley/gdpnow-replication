@@ -28,7 +28,9 @@ SERIES = {
     'T10Y3M':   ('D', 'lvl',  '10y-3m Treasury spread',         'financial'),
 }
 VINTAGE_IDS = [k for k in SERIES if k != 'T10Y3M']      # revised -> ALFRED vintage per origin
-TRIO = ['INDPRO', 'NFCI', 'T10Y3M']                      # Chan (2026) tutorial's three predictors
+TRIO = ['INDPRO', 'NFCI', 'T10Y3M']                      # Chan (2026) tutorial's three predictors (offline ablation only)
+FIVE = ['INDPRO', 'PAYEMS', 'RSAFS', 'NFCI', 'T10Y3M']   # the small tracked model: Chan's set + payrolls + real retail sales
+EXTRA_IDS = ['GDPC1', 'POPTHM', 'CNP16OV']               # vintages fetched besides the predictors: GDP, population, working-age population
 COVID = [(2020, 1), (2020, 2), (2020, 3), (2020, 4), (2021, 1), (2021, 2), (2021, 3), (2021, 4)]
 
 

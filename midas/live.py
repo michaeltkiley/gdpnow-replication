@@ -44,11 +44,11 @@ def record(d, q, gnow, repl):
     s = gnow[(gnow['q'] == str(q)) & (gnow['date'] <= pd.Timestamp(d))]
     p = repl[(repl['q'] == str(q)) & (repl['asof'] <= pd.Timestamp(d))] if len(repl) else repl
     rd = lambda v: None if v is None or (isinstance(v, float) and np.isnan(v)) else round(float(v), 4)
-    return {'q': str(q), 'full': rd(r['full']), 'trio': rd(r['trio']), 'ar2': rd(r['ar2']),
-            'pop': rd(r['pop_assump']), 'ym_full': rd(r['ym_full']), 'ym_trio': rd(r['ym_trio']),
+    return {'q': str(q), 'full': rd(r['full']), 'five': rd(r['five']), 'ar2': rd(r['ar2']),
+            'pop': rd(r['pop_assump']), 'ym_full': rd(r['ym_full']), 'ym_five': rd(r['ym_five']),
             'c': {k[2:]: rd(v) for k, v in r.items() if k.startswith('c_')},
-            'ct': {k[3:]: rd(v) for k, v in r.items() if k.startswith('ct_')},
-            'lags': r.get('lags'), 'n': int(r['n_full']), 'gdpnow': rd(s['gdpnow'].iloc[-1]) if len(s) else None,
+            'cf': {k[3:]: rd(v) for k, v in r.items() if k.startswith('cf_')},
+            'lags': r.get('lags'), 'lags_five': r.get('lags_five'), 'n': int(r['n_full']), 'gdpnow': rd(s['gdpnow'].iloc[-1]) if len(s) else None,
             'repl': rd(p['nowcast'].iloc[-1]) if len(p) else None}
 
 
