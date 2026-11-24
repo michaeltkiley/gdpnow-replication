@@ -206,6 +206,7 @@
     <button type="button" role="tab" data-top="gdpnow" aria-selected="true">GDPNow replication</button>
     <button type="button" role="tab" data-top="full" aria-selected="false">MIDAS, 14 indicators</button>
     <button type="button" role="tab" data-top="five" aria-selected="false">MIDAS, 5 indicators</button>
+    <button type="button" role="tab" data-top="blend" aria-selected="false">Blend</button>
   </nav>
   <section class="panel" id="panel-gdpnow">
     <header class="masthead">
@@ -220,13 +221,6 @@
   </section>
 
   <div id="nextq"></div>
-
-  <section class="card" id="blendcard" style="display:none">
-    <div class="head"><h2>Blend with MIDAS</h2><span class="caption" id="bl-asof"></span></div>
-    <div class="tiles" id="bl-tiles"></div>
-    <p class="sub" id="bl-note"></p>
-    <div class="tablewrap"><table id="bl-tab"></table></div>
-  </section>
 
   <section class="card" id="histcard">
     <div class="head">
@@ -278,9 +272,9 @@
   </section>
   <section class="panel" id="panel-midas" hidden>
     <header>
-      <p class="subtitle">A data-only cross-check on GDPNow: statistical nowcasts of U.S. real GDP growth built from monthly, weekly and daily indicators, refit every day on what had been published.</p>
+      <p class="subtitle">Statistical nowcasts of U.S. real GDP growth built from monthly, weekly and daily indicators, refit every day on what had been published.</p>
       <p class="asof" id="m-asof">Loading…</p>
-      <p class="caption" style="max-width:76ch">These models do not use GDP's expenditure accounting, so they are less accurate than GDPNow; their value is as a second opinion. The GDPNow tab has the replication of the Atlanta Fed's model.</p>
+      <p class="caption" style="max-width:76ch">The model uses indicators only, with no GDP expenditure accounting.</p>
     </header>
     <div id="m-banner" class="banner" style="display:none"></div>
     <div class="panel" id="m-panel">
@@ -327,7 +321,7 @@
           <li><b>Real time.</b> Every day the model is refit on the data vintage published that day (St. Louis Fed's ALFRED), so the ragged edge is what was actually available. Each past quarter is compared at the same point in its quarter, with the same publication lags as today.</li>
           <li><b>Per person.</b> The model forecasts GDP growth <i>minus population growth</i> and adds a population assumption (the last four quarters' growth) back. This stops the average growth rate it learns from carrying a demographic trend that has since faded.</li>
           <li><b>Target.</b> BEA's advance estimate of real GDP growth. Training uses 1992Q3 onward and leaves out 2020 and 2021.</li>
-          <li><b>Two versions.</b> The 14-indicator model uses the series below. The 5-indicator model uses industrial production, nonfarm payrolls, real retail sales, the Chicago Fed financial conditions index and the 10-year minus 3-month spread: the small information set of Chan's MIDAS tutorial plus the two most timely measures of jobs and spending. In this version payrolls and retail sales are measured net of working-age population growth (a slowly moving trend, so they show how employment and spending are doing relative to the population that could supply them), and retail sales is deflated by CPI.</li>
+          <li id="m-ver"></li>
         </ul>
       </section>
       <section class="card">
@@ -347,10 +341,6 @@
         <p class="sub">Nowcast at the end of the quarter's third month. Values beyond the axis (the 2020 pandemic quarters) are pinned to the edge; hover for the actual numbers.</p>
         <details><summary>Last eight quarters</summary><div class="tablewrap"><table id="m-lastq"></table></div></details>
       </section>
-      <section class="card" id="m-blendcard">
-        <div class="head"><h2>Does it add anything to GDPNow?</h2></div>
-        <div id="m-blend"></div>
-      </section>
       <section class="card">
         <div class="head"><h2>How the specification was chosen</h2></div>
         <div class="tablewrap"><table id="m-path"></table></div>
@@ -362,17 +352,46 @@
           <li>Indicator history is read from the vintage published that day (revised); only the newest observations are first releases. Weekly jobless claims before 2009 and the Chicago Fed index before 2011 have no archived vintages, so current data cut at the forecast date are used.</li>
           <li>In the 5-indicator model the working-age population trend is the trailing 12-month growth of the civilian population aged 16 and over, read from the same daily vintage. A 12-month window always holds one of the January population-control resets, so the trend is smooth; it is carried forward from its latest value to the newest month.</li>
           <li>The October 2025 unemployment rate and CPI were never published (government shutdown) and are interpolated.</li>
-          <li>Not used: surveys such as ISM, real consumption detail, construction, trade detail. They are part of what GDPNow has and this model lacks.</li>
+          <li>Not used: surveys such as ISM, real consumption detail, construction, trade detail.</li>
           <li>The daily tracker runs the same algorithm as the evaluation, but accuracy was measured only at the four dates per quarter above.</li>
         </ul>
       </section>
     </div>
   </div>
     <footer class="methodology">
-    <p><b>About.</b> Independent research by the author; not affiliated with the Federal Reserve Bank of Atlanta or the Federal Reserve System. GDPNow is the Atlanta Fed's model. The blend uses the Atlanta Fed's published GDPNow nowcast.</p>
-    <p><b>Method and sources.</b> MIDAS: Ghysels, Santa-Clara and Valkanov. Real-time vintages: Clements and Galv&atilde;o, <a href="https://econpapers.repec.org/RePEc:bes:jnlbes:v:26:y:2008:p:546-554">&ldquo;Macroeconomic forecasting with mixed-frequency data,&rdquo;</a> <i>JBES</i> (2008). Legendre lag polynomials and regularisation: Babii, Ghysels and Striaukas, <a href="https://arxiv.org/pdf/2005.14057">&ldquo;Machine learning time series regressions with an application to nowcasting,&rdquo;</a> <i>JBES</i> (2022); this page uses ridge instead of their sparse-group LASSO. Small information set: Chan, Poon and Zhu, <a href="https://doi.org/10.1016/j.jeconom.2025.106090">&ldquo;Time-varying parameter MIDAS models: application to nowcasting US real GDP,&rdquo;</a> <i>Journal of Econometrics</i>; this page has no time-varying parameters. Data: St. Louis Fed ALFRED/FRED, Philadelphia Fed real-time data set (advance estimates before 2011), Atlanta Fed GDPNow archive.</p>
+    <p><b>About.</b> Independent research by the author; not affiliated with the Federal Reserve Bank of Atlanta or the Federal Reserve System.</p>
+    <p><b>Method and sources.</b> MIDAS: Ghysels, Santa-Clara and Valkanov. Real-time vintages: Clements and Galv&atilde;o, <a href="https://econpapers.repec.org/RePEc:bes:jnlbes:v:26:y:2008:p:546-554">&ldquo;Macroeconomic forecasting with mixed-frequency data,&rdquo;</a> <i>JBES</i> (2008). Legendre lag polynomials and regularisation: Babii, Ghysels and Striaukas, <a href="https://arxiv.org/pdf/2005.14057">&ldquo;Machine learning time series regressions with an application to nowcasting,&rdquo;</a> <i>JBES</i> (2022); this page uses ridge instead of their sparse-group LASSO. Small information set: Chan, Poon and Zhu, <a href="https://doi.org/10.1016/j.jeconom.2025.106090">&ldquo;Time-varying parameter MIDAS models: application to nowcasting US real GDP,&rdquo;</a> <i>Journal of Econometrics</i>; this page has no time-varying parameters. Data: St. Louis Fed ALFRED/FRED, Philadelphia Fed real-time data set (advance estimates before 2011).</p>
     <p class="disclaimer">For informational purposes only. This is the author&rsquo;s own estimate. All downloads and calculations are the author&rsquo;s own and may contain errors &mdash; don&rsquo;t rely on it for decisions.</p>
   </footer>
+  </section>
+  <section class="panel" id="panel-blend" hidden>
+    <header>
+      <p class="subtitle">A weighted average of the Atlanta Fed's published GDPNow estimate and the two MIDAS nowcasts, with weights fitted to past accuracy.</p>
+      <p class="asof" id="m-b-asof">Loading…</p>
+    </header>
+    <div class="card headline" id="m-b-headline"></div>
+    <section class="card">
+      <div class="head"><h2 id="m-b-evoTitle">Evolution of the estimate</h2></div>
+      <div class="legend" id="m-b-evoLegend"></div>
+      <svg id="m-b-evo" class="chart" viewBox="0 0 760 300" role="img" aria-label="Blend and its inputs over time"></svg>
+      <p class="sub">Percent, seasonally adjusted annual rate. One point per trading day.</p>
+    </section>
+    <section class="card">
+      <div class="head"><h2>Current and next quarter</h2></div>
+      <div class="tablewrap"><table id="m-b-tab"></table></div>
+    </section>
+    <section class="card">
+      <div class="head"><h2>How accurate is the blend?</h2></div>
+      <p class="sub" style="margin-top:0">Root mean squared forecast error against BEA's advance estimate, percentage points, over <span id="m-b-nq"></span> quarters. The blend weight is refit leaving each quarter out, so these are out-of-sample figures.</p>
+      <div class="tablewrap"><table id="m-b-acc"></table></div>
+      <h3>By era</h3>
+      <div class="tablewrap"><table id="m-b-era"></table></div>
+      <p class="sub" id="m-b-note"></p>
+    </section>
+    <footer class="methodology">
+      <p><b>About.</b> Independent research by the author; not affiliated with the Federal Reserve Bank of Atlanta or the Federal Reserve System. GDPNow is the Atlanta Fed's model; the GDPNow figures are its published nowcasts, read from the workbook it posts.</p>
+      <p class="disclaimer">For informational purposes only. This is the author&rsquo;s own estimate. All downloads and calculations are the author&rsquo;s own and may contain errors &mdash; don&rsquo;t rely on it for decisions.</p>
+    </footer>
   </section>
 </div>
 <div id="tip"></div>
@@ -426,7 +445,6 @@ let H = [], HQ = [], NX = [];
   const L = H[H.length - 1];
   renderHeadline(L);
   showNext(L);
-  showBlend();
   const qs = [...new Set(HQ.map(r => r.quarter))];
   $('qsel').innerHTML = qs.map(q => `<option>${q}</option>`).join(''); $('qsel').value = L.quarter;
   $('qsel').onchange = () => { drawHist(); drawContrib(); };
@@ -470,23 +488,6 @@ function showNext(L) {
     <p class="sub">The ${qshort(n.production_quarter)} estimate above is still waiting for BEA's first estimate, and GDPNow publishes nothing for ${qshort(n.quarter)} until then. This figure runs the model one quarter ahead, entering the ${qshort(n.production_quarter)} estimate (${f2(n.production_nowcast)}%) as if it were the published number, so it carries that estimate's error.${n.unchanged == 'true' ? ' No new data since the last run.' : ''}</p>
     <details><summary>${qshort(n.quarter)} by component</summary><div class="tablewrap"><table><tr><th>Component</th><th class="num">Contribution (pp)</th><th class="num">Growth (%)</th></tr>` +
     KEYS.map(k => `<tr><td>${LABEL[k]}</td><td class="num">${f2(n['c_' + k])}</td><td class="num">${k == 'V' ? '–' : f2(n['g_' + k])}</td></tr>`).join('') + `</table></div></details></section>`;
-}
-
-async function showBlend() {
-  let B, D; try { [B, D] = await Promise.all([j('data/blend.json'), j('data/midas_daily.json')]); } catch (e) { return; }
-  const dates = Object.keys(D).sort(), last = dates[dates.length - 1], recs = D[last] || [], w = B.weight_midas;
-  if (!recs.length) return;
-  const mavg = r => (r.full + r.five) / 2, blend = r => miss(r.gdpnow) ? null : (1 - w) * r.gdpnow + w * mavg(r);
-  const c = recs[0], bc = blend(c), pct = x => Math.round(x * 100);
-  $('bl-asof').textContent = `MIDAS as of ${fd(last)}`;
-  $('bl-tiles').innerHTML = `<div class="tile"><b>${bc == null ? '–' : f2(bc) + '%'}</b><span>${qshort(c.q.replace('Q', '-Q').replace('-Q', 'Q'))}: blend</span></div>
-    <div class="tile"><b>${f2(mavg(c))}%</b><span>MIDAS average (14 and 5 indicators)</span></div>`;
-  const T = B.total, S = B.subsamples, pre = S['2011Q3-2019Q4'], post = S['2022Q1-2026Q3'];
-  $('bl-note').innerHTML = `The blend is ${pct(1 - w)}% the published GDPNow estimate and ${pct(w)}% the average of the two MIDAS nowcasts (14 and 5 indicators). Estimated on ${B.quarters} quarters (${B.sample}) and scored by refitting with each quarter left out, it has ${Math.round((1 - T.blend_oos / T.gdpnow) * 100)}% lower error than GDPNow alone: ${Math.round((1 - pre.blend_oos / pre.gdpnow) * 100)}% lower in 2011&ndash;19 and no gain in 2022&ndash;26. Details: <a href="#full-rep">MIDAS replication tab</a>.`;
-  $('bl-tab').innerHTML = '<tr><th>Quarter</th><th class="num">MIDAS average</th><th class="num">Blend</th></tr>' +
-    recs.map(r => `<tr><td>${qshort(r.q.slice(0, 4) + 'Q' + r.q.slice(-1))}</td><td class="num">${f2(mavg(r))}</td><td class="num"><b>${f2(blend(r))}</b></td></tr>`).join('') +
-    (recs.some(r => miss(r.gdpnow)) ? '<tr><td colspan="3" class="caption">No blend yet for a quarter GDPNow has not started. It publishes nothing for the next quarter until BEA releases the current one.</td></tr>' : '');
-  $('blendcard').style.display = '';
 }
 
 function drawHist() {
@@ -648,6 +649,7 @@ function hideTip() { tip.style.display = 'none'; }
 const gid = Object.fromEntries((window.__P = []).concat([]));
 const mavg = r => (r.full + r.five) / 2;
 const blendOf = r => r.gdpnow == null ? null : (1 - BL.weight_midas) * r.gdpnow + BL.weight_midas * mavg(r);
+const VER = { full: 'This model uses the 14 indicators listed below.', five: 'This model uses industrial production, nonfarm payrolls, real retail sales, the Chicago Fed financial conditions index and the 10-year minus 3-month spread. Payrolls and retail sales are measured net of working-age population growth (a slowly moving trend, so they show how employment and spending are doing relative to the population that could supply them), and retail sales is deflated by CPI.' };
 
 function recFor(date, q) { return (D[date] || []).find(r => r.q === q); }
 function datesOf(q) { return dates.filter(d => recFor(d, q)); }
@@ -721,15 +723,12 @@ function renderData() {
   const m = st.m, M = MODEL[m], ds = datesOf(st.q), last = ds[ds.length - 1];
   pickSince();
   const now = recFor(last, st.q), then = recFor(st.since, st.q), act = actualOf(st.q), a = stage(last, st.q);
-  const rm = S.stats.pre.rmsfe[m][a], other = MODEL[m === 'full' ? 'five' : 'full'];
+  const rm = S.stats.pre.rmsfe[m][a];
   const chg = now[m] - then[m];
   $('headline').innerHTML = `<p class="lead">${qlab(st.q)} real GDP growth, ${M.name}</p>
     <div class="big">${fm(now[m])}<small>% SAAR</small></div>
     <div class="when">As of ${last}${act != null ? ` · BEA advance estimate: <b>${fm(act)}%</b>` : ''} · ${sg(chg)} pp since ${st.since}</div>
     <div class="tiles">
-      <div class="tile"><b>${fm(now.repl)}</b><span>GDPNow replication (this site)</span></div>
-      <div class="tile"><b>${fm(blendOf(now))}</b><span>Blend: ${Math.round(BL.weight_gdpnow * 100)}% GDPNow + ${Math.round(BL.weight_midas * 100)}% MIDAS average</span></div>
-      <div class="tile"><b>${fm(now[m === 'full' ? 'five' : 'full'])}</b><span>${other.name}</span></div>
       <div class="tile"><b>${fm(now.ar2)}</b><span>No-indicator benchmark (AR(2) + population)</span></div>
       <div class="tile"><b>±${fm(rm, 1)}</b><span>Typical miss at this stage (${HLAB[a].toLowerCase()}; 2005–19 RMSFE)</span></div>
       <div class="tile"><b>${now.n}</b><span>Quarters used to fit the model</span></div>
@@ -743,9 +742,9 @@ function renderData() {
   const pts = k => ds.map(d => [toX(d), recFor(d, st.q)[k], d]);
   const x0 = toX(ds[0]), x1 = toX(last);
   $('evoTitle').textContent = `Evolution of the ${qlab(st.q)} estimate`;
-  const ser = [{ name: M.name, color: COL.model, pts: pts(m), r: 2.2 }, { name: 'GDPNow replication', color: COL.repl, pts: pts('repl'), r: 2.2 }, { name: 'No-indicator benchmark', color: COL.ar, dash: 1, dots: false, pts: pts('ar2') }];
+  const ser = [{ name: M.name, color: COL.model, pts: pts(m), r: 2.2 }, { name: 'No-indicator benchmark', color: COL.ar, dash: 1, dots: false, pts: pts('ar2') }];
   lineChart($('evo'), ser, { x0, x1: x1 + (x1 - x0) * 0.02 + 1, ticks: monthTicks(x0, x1), hl: act != null ? [{ y: act, color: 'var(--ink)', label: `BEA advance ${fm(act)}` }] : [] });
-  legend($('evoLegend'), [[M.name, COL.model], ['GDPNow replication (this site)', COL.repl], ['No-indicator benchmark', COL.ar, 1]]);
+  legend($('evoLegend'), [[M.name, COL.model], ['No-indicator benchmark', COL.ar, 1]]);
   // indicator table
   const cs = now[M.c], rows = Object.entries(cs).map(([id, v]) => { const p = S.predictors.find(x => x.id === id); return { id, lab: id === 'gdp_lag' ? 'Previous quarter’s GDP growth' : p.label, g: GL[groupOf(id)], v, lag: (now[M.lags] || {})[id] }; }).sort((x, y) => Math.abs(y.v) - Math.abs(x.v));
   $('tabCap').textContent = `${qlab(st.q)}, as of ${last}`;
@@ -754,20 +753,37 @@ function renderData() {
     `<tr><td>Trend growth per person</td><td>Intercept</td><td class="num">–</td><td class="num">${fm(now[M.ym])}</td></tr><tr><td>Population growth assumed</td><td>Added back</td><td class="num">–</td><td class="num">${fm(now.pop)}</td></tr><tr><th colspan="3">Nowcast</th><th class="num">${fm(now[m])}</th></tr>`;
 }
 
-function renderBlend() {
-  const B = BL, w = B.weight_midas, pc = x => Math.round(x * 100), last = dates[dates.length - 1], recs = D[last];
-  const T = B.total, pre = B.subsamples['2011Q3-2019Q4'];
+function renderBlendTab() {
+  const B = BL, w = B.weight_midas, wg = 1 - w, wm = w / 2, pc = x => Math.round(x * 100), last = dates[dates.length - 1], recs = D[last];
+  const cur = recs[0], q = cur.q, act = actualOf(q), bl = blendOf(cur);
   const chg = (b, g) => { const d = Math.round((b / g - 1) * 100); return d === 0 ? '0%' : (d > 0 ? '+' : '−') + Math.abs(d) + '%'; };
-  $('blend').innerHTML = `<p class="sub" style="margin-top:0">If you already follow GDPNow, does a share of these models improve on it? The blend is <b>${pc(1 - w)}% published GDPNow + ${pc(w)}% the average of the 14- and 5-indicator MIDAS nowcasts</b>, one weight for every forecast date and no intercept. The weight minimises squared error against BEA's advance estimate over ${B.quarters} quarters (${B.sample}, the span of GDPNow's published history).</p>
-    <h3>Latest, as of ${last}</h3><div class="tablewrap"><table><tr><th>Quarter</th><th class="num">MIDAS, 14</th><th class="num">MIDAS, 5</th><th class="num">MIDAS average</th><th class="num">Blend</th></tr>` +
-    recs.map(r => `<tr><td>${qlab(r.q)}</td><td class="num">${fm(r.full)}</td><td class="num">${fm(r.five)}</td><td class="num">${fm(mavg(r))}</td><td class="num"><b>${fm(blendOf(r))}</b></td></tr>`).join('') +
-    (recs.some(r => r.gdpnow == null) ? '<tr><td colspan="5" class="caption">No blend yet for a quarter GDPNow has not started. It publishes nothing for the next quarter until BEA releases the current one.</td></tr>' : '') + `</table></div>
-    <h3>Accuracy of the blend, with each quarter left out when fitting</h3><div class="tablewrap"><table><tr><th>Forecast date</th><th class="num">Quarters</th><th class="num">Blend RMSFE</th><th class="num">Change vs GDPNow alone</th><th class="num">MIDAS average RMSFE</th></tr>` +
-    B.stages.map(s => `<tr><td>${s.stage}</td><td class="num">${s.quarters}</td><td class="num"><b>${fm(s.blend_oos)}</b></td><td class="num">${chg(s.blend_oos, s.gdpnow)}</td><td class="num">${fm(s.midas_avg)}</td></tr>`).join('') +
-    `<tr><td><b>All four dates</b></td><td class="num"></td><td class="num"><b>${fm(T.blend_oos)}</b></td><td class="num">${chg(T.blend_oos, T.gdpnow)}</td><td class="num">${fm(T.midas_avg)}</td></tr></table></div>
-    <h3>By era (all four dates pooled)</h3><div class="tablewrap"><table><tr><th>Sample</th><th class="num">Quarters</th><th class="num">Blend RMSFE</th><th class="num">Change vs GDPNow alone</th></tr>` +
-    Object.entries(B.subsamples).map(([k, v]) => `<tr><td>${k}</td><td class="num">${v.quarters}</td><td class="num"><b>${fm(v.blend_oos)}</b></td><td class="num">${chg(v.blend_oos, v.gdpnow)}</td></tr>`).join('') + `</table></div>
-    <p class="sub">The blend lowers GDPNow's error by about ${Math.round((1 - T.blend_oos / T.gdpnow) * 100)}% overall, ${Math.round((1 - pre.blend_oos / pre.gdpnow) * 100)}% in 2011&ndash;19, and not at all in 2022&ndash;26. Gains are at the end of month 2 and the 15th after the quarter; at the end of months 1 and 3 it only ties GDPNow. A weight for each date, or a schedule with GDPNow's weight rising toward the release, was tried and did not score better: the data show no pattern by date, and the MIDAS share stays near 20&ndash;35%. The weight is refit leaving each quarter out when scoring (it moves between ${pc(B.weight_range_loo[0])}% and ${pc(B.weight_range_loo[1])}%), but it was chosen after looking at these same quarters, so treat the gain as an upper bound.</p>`;
+  $('b-asof').textContent = `As of ${last}. Updated each weekday after the day's releases.`;
+  $('b-headline').innerHTML = `<p class="lead">${qlab(q)} real GDP growth, blend</p>
+    <div class="big">${fm(bl)}<small>% SAAR</small></div>
+    <div class="when">As of ${last}${act != null ? ` · BEA advance estimate: <b>${fm(act)}%</b>` : ''}</div>
+    <div class="tiles">
+      <div class="tile"><b>${fm(cur.gdpnow)}</b><span>Published GDPNow · ${pc(wg)}% of the blend</span></div>
+      <div class="tile"><b>${fm(cur.full)}</b><span>MIDAS, 14 indicators · ${pc(wm)}%</span></div>
+      <div class="tile"><b>${fm(cur.five)}</b><span>MIDAS, 5 indicators · ${pc(wm)}%</span></div>
+    </div>`;
+  const ds = datesOf(q), pts = f => ds.map(d => { const r = recFor(d, q); return [toX(d), f(r), d]; });
+  const x0 = toX(ds[0]), x1 = toX(last);
+  $('b-evoTitle').textContent = `Evolution of the ${qlab(q)} estimate`;
+  lineChart($('b-evo'), [{ name: 'Published GDPNow', color: COL.gn, pts: pts(r => r.gdpnow), r: 2 }, { name: 'MIDAS, 14', color: 'var(--g3)', pts: pts(r => r.full), r: 2 }, { name: 'MIDAS, 5', color: 'var(--g4)', pts: pts(r => r.five), r: 2 }, { name: 'Blend', color: COL.model, pts: pts(blendOf), r: 3 }],
+    { x0, x1: x1 + (x1 - x0) * 0.02 + 1, ticks: monthTicks(x0, x1), hl: act != null ? [{ y: act, color: 'var(--ink)', label: `BEA advance ${fm(act)}` }] : [] });
+  legend($('b-evoLegend'), [['Blend', COL.model], ['Published GDPNow', COL.gn], ['MIDAS, 14', 'var(--g3)'], ['MIDAS, 5', 'var(--g4)']]);
+  $('b-tab').innerHTML = '<tr><th>Quarter</th><th class="num">Published GDPNow</th><th class="num">MIDAS, 14</th><th class="num">MIDAS, 5</th><th class="num">Blend</th></tr>' +
+    recs.map(r => `<tr><td>${qlab(r.q)}</td><td class="num">${fm(r.gdpnow)}</td><td class="num">${fm(r.full)}</td><td class="num">${fm(r.five)}</td><td class="num"><b>${fm(blendOf(r))}</b></td></tr>`).join('') +
+    `<tr><td class="caption">Weight</td><td class="num caption">${pc(wg)}%</td><td class="num caption">${pc(wm)}%</td><td class="num caption">${pc(wm)}%</td><td></td></tr>` +
+    (recs.some(r => r.gdpnow == null) ? '<tr><td colspan="5" class="caption">No blend yet for a quarter GDPNow has not started. It publishes nothing for the next quarter until BEA releases the current one.</td></tr>' : '');
+  $('b-nq').textContent = B.quarters;
+  const T = B.total, pre = B.subsamples['2011Q3-2019Q4'];
+  $('b-acc').innerHTML = '<tr><th>Forecast date</th><th class="num">Published GDPNow</th><th class="num">MIDAS, 14</th><th class="num">MIDAS, 5</th><th class="num">Blend</th></tr>' +
+    B.stages.map(s => `<tr><td>${s.stage}</td><td class="num">${fm(s.gdpnow)}</td><td class="num">${fm(s.midas14)}</td><td class="num">${fm(s.midas5)}</td><td class="num"><b>${fm(s.blend_oos)}</b></td></tr>`).join('') +
+    `<tr><td><b>All four dates</b></td><td class="num">${fm(T.gdpnow)}</td><td class="num">${fm(Math.sqrt(B.stages.reduce((x, s) => x + s.midas14 ** 2, 0) / 4))}</td><td class="num">${fm(Math.sqrt(B.stages.reduce((x, s) => x + s.midas5 ** 2, 0) / 4))}</td><td class="num"><b>${fm(T.blend_oos)}</b></td></tr>`;
+  $('b-era').innerHTML = '<tr><th>Sample</th><th class="num">Quarters</th><th class="num">Published GDPNow</th><th class="num">Blend</th><th class="num">Change</th></tr>' +
+    Object.entries(B.subsamples).map(([k, v]) => `<tr><td>${k}</td><td class="num">${v.quarters}</td><td class="num">${fm(v.gdpnow)}</td><td class="num"><b>${fm(v.blend_oos)}</b></td><td class="num">${chg(v.blend_oos, v.gdpnow)}</td></tr>`).join('');
+  $('b-note').innerHTML = `The blend is ${pc(wg)}% published GDPNow and ${pc(w)}% the two MIDAS nowcasts (equal shares), one weight at every forecast date and no intercept, fitted to ${B.sample} (the span of GDPNow's published history). It lowers GDPNow's error by about ${Math.round((1 - T.blend_oos / T.gdpnow) * 100)}% overall and ${Math.round((1 - pre.blend_oos / pre.gdpnow) * 100)}% in 2011&ndash;19, and not at all in 2022&ndash;26. A weight for each date, or one with GDPNow's share rising toward the release, did not score better. The weight was chosen after looking at these same quarters, so treat the gain as an upper bound.`;
 }
 
 /* ---------------- render: replication tab ---------------- */
@@ -793,15 +809,14 @@ function renderRep() {
   legend($('trkLegend'), [['BEA advance estimate', COL.act], [M.name + ' (end of quarter)', COL.model]]);
   const last8 = tr.slice(-8).reverse();
   $('lastq').innerHTML = '<tr><th>Quarter</th><th class="num">Advance estimate</th><th class="num">' + M.name + '</th><th class="num">AR(2) benchmark</th></tr>' + last8.map(r => `<tr><td>${qlab(r.qp.slice(0, 4) + '-' + r.qp.slice(4))}</td><td class="num">${fm(r.actual)}</td><td class="num">${fm(r[m])}</td><td class="num">${fm(r.ar2)}</td></tr>`).join('');
-  renderBlend();
   $('path').innerHTML = '<tr><th>Step</th><th class="num">2005–19</th><th class="num">2022–26</th><th class="num">AR(2) 2005–19</th><th class="num">AR(2) 2022–26</th></tr>' + (m === 'five' ? S.path5 : S.path).map(p => `<tr><td>${p.label}</td><td class="num">${fm(p.pre)}</td><td class="num">${fm(p.post)}</td><td class="num">${fm(p.ar_pre)}</td><td class="num">${fm(p.ar_post)}</td></tr>`).join('') + `<tr><td colspan="5" class="caption">RMSFE at the end of the quarter, ${m === 'five' ? '5-indicator' : '14-indicator'} model.</td></tr>`;
 }
 
 /* ---------------- wiring ---------------- */
-const SUBT = { full: ['Where is GDP growth heading, according to 14 monthly, weekly and daily indicators?', 'Industrial production, payrolls, retail sales, consumption, orders, housing, inventories, prices, sentiment and financial conditions, each entering with a flexible lag profile and shrunk toward zero.'], five: ['What do five indicators say?', 'Industrial production, payrolls, real retail sales, the Chicago Fed financial conditions index and the yield-curve slope: the small information set of Chan’s MIDAS tutorial and of Chan, Poon and Zhu’s paper, plus jobs and spending, with the same real-time estimator as the larger model.'] };
+const SUBT = { full: ['Where is GDP growth heading, according to 14 monthly, weekly and daily indicators?', 'Industrial production, payrolls, retail sales, consumption, orders, housing, inventories, prices, sentiment and financial conditions, each entering with a flexible lag profile and shrunk toward zero.'], five: ['What do five indicators say?', 'Industrial production, payrolls, real retail sales, the Chicago Fed financial conditions index and the yield-curve slope: the small information set of Chan’s MIDAS tutorial, plus jobs and spending.'] };
 function setModel(m) {
   st.m = m;
-  $('msub').textContent = SUBT[m][0]; $('mcite').textContent = SUBT[m][1]; renderData(); renderRep();
+  $('ver').textContent = VER[m]; $('msub').textContent = SUBT[m][0]; $('mcite').textContent = SUBT[m][1]; renderData(); renderRep();
 }
 function setSub(s) {
   st.sub = s; document.querySelectorAll('#panel-midas .tabs.sub button').forEach(b => b.setAttribute('aria-selected', b.dataset.sub === s));
@@ -816,21 +831,22 @@ Promise.all([fetch('data/midas_static.json').then(r => r.json()), fetch('data/mi
   $('qsel').onchange = e => { st.q = e.target.value; st.since = null; renderData(); };
   $('since').onchange = e => { const v = e.target.value, ds = datesOf(st.q); st.since = [...ds].reverse().find(x => x <= v) || ds[0]; renderData(); };
   document.querySelectorAll('.quick button').forEach(b => b.onclick = () => { const ds = datesOf(st.q), L = ds[ds.length - 1], t = new Date(L); if (b.dataset.q === 'first') st.since = ds[0]; else { t.setUTCDate(t.getUTCDate() - (b.dataset.q === 'week' ? 7 : 30)); st.since = [...ds].reverse().find(x => x <= t.toISOString().slice(0, 10)) || ds[0]; } renderData(); });
-  window.__midas = { show(m, rep) { setModel(m); setSub(rep ? 'replication' : 'data'); } };
+  window.__midas = { show(m, rep) { setModel(m); setSub(rep ? 'replication' : 'data'); }, showBlend() { renderBlendTab(); } };
   route();
 }).catch(e => { const b = $('banner'); b.style.display = 'block'; b.className = 'banner fail'; b.textContent = 'Could not load data: ' + e; });
 
 })();
 </script>
 <script>
-/* top-level tabs: GDPNow | MIDAS 14 | MIDAS 5.  Hash: #gdpnow (default), #full, #five, #full-rep, #five-rep (#trio, the old 3-indicator tab, opens #five) */
+/* top-level tabs: GDPNow | MIDAS 14 | MIDAS 5 | Blend.  Hash: #gdpnow (default), #full, #five, #blend, #full-rep, #five-rep (#trio, the old 3-indicator tab, opens #five) */
 function route() {
   const h = location.hash.slice(1) || 'gdpnow';
-  const t = (h.startsWith('five') || h.startsWith('trio')) ? 'five' : (h.startsWith('full') || h.startsWith('midas')) ? 'full' : 'gdpnow';
+  const t = h.startsWith('blend') ? 'blend' : (h.startsWith('five') || h.startsWith('trio')) ? 'five' : (h.startsWith('full') || h.startsWith('midas')) ? 'full' : 'gdpnow';
   document.querySelectorAll('#top button').forEach(b => b.setAttribute('aria-selected', b.dataset.top === t));
   document.getElementById('panel-gdpnow').hidden = t !== 'gdpnow';
-  document.getElementById('panel-midas').hidden = t === 'gdpnow';
-  if (t !== 'gdpnow' && window.__midas) window.__midas.show(t, h.endsWith('-rep'));
+  document.getElementById('panel-midas').hidden = t !== 'full' && t !== 'five';
+  document.getElementById('panel-blend').hidden = t !== 'blend';
+  if (window.__midas) { if (t === 'blend') window.__midas.showBlend(); else if (t !== 'gdpnow') window.__midas.show(t, h.endsWith('-rep')); }
 }
 document.querySelectorAll('#top button').forEach(b => b.onclick = () => { location.hash = b.dataset.top; });
 window.addEventListener('hashchange', route);
