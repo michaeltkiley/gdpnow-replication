@@ -110,6 +110,21 @@ Same pipeline, training window and target as everything above (per-capita, no tr
 
 Reading it: adding jobs and spending recovers most of what the 14-indicator model gains over Chan's set before COVID (1.43 to 1.31 against 1.25) and closes about half the post-2021 gap (2.33 to 2.02 against 1.82). After 2021 the five-variable model is still slightly worse than AR(2) at end-M3 (2.02 vs 1.86). The gain after 2021 comes from deflating retail sales (2.19 to 2.02), not from the population adjustment, which is neutral on RMSFE (1.30 to 1.31 before COVID, 2.02 to 2.02 after); it is kept because it is the correct measurement for a per-person target, not because it was shown to help. Pre-COVID the unadjusted, nominal version is nominally best (1.27) but not by a margin that 60 quarters can distinguish. These variants were compared after seeing the earlier results, so they are not clean out-of-sample tests. `MIDAS_FIVE=raw|real|adj` selects the variant in `nowcast.py`; the per-origin results of the offline runs differ from the previous run by up to 0.13pp in single forecasts because the pseudo-real-time fallback series (NFCI, jobless claims, population) are current data, with the aggregates unchanged to two decimals.
 
+## 3d. Blend with GDPNow (`blend.py`)
+**Blend = 71.6% published GDPNow + 28.4% the average of MIDAS-14 and MIDAS-5**, one weight for every forecast date, nonnegative, summing to 1, no intercept (`weight_midas` in `docs/data/blend.json`). It supersedes the in-sample 14-indicator blend in section 3. The weight minimises squared error against the BEA advance estimate over 2011Q3-2026Q3 without 2020-21 (53 quarters, the span of GDPNow's published history).
+
+Tried first, in order: (i) OLS of the outcome on the three nowcasts with intercept: GDPNow weight 0.65-0.77, MIDAS weights insignificant and sign-flipping (the two MIDAS models correlate at 0.54), out-of-sample gain about nil; (ii) simplex weights per stage: stable GDPNow share 0.64-0.79 but the MIDAS weight jumps between the two models; (iii) MIDAS average per stage; (iv) per-stage weights shrunk toward a linear schedule across stages, strength chosen by leave-one-quarter-out error, with and without the constraint that GDPNow's weight can only rise toward the release. The data show no stage pattern, and with the constraint the best schedule is flat, so the single weight is used.
+
+RMSFE (pp), out of sample (the weight is refit leaving each whole quarter out):
+
+| | M1 | M2 | M3 | 15th after | all four |
+|---|---|---|---|---|---|
+| GDPNow | 1.30 | 1.07 | 0.91 | 1.01 | 1.08 |
+| Blend | 1.30 | 1.02 | 0.90 | 0.91 | 1.05 |
+| MIDAS average alone | 1.54 | 1.32 | 1.34 | 1.24 | 1.36 |
+
+By era the blend cuts GDPNow's error by 9% in 2011-19 (0.88 to 0.80) and by nothing in 2022-26 (1.30 to 1.30). The weight was chosen after seeing these quarters, so the gain is an upper bound. The weight applies to the published GDPNow figure, not the replication (too little history). No blend exists for a next quarter GDPNow has not started.
+
 ## 3b. The tracker page
 The GDPNow tracker (`docs/index.html`) is now one page with three top tabs: **GDPNow replication**, **MIDAS, 14 indicators** and **MIDAS, 5 indicators** (hashes `#gdpnow`, `#full`, `#five`, with the old `#trio` redirecting to `#five`, plus `-rep` for the Replication view; `docs/midas.html` redirects to `#full`). Each MIDAS tab has a Data view (headline, GDPNow comparison, waterfall of what changed since a chosen date, daily evolution, contribution by indicator) and a Replication view (method, accuracy, track record, blend with GDPNow, how the specification was chosen). `midas/live.py` runs the model for any date (workflow `midas-daily.yml`, weekdays) and writes `docs/data/midas_daily.json`; `midas/build_page_data.py` writes `docs/data/midas_static.json`. Backfilled daily history starts 2026-04-01.
 

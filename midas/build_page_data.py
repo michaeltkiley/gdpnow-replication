@@ -64,3 +64,7 @@ track = [{k: (None if (isinstance(v, float) and np.isnan(v)) else (round(v, 3) i
 out = {'spec': SPEC, 'stats': stats, 'blend': bl, 'bias': bias, 'path': path, 'path5': path5, 'importance': imp, 'predictors': meta, 'track': track}
 (HERE.parent / 'docs' / 'data' / 'midas_static.json').write_text(json.dumps(out, separators=(',', ':')))
 print({k: (stats[k]['rmsfe']) for k in ('pre', 'post')}, bias, path, path5, imp, sep='\n')
+
+# blend of published GDPNow with the average of the two MIDAS models -> docs/data/blend.json
+import blend
+(HERE.parent / 'docs' / 'data' / 'blend.json').write_text(json.dumps(blend.build(), separators=(',', ':')))
