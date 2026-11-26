@@ -1,7 +1,6 @@
 {
- "asof": "2026-11-24",
+ "asof": "2026-11-25",
  "ok": true,
- "message": "no new data: nowcast unchanged",
- "finished": "2026-11-25T04:36:40+00:00",
- "unchanged": true
+ "message": "ok",
+ "finished": "2026-11-26T04:41:52+00:00"
 }
