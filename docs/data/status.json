@@ -1,6 +1,6 @@
 {
- "asof": "2026-11-25",
- "ok": true,
- "message": "ok",
- "finished": "2026-11-26T04:41:52+00:00"
+ "asof": "2026-11-26",
+ "ok": false,
+ "message": "run failed: probe request failed (GET_JSON https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/mts/mts_table_5?filter=classification_desc): HTTP Error 504: Gateway Time-out",
+ "finished": "2026-11-27T03:50:03+00:00"
 }
